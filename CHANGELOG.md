@@ -2,9 +2,21 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-11-08
+
+### Added
+- **An opt-in fewer-children device fixture.** Guided road captures accept `--child-cohort half-v1`, retaining four alternating original groups (23 rather than 50 children for the fixed route seed), while adult policy stays unchanged. Construction retains the complete fixture's random draws, support placement and surviving rigs before removing excluded children and their handles/colliders. Reports identify the cohort and export-time populations. Normal gameplay density is unchanged; iPad gains remain to be measured.
+
+## 2026-11-07
+
+### Added
+- **Guided device captures can follow a fixed road route automatically.** The opt-in controller uses ordinary driving inputs, a fixed seed/start and the existing road guidance, with ordered checkpoint, corridor, timeout, interruption and damage checks. A real Start tap still initializes iOS audio. Reports identify the route and incomplete runs, and a STOP TEST button releases control. `bin/playtest-perf drive --autopilot --world-detail` prepares the device link; a repeatable route is not a guarantee of identical per-frame simulation or a calibrated comparison.
+- **Capture-only world-update attribution.** Detailed captures split landscape, lakes, ordinary chunks, physical preparation, lighting/vendors, far-field, backdrop, ground and sun work. Ground sampling, normals and bounds are reported as nested costs. The 24 largest world stalls are retained separately from the chronological event ring, with per-frame immutable timing snapshots and reporter output.
+
 ## 2026-11-06
 
 ### Changed
+- **Terrain support samples reuse exact triangle planes.** A bounded cell cache avoids repeated vertex lookups, slopes and normals for nearby suspension and pedestrian queries. Exact-lattice ground height queries read one vertex instead of fetching unused corners. Seed, generation and tuning changes invalidate the cache, while interpolation and per-point water checks retain their previous results. Full equivalence and browser checks retain terrain detail and handling. High desktop comparisons show lower frame-work timers and a secondary driving-p99 improvement, with no detectable change in the primary frame-delivery verdict. [Verification](verification/performance/2026-11-06-terrain-sampling/lattice-README.md).
 - **A single crash no longer wrecks a healthy Zerble.** Solid impacts now cause 20 damage at the normal 18 m/s target and at most 25 per impact, including boosted hits and hard landings. Separate hits still accumulate to game over; lightweight chairs retain their small dents and three-point cap.
 
 ## 2026-11-05

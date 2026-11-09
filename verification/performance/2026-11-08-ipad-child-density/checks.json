@@ -1,0 +1,15 @@
+{
+  "check": {
+    "command": "npm run check",
+    "exitCode": 0,
+    "log": "check.log"
+  },
+  "build": {
+    "command": "npm run build",
+    "exitCode": 0,
+    "log": "build.log"
+  },
+  "analysisDeterministic": true,
+  "sourceApp": "48d72d20f0b430d598a88ad8da7b33af4a9bb89b511ebb5908f95bcb4bb72128",
+  "physicalIpadReducedCohort": "pending"
+}

@@ -1,0 +1,489 @@
+{
+  "activeDurationS": 0.3,
+  "capturedAt": "2026-11-08T04:36:33.418Z",
+  "chunkStages": {
+    "campsites": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    },
+    "crowd": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    },
+    "hedges": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    },
+    "jugs": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    },
+    "prop:arch": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    },
+    "prop:bubble_vendor": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    },
+    "prop:main_stage": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    },
+    "prop:vendor_row": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    },
+    "prop:welfare_post": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    },
+    "props": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    },
+    "region": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    },
+    "roads": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    },
+    "tree:instanced-visuals": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    },
+    "trees": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    },
+    "woodland": {
+      "count": 0,
+      "maxMs": 0,
+      "totalMs": 0
+    }
+  },
+  "device": {
+    "deviceMemoryGB": 16,
+    "hardwareConcurrency": 14,
+    "maxTouchPoints": 0,
+    "pixelRatio": 1,
+    "platform": "MacIntel",
+    "renderer": {
+      "maxSamples": 4,
+      "maxTextureSize": 16384,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "resolution": {
+        "bloomH": 360,
+        "bloomW": 640,
+        "canvasH": 720,
+        "canvasW": 1280,
+        "targetH": 720,
+        "targetW": 1280
+      },
+      "vendor": "Google Inc. (Apple)",
+      "webglVersion": 2
+    },
+    "screen": {
+      "height": 1080,
+      "width": 1920
+    },
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+    "viewport": {
+      "height": 720,
+      "width": 1280
+    }
+  },
+  "droppedFrameEvents": 0,
+  "durationS": 0.3,
+  "errors": [
+    {
+      "file": "",
+      "line": 0,
+      "message": "Autopilot: user-stop",
+      "ts": 1794112593417
+    }
+  ],
+  "feltLag": [],
+  "frameEvents": [
+    {
+      "chunkCount": 9,
+      "phase": "settle",
+      "previousWorkMs": 2.3,
+      "programCount": 53,
+      "renderMs": 20,
+      "ts": 1794112593228,
+      "wallMs": 139.4,
+      "workMs": 66.8,
+      "worldClockReads": 10,
+      "worldGround": {
+        "bounds": 0,
+        "normals": 0,
+        "samples": 0
+      },
+      "worldMs": 5,
+      "worldParts": {
+        "backdrop": 0,
+        "chunks": 0.1,
+        "farField": 0.2,
+        "ground": 0,
+        "lakes": 0,
+        "landscape": 4.5,
+        "lighting": 0,
+        "physical": 0,
+        "sun": 0,
+        "vendors": 0.2
+      },
+      "x": -230,
+      "z": -692
+    },
+    {
+      "chunkCount": 9,
+      "phase": "settle",
+      "previousWorkMs": 66.8,
+      "programCount": 53,
+      "renderMs": 3.7,
+      "ts": 1794112593260,
+      "wallMs": 73.9,
+      "workMs": 24.1,
+      "worldClockReads": 10,
+      "worldGround": {
+        "bounds": 0,
+        "normals": 0,
+        "samples": 0
+      },
+      "worldMs": 3.2,
+      "worldParts": {
+        "backdrop": 0,
+        "chunks": 0,
+        "farField": 0,
+        "ground": 0,
+        "lakes": 0.1,
+        "landscape": 3,
+        "lighting": 0,
+        "physical": 0,
+        "sun": 0,
+        "vendors": 0.1
+      },
+      "x": -230,
+      "z": -692
+    },
+    {
+      "chunkCount": 9,
+      "phase": "settle",
+      "previousWorkMs": 10.6,
+      "programCount": 53,
+      "renderMs": 2.8,
+      "ts": 1794112593357,
+      "wallMs": 11.5,
+      "workMs": 67.7,
+      "worldClockReads": 10,
+      "worldGround": {
+        "bounds": 0,
+        "normals": 0,
+        "samples": 0
+      },
+      "worldMs": 27.5,
+      "worldParts": {
+        "backdrop": 0,
+        "chunks": 0,
+        "farField": 0,
+        "ground": 0,
+        "lakes": 0,
+        "landscape": 27.4,
+        "lighting": 0,
+        "physical": 0,
+        "sun": 0,
+        "vendors": 0.1
+      },
+      "x": -230,
+      "z": -692
+    },
+    {
+      "chunkCount": 9,
+      "phase": "settle",
+      "previousWorkMs": 67.7,
+      "programCount": 61,
+      "renderMs": 48.3,
+      "ts": 1794112593416,
+      "wallMs": 69,
+      "workMs": 58.6,
+      "worldClockReads": 10,
+      "worldGround": {
+        "bounds": 0,
+        "normals": 0,
+        "samples": 0
+      },
+      "worldMs": 3.1,
+      "worldParts": {
+        "backdrop": 0,
+        "chunks": 0,
+        "farField": 2,
+        "ground": 0,
+        "lakes": 0,
+        "landscape": 0.8,
+        "lighting": 0,
+        "physical": 0.2,
+        "sun": 0,
+        "vendors": 0.1
+      },
+      "x": -230,
+      "z": -692
+    }
+  ],
+  "markers": [],
+  "phaseEvents": [
+    {
+      "elapsedS": 0,
+      "phase": "settle",
+      "ts": 1794112593158
+    },
+    {
+      "elapsedS": 0.3,
+      "phase": "complete",
+      "ts": 1794112593418
+    }
+  ],
+  "reason": "complete",
+  "sampleCount": 2,
+  "samples": [
+    {
+      "avoidMs": 0,
+      "bigFp": 11,
+      "bloom": false,
+      "bloomH": 360,
+      "bloomW": 640,
+      "bubbleActive": 0,
+      "bubbles": "cheap",
+      "canvasH": 720,
+      "canvasW": 1280,
+      "cgLast": 8,
+      "cgN": 9,
+      "cgSlow": 3,
+      "cgWorst": 21.9,
+      "col": 1791,
+      "draws": 653,
+      "fAvg": 0,
+      "fMax": 0,
+      "fP95": 0,
+      "ffActive": 0,
+      "ffCold": 0,
+      "ffHandoffs": 0,
+      "ffOverflow": 0,
+      "ffRebuilds": 0,
+      "fps": 19,
+      "frame": null,
+      "geo": 244,
+      "heapMB": 90,
+      "mcol": 4.3,
+      "mfp": 14,
+      "npc": 112,
+      "phase": "settle",
+      "pixelRatio": 1,
+      "prog": 51,
+      "progDelta": 0,
+      "quality": "baseline",
+      "qualityLevel": 0,
+      "rawSmiles": 0,
+      "reg": 1935,
+      "sepMs": 0,
+      "shadowPolicy": false,
+      "speed": 0,
+      "starPower": false,
+      "sunShadow": false,
+      "t": 0,
+      "targetH": 720,
+      "targetW": 1280,
+      "tex": 18,
+      "tripEnvelope": 0,
+      "tripPass": false,
+      "tripProgress": 0,
+      "tripState": "idle",
+      "tris": 302624,
+      "ts": 1794112593162,
+      "x": -230,
+      "z": -692
+    },
+    {
+      "avoidMs": 0.1,
+      "bigFp": 11,
+      "bloom": false,
+      "bloomH": 360,
+      "bloomW": 640,
+      "bubbleActive": 4,
+      "bubbles": "cheap",
+      "canvasH": 720,
+      "canvasW": 1280,
+      "cgLast": 8,
+      "cgN": 9,
+      "cgSlow": 3,
+      "cgWorst": 21.9,
+      "col": 1791,
+      "draws": 1077,
+      "fAvg": 0,
+      "fMax": 0,
+      "fP95": 0,
+      "ffActive": 0,
+      "ffCold": 0.7,
+      "ffHandoffs": 0,
+      "ffOverflow": 0,
+      "ffRebuilds": 0,
+      "fps": 24,
+      "frame": {
+        "frames": 6,
+        "over100": 1,
+        "over33": 3,
+        "over50": 3,
+        "renderMax": 48.3,
+        "wallMax": 139.4,
+        "wallP50": 26.3,
+        "wallP95": 139.4,
+        "wallP99": 139.4,
+        "workMax": 67.7,
+        "workP95": 67.7,
+        "worldMax": 27.5,
+        "worldPartsMax": {
+          "backdrop": 0,
+          "chunks": 0.1,
+          "farField": 2,
+          "ground": 0,
+          "lakes": 0.1,
+          "landscape": 27.4,
+          "lighting": 0,
+          "physical": 2.3,
+          "sun": 0.1,
+          "vendors": 0.2
+        }
+      },
+      "geo": 717,
+      "heapMB": 105,
+      "mcol": 4.3,
+      "mfp": 14,
+      "npc": 112,
+      "phase": "settle",
+      "pixelRatio": 1,
+      "prog": 61,
+      "progDelta": 10,
+      "quality": "baseline",
+      "qualityLevel": 0,
+      "rawSmiles": 0,
+      "reg": 1935,
+      "sepMs": 0.1,
+      "shadowPolicy": false,
+      "speed": 0,
+      "starPower": false,
+      "sunShadow": false,
+      "t": 0.3,
+      "targetH": 720,
+      "targetW": 1280,
+      "tex": 35,
+      "tripEnvelope": 0,
+      "tripPass": false,
+      "tripProgress": 0,
+      "tripState": "idle",
+      "tris": 432448,
+      "ts": 1794112593417,
+      "x": -230,
+      "z": -692
+    }
+  ],
+  "schema": "zerble-device-perf-v2",
+  "session": {
+    "autopilot": {
+      "checkpointCount": 0,
+      "checkpoints": [],
+      "complete": false,
+      "control": {
+        "boost": false,
+        "brake": true,
+        "steer": 0,
+        "throttle": 0
+      },
+      "frames": 0,
+      "maxCorridorMetres": 0,
+      "reason": "user-stop",
+      "routePolicy": "road-follow-v2",
+      "seed": 2404796662,
+      "segment": 0,
+      "start": {
+        "heading": 2.358,
+        "x": -230.3,
+        "z": -691.8
+      },
+      "state": "failed",
+      "travelMetres": 0,
+      "version": "device-road-follow-v1"
+    },
+    "basePixelRatio": 1,
+    "chunksGeneratedDuringCapture": 0,
+    "detectedTier": "high",
+    "governorEnabled": true,
+    "mode": "cruisin",
+    "params": {
+      "heading": "2.3580",
+      "mute": "1",
+      "perf": "low",
+      "perfAutopilot": "road-follow-v1",
+      "perfCapture": "1",
+      "perfQuality": "auto",
+      "perfScenario": "drive",
+      "perfWorld": "1",
+      "physics": "1",
+      "seed": "2404796662",
+      "tod": ".3",
+      "x": "-230.3",
+      "z": "-691.8"
+    },
+    "postprocessPreparation": {
+      "durationMs": 16,
+      "materials": 9,
+      "status": "ready"
+    },
+    "quality": "baseline",
+    "qualityLevel": 0,
+    "qualityLockedDuringComparison": false,
+    "qualityLockedFromFirstFrame": false,
+    "qualityPolicy": "auto",
+    "qualityPolicyApplied": true,
+    "qualityPolicyRequested": "auto",
+    "scenario": "drive",
+    "seed": 2404796662,
+    "tier": "low",
+    "tierPolicy": {
+      "bubblePoolMax": 200,
+      "bubbles": "cheap",
+      "chunkLoadRadius": 1,
+      "chunkUnloadRadius": 2,
+      "crowdMax": 180,
+      "forestTreeDensityMul": 0.7,
+      "shadows": false
+    },
+    "tod": 0.30013888888888896,
+    "x": -230.3,
+    "z": -691.8
+  },
+  "startedAt": "2026-11-08T04:36:33.157Z",
+  "valid": false,
+  "visibilityEvents": [],
+  "worldUpdateTimings": {
+    "maxRetained": 24,
+    "note": "Top-level parts partition updateWorld; ground details are nested, not additive. Clock reads and capture bookkeeping perturb timing.",
+    "version": "world-sections-v1",
+    "worstFrames": []
+  }
+}

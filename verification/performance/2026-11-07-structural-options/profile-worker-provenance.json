@@ -1,0 +1,11 @@
+{
+  "baseFile": "tooling/performance_lab/worker.mjs",
+  "baseSha256": "4248307ab32acc77eb57b3aabf09603fb978b941ffb51c011fd35927fd3265e4",
+  "changes": "Sampling profiler starts after measuring begins; stops after route completion; no page behavior patches; after acknowledged capture and profiler stop, read-only scene topology export; later post-run export adds camera layers and plain registry geometry for offline probes",
+  "measurementLimits": "Profiler overhead perturbs run timings; instrumentation identity cpu-profile-v1 excludes these captures from light-v1 comparisons",
+  "initialWorkerSha256": "0f07947c8021460a7ffc57308e0ad92b73c31fe8ce43f874a21f8bdb06555370",
+  "initialWorkerArchive": "profile-worker-initial.mjs",
+  "instrumentedSha256": "6ddd8f409c407ba282d78122ff8fb69faceafec87c00d91d565f701c7552f73f",
+  "topologyWorkerArchive": "profile-worker-topology.mjs",
+  "topologyWorkerSha256": "0681f46837c0bb6f6c522a99fe59311e2416aa2816664844aebde9f796817968"
+}

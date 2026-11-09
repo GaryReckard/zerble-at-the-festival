@@ -1,0 +1,19 @@
+Report: verification/performance/2026-11-07-ipad-autopilot/stop-capture.json
+Captured: 2026-11-08T04:36:33.418Z | result: complete | schema: zerble-device-perf-v2
+Device: MacIntel / Chrome / ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version) | tier: low (detected high) | seed: 2404796662 | scenario: drive
+Samples: 2 | active duration: 0.3s | felt lag marks: 0 | errors: 1
+Quality policy: auto | requested: auto | locked from first frame: False | comparison locked: False
+Autopilot: device-road-follow-v1 | failed | checkpoints 0/4 | distance 0.0m | max corridor 0.0m
+CHECK: autopilot run is INVALID: user-stop; not a completed route comparison.
+
+Phase            n  FPS med  wall p95  wall p99  worst wall  worst work  worst world  worst render  >50ms  draws med
+settle            2     21.5     139.4     139.4       139.4        67.7         27.5          48.3      3      865.0
+
+Worst frames (showing 4 of 4; 0 older events dropped):
+  settle       wall 139.4ms, work 66.8ms (previous work 2.3ms) (world 5, render 20) at -230,-692 | chunks 9 | programs 53
+  settle       wall 73.9ms, work 24.1ms (previous work 66.8ms) (world 3.2, render 3.7) at -230,-692 | chunks 9 | programs 53
+  settle       wall 69ms, work 58.6ms (previous work 67.7ms) (world 3.1, render 48.3) at -230,-692 | chunks 9 | programs 61
+  settle       wall 11.5ms, work 67.7ms (previous work 10.6ms) (world 27.5, render 2.8) at -230,-692 | chunks 9 | programs 53
+
+Captured errors:
+  Autopilot: user-stop

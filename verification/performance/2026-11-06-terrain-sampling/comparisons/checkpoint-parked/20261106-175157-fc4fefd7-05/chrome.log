@@ -1,0 +1,5 @@
+
+DevTools listening on ws://127.0.0.1:62369/devtools/browser/673aeca6-ad87-458d-ad1b-8b6e9f06bb7d
+Trying to load the allocator multiple times. This is *not* supported.
+[50966:40285129:1106/175643.993653:ERROR:components/policy/core/browser/policy_conversions_client.cc:332] DeveloperToolsDisabled has an error of type: Ignored because it was overridden by DeveloperToolsAvailability.
+aperitif: Failed to initialize sandbox

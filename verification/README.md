@@ -27,6 +27,14 @@ not physical-device acceptance.
 
 ## Recent investigations
 
+- [Device autopilot and world attribution, November 7](performance/2026-11-07-ipad-autopilot/README.md): fixed-route guided capture and capture-only world/ground sections, full checks/build, native desktop route and stop pilots, exact cleanup; the next physical-iPad run remains the device acceptance check.
+
+- [Physical-iPad capture, November 7](performance/2026-11-07-ipad/README.md): completed Auto/Low drive with the lowest quality rung active, median sampled driving FPS 29 and large world-update stalls; exact build/raw evidence retained, inner-subsystem attribution and hardware-model details remain open.
+
+- [Structural optimization investigation, November 7](performance/2026-11-07-structural-options/README.md): source-grounded rewrite candidates, exact-support and registry feasibility probes, Low/High all-camera frozen rendering experiments and their negative advancement results; no production rewrite or device-performance gain is claimed.
+
+- [Terrain sampling and direct lattice heights, November 6](performance/2026-11-06-terrain-sampling/lattice-README.md): exact sampler/production-ground proof, 56% lower warm recenter CPU benchmark, full checks/build and native tier/route integration; both final calibrated comparisons report no detectable primary frame-delivery change, with lower work timers and a secondary driving-p99 improvement. All failed attempts, raw reports and exact cleanup are preserved; iPad/Auto acceptance remains separate.
+
 - [Festival optimization, November 5](performance/2026-11-05-optimization/README.md): child resource pooling and camera-aware instancing, avoided terrain queries, High festival/driving frame-time improvements, Low CPU headroom, a preserved failed baseline holdout, four accepted fixed-tier comparisons, deterministic raw-data regeneration and exact process cleanup; physical-iPad acceptance remains separate.
 
 - [Repeatable performance lab, November 3](performance/2026-11-03-lab/README.md): complete 48-run desktop acceptance, real GPU/process ownership, fresh unchanged-source holdouts, comparable injected regressions and deterministic offline replay.
@@ -100,3 +108,5 @@ entry when behavior ships.
 - [October 28 junction and dirt-repeat corrections](roads/2026-10-28-junctions/README.md): both reported mixed-surface junctions, geometry subtraction, camera-angle checks, a larger dirt tile, fixed-capacity proxy safety and full-game evidence.
 
 - [Festival map, October 29](festival-map/README.md): functional map/storage/input/worker evidence, captures, diagnostic snapshot and remaining device acceptance.
+
+- [November 8 physical-iPad route baseline and child-density fixture](performance/2026-11-08-ipad-child-density/README.md): valid route attribution, reduced-cohort preparation, and verification limits.

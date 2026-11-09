@@ -1,0 +1,62 @@
+{
+  "ok": true,
+  "hardware": {
+    "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+    "focused": true,
+    "visible": true,
+    "labAbsent": true
+  },
+  "autopilot": {
+    "checkpointCount": 4,
+    "checkpoints": [
+      {
+        "seconds": 6.699900000095368,
+        "segment": 0,
+        "x": -322.06109619140625,
+        "z": -657.8007202148438
+      },
+      {
+        "seconds": 19.416700000047683,
+        "segment": 1,
+        "x": -457.6519775390625,
+        "z": -546.8282470703125
+      },
+      {
+        "seconds": 29.283400000095366,
+        "segment": 2,
+        "x": -365.8778991699219,
+        "z": -548.5640869140625
+      },
+      {
+        "seconds": 44.83329999995232,
+        "segment": 3,
+        "x": -233.06558227539062,
+        "z": -689.115234375
+      }
+    ],
+    "complete": true,
+    "control": {
+      "boost": false,
+      "brake": true,
+      "distance": 4.0437619319156,
+      "steer": 0,
+      "throttle": 0
+    },
+    "frames": 2659,
+    "maxCorridorMetres": 5.47697076461151,
+    "reason": null,
+    "routePolicy": "road-follow-v2",
+    "seed": 2404796662,
+    "segment": 4,
+    "start": {
+      "heading": 2.358,
+      "x": -230.3,
+      "z": -691.8
+    },
+    "state": "completed",
+    "travelMetres": 641.3084538211059,
+    "version": "device-road-follow-v1"
+  },
+  "worldWorstFrames": 4,
+  "errors": []
+}

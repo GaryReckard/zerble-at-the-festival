@@ -1,0 +1,420 @@
+{
+  "nodes": 8664,
+  "meshObjects": 6460,
+  "visibleLayerMatchedPlainOpaque": 3662,
+  "identityBuckets80m": 2400,
+  "repeatUpperBound": 1262,
+  "topBuckets": [
+    {
+      "count": 46,
+      "geometryType": "CylinderGeometry",
+      "chain": [
+        {
+          "name": "",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "type": "Group",
+          "keys": []
+        }
+      ]
+    },
+    {
+      "count": 38,
+      "geometryType": "CylinderGeometry",
+      "chain": [
+        {
+          "name": "",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "chunk-v2(-5,-8)",
+          "type": "Group",
+          "keys": []
+        }
+      ]
+    },
+    {
+      "count": 37,
+      "geometryType": "BoxGeometry",
+      "chain": [
+        {
+          "name": "",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "type": "Group",
+          "keys": []
+        }
+      ]
+    },
+    {
+      "count": 36,
+      "geometryType": "CylinderGeometry",
+      "chain": [
+        {
+          "name": "",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "chunk-v2(-4,-7)",
+          "type": "Group",
+          "keys": []
+        }
+      ]
+    },
+    {
+      "count": 30,
+      "geometryType": "CylinderGeometry",
+      "chain": [
+        {
+          "name": "",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "chunk-v2(-3,-8)",
+          "type": "Group",
+          "keys": []
+        }
+      ]
+    },
+    {
+      "count": 30,
+      "geometryType": "CylinderGeometry",
+      "chain": [
+        {
+          "name": "",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "type": "Group",
+          "keys": []
+        }
+      ]
+    },
+    {
+      "count": 26,
+      "geometryType": "BoxGeometry",
+      "chain": [
+        {
+          "name": "",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "chunk-v2(-3,-8)",
+          "type": "Group",
+          "keys": []
+        }
+      ]
+    },
+    {
+      "count": 26,
+      "geometryType": "CylinderGeometry",
+      "chain": [
+        {
+          "name": "",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "type": "Group",
+          "keys": []
+        }
+      ]
+    },
+    {
+      "count": 25,
+      "geometryType": "BoxGeometry",
+      "chain": [
+        {
+          "name": "",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "type": "Group",
+          "keys": []
+        }
+      ]
+    },
+    {
+      "count": 22,
+      "geometryType": "BoxGeometry",
+      "chain": [
+        {
+          "name": "",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "chunk-v2(-4,-7)",
+          "type": "Group",
+          "keys": []
+        }
+      ]
+    },
+    {
+      "count": 22,
+      "geometryType": "BoxGeometry",
+      "chain": [
+        {
+          "name": "",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "chunk-v2(-5,-8)",
+          "type": "Group",
+          "keys": []
+        }
+      ]
+    },
+    {
+      "count": 20,
+      "geometryType": "CylinderGeometry",
+      "chain": [
+        {
+          "name": "",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "type": "Group",
+          "keys": []
+        }
+      ]
+    },
+    {
+      "count": 18,
+      "geometryType": "CylinderGeometry",
+      "chain": [
+        {
+          "name": "",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "chunk-v2(-3,-8)",
+          "type": "Group",
+          "keys": []
+        }
+      ]
+    },
+    {
+      "count": 16,
+      "geometryType": "CylinderGeometry",
+      "chain": [
+        {
+          "name": "hammock_suspension",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "hammock",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Scene",
+          "keys": []
+        }
+      ]
+    },
+    {
+      "count": 16,
+      "geometryType": "SphereGeometry",
+      "chain": [
+        {
+          "name": "",
+          "type": "Mesh",
+          "keys": []
+        },
+        {
+          "name": "",
+          "type": "Group",
+          "keys": []
+        },
+        {
+          "name": "heron-carrier-0",
+          "type": "Group",
+          "keys": [
+            "grip",
+            "carryRig",
+            "walkLegs",
+            "shoulders",
+            "elbows"
+          ]
+        },
+        {
+          "name": "Puppet-heron",
+          "type": "Group",
+          "keys": [
+            "kind",
+            "seed",
+            "phase",
+            "time",
+            "rig",
+            "locomotion",
+            "nightness",
+            "pose",
+            "distance",
+            "dodgeTimer",
+            "dodgeDirX",
+            "dodgeDirZ",
+            "landscapeUnsupported"
+          ]
+        }
+      ]
+    }
+  ],
+  "scope": "Camera layers accounted for, but unculled topology still includes dynamic/unknown eligibility and is not actual draws or achievable savings"
+}

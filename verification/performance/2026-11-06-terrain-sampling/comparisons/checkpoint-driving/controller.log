@@ -1,0 +1,363 @@
+{"directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77", "tiers": ["high"], "scenarios": ["streaming-drive-v1"], "conditions": [["high", "streaming-drive-v1"]], "recipe": "four-baseline-calibration-v1", "calibration": 4, "freshHoldout": 8, "pairedCandidate": 8, "priorAttempt": {"path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/comparisons/20261106-155155-2266b14b", "result": {"completedRuns": 15, "error": "Failed capture: /Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-15 Page reported incomplete or invalid work", "results": {}, "state": "failed"}}, "totalRuns": 20, "source": {"A": {"path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/snapshots/c3c93589b89b7dad24b3352635622008d201ac98b2fdad76848f41201b1055b5", "app": "c3c93589b89b7dad24b3352635622008d201ac98b2fdad76848f41201b1055b5", "build": "5fe861d4b0102beb03b6cc003bad6485949b9a47d18b47d0181a754bd7254367", "harness": "4ffdedbb5bc4d595d212a276ca3be24f2be0545d488b55aa0790d0b3c1f4c935"}, "B": {"path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/snapshots/1dc95348d133420b5466d7a11a2c4fcc11e182d620297cec6110792bc836ceea", "app": "1dc95348d133420b5466d7a11a2c4fcc11e182d620297cec6110792bc836ceea", "build": "e5aa76aeb071a6b84666cac47d0511be467f43da7992c1f1a26d80b69b0a81c3", "harness": "4ffdedbb5bc4d595d212a276ca3be24f2be0545d488b55aa0790d0b3c1f4c935"}}, "quietAssignment": "Gary reserved Mac on November 6 until he announces his return; window-5/grant.json", "policy": "conservative-paired-v1", "controllerSha256": "1fbdf39201af41937ae9336bfc7dbd86b270be9cc0968c3120097c1ac666b012", "limitations": "Prepared fixed-tier desktop runs; not iPad, Auto, temperature control, or subjective driving acceptance"}
+Run 1/20: high streaming-drive-v1 calibration label=A source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.02659999990463257,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.79899999952313,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.01190000009468,"segment":4,"errors":[]}
+Run 2/20: high streaming-drive-v1 calibration label=A source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.028099999904632567,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.794499999761484,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.01159999990439,"segment":4,"errors":[]}
+Run 3/20: high streaming-drive-v1 calibration label=A source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.05,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.830099999904537,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.01529999995151,"segment":4,"errors":[]}
+Run 4/20: high streaming-drive-v1 calibration label=A source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.0265,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.808599999904555,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.00999999999907,"segment":4,"errors":[]}
+Frozen thresholds: {"wallP95": 2.0, "stallRate": 0.1, "wallMedian": 1.0, "wallP99": 3.0, "severeRate": 0.05, "completionSeconds": 2.0, "timeLost": 0.5}
+Run 5/20: high streaming-drive-v1 holdout label=A source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.05,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.82220000004758,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.00270000052417,"segment":4,"errors":[]}
+Run 6/20: high streaming-drive-v1 holdout label=B source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.05,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.859700000047575,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.01420000004718,"segment":4,"errors":[]}
+Run 7/20: high streaming-drive-v1 holdout label=B source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.05,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.79190000033369,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.00640000009464,"segment":4,"errors":[]}
+Run 8/20: high streaming-drive-v1 holdout label=A source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.05,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.82499999999992,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.0139999997616,"segment":4,"errors":[]}
+Run 9/20: high streaming-drive-v1 holdout label=A source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.029,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.83489999985685,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.0134999995223,"segment":4,"errors":[]}
+Run 10/20: high streaming-drive-v1 holdout label=B source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.05,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.799099999904566,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.01359999990382,"segment":4,"errors":[]}
+Run 11/20: high streaming-drive-v1 holdout label=B source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.05,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.831999999999947,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.00830000019054,"segment":4,"errors":[]}
+Run 12/20: high streaming-drive-v1 holdout label=A source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.026799999952316283,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.83740000009527,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.00979999971358,"segment":4,"errors":[]}
+Run 13/20: high streaming-drive-v1 candidate label=A source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.033799999952316286,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.773099999904545,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.0049999999999,"segment":4,"errors":[]}
+Run 14/20: high streaming-drive-v1 candidate label=B source=B
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.025200000047683715,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.83620000004759,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.00249999976128,"segment":4,"errors":[]}
+Run 15/20: high streaming-drive-v1 candidate label=B source=B
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.05,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.80569999980915,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.00279999995197,"segment":4,"errors":[]}
+Run 16/20: high streaming-drive-v1 candidate label=A source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.05,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.853199999809153,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.00610000038068,"segment":4,"errors":[]}
+Run 17/20: high streaming-drive-v1 candidate label=A source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.028,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.785199999809183,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.01280000019068,"segment":4,"errors":[]}
+Run 18/20: high streaming-drive-v1 candidate label=B source=B
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.024200000047683717,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.758499999999913,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.00139999961807,"segment":4,"errors":[]}
+Run 19/20: high streaming-drive-v1 candidate label=B source=B
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.05,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.846799999952214,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.01379999995174,"segment":4,"errors":[]}
+Run 20/20: high streaming-drive-v1 candidate label=A source=A
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.05,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.823099999904525,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":80.00340000033323,"segment":4,"errors":[]}
+Verdict: no detectable change
+wallP95: paired median change -0.650; frozen threshold 2.000
+stallRate: paired median change -0.016; frozen threshold 0.100
+wallMedian: paired median change -0.000; frozen threshold 1.000
+wallP99: paired median change -3.000; frozen threshold 3.000
+severeRate: paired median change 0.000; frozen threshold 0.050
+completionSeconds: paired median change -0.154; frozen threshold 2.000
+timeLost: paired median change -0.100; frozen threshold 0.500
+segment-0-wallP95: paired median change -1.650; frozen threshold 2.000
+segment-1-wallP95: paired median change -0.300; frozen threshold 2.000
+segment-2-wallP95: paired median change -0.250; frozen threshold 2.000
+segment-3-wallP95: paired median change -0.550; frozen threshold 2.000
+Run 1: median 16.70 ms; p95 19.40; worst 142.60; stalls >50 10; elapsed 60.36s
+Run 2: median 16.70 ms; p95 18.40; worst 129.60; stalls >50 9; elapsed 60.27s
+Run 3: median 16.70 ms; p95 18.50; worst 130.20; stalls >50 10; elapsed 60.25s
+Run 4: median 16.70 ms; p95 19.00; worst 140.10; stalls >50 10; elapsed 60.35s
+Run 5: median 16.70 ms; p95 19.20; worst 206.10; stalls >50 12; elapsed 60.57s
+Run 6: median 16.70 ms; p95 18.40; worst 129.60; stalls >50 9; elapsed 60.25s
+Run 7: median 16.70 ms; p95 18.40; worst 128.10; stalls >50 9; elapsed 60.25s
+Run 8: median 16.70 ms; p95 18.70; worst 139.50; stalls >50 10; elapsed 60.35s
+  Run 1, segment 0: p95 21.20 ms; CPU work p95 20.60; stalls >50 2
+  Run 1, segment 1: p95 19.60 ms; CPU work p95 19.10; stalls >50 3
+  Run 1, segment 2: p95 18.10 ms; CPU work p95 17.40; stalls >50 1
+  Run 1, segment 3: p95 19.60 ms; CPU work p95 19.00; stalls >50 4
+  Run 1, segment 4: p95 19.60 ms; CPU work p95 19.20; stalls >50 0
+  Run 2, segment 0: p95 18.70 ms; CPU work p95 18.10; stalls >50 2
+  Run 2, segment 1: p95 18.50 ms; CPU work p95 15.50; stalls >50 2
+  Run 2, segment 2: p95 18.00 ms; CPU work p95 16.10; stalls >50 1
+  Run 2, segment 3: p95 18.70 ms; CPU work p95 17.20; stalls >50 4
+  Run 2, segment 4: p95 18.20 ms; CPU work p95 16.10; stalls >50 0
+  Run 3, segment 0: p95 19.30 ms; CPU work p95 18.90; stalls >50 2
+  Run 3, segment 1: p95 18.60 ms; CPU work p95 15.80; stalls >50 3
+  Run 3, segment 2: p95 18.40 ms; CPU work p95 15.90; stalls >50 1
+  Run 3, segment 3: p95 18.60 ms; CPU work p95 16.80; stalls >50 4
+  Run 3, segment 4: p95 18.10 ms; CPU work p95 17.50; stalls >50 0
+  Run 4, segment 0: p95 21.20 ms; CPU work p95 20.50; stalls >50 2
+  Run 4, segment 1: p95 18.50 ms; CPU work p95 16.20; stalls >50 3
+  Run 4, segment 2: p95 18.30 ms; CPU work p95 17.00; stalls >50 1
+  Run 4, segment 3: p95 18.70 ms; CPU work p95 18.00; stalls >50 4
+  Run 4, segment 4: p95 19.40 ms; CPU work p95 18.90; stalls >50 0
+  Run 5, segment 0: p95 21.00 ms; CPU work p95 20.70; stalls >50 2
+  Run 5, segment 1: p95 18.80 ms; CPU work p95 16.50; stalls >50 3
+  Run 5, segment 2: p95 18.50 ms; CPU work p95 17.00; stalls >50 1
+  Run 5, segment 3: p95 20.00 ms; CPU work p95 19.10; stalls >50 6
+  Run 5, segment 4: p95 19.20 ms; CPU work p95 18.70; stalls >50 0
+  Run 6, segment 0: p95 19.60 ms; CPU work p95 18.90; stalls >50 2
+  Run 6, segment 1: p95 18.50 ms; CPU work p95 15.80; stalls >50 2
+  Run 6, segment 2: p95 18.10 ms; CPU work p95 16.30; stalls >50 1
+  Run 6, segment 3: p95 19.10 ms; CPU work p95 18.50; stalls >50 4
+  Run 6, segment 4: p95 17.80 ms; CPU work p95 17.00; stalls >50 0
+  Run 7, segment 0: p95 19.90 ms; CPU work p95 19.40; stalls >50 2
+  Run 7, segment 1: p95 18.30 ms; CPU work p95 15.60; stalls >50 2
+  Run 7, segment 2: p95 18.20 ms; CPU work p95 16.10; stalls >50 1
+  Run 7, segment 3: p95 18.50 ms; CPU work p95 16.80; stalls >50 4
+  Run 7, segment 4: p95 18.40 ms; CPU work p95 16.20; stalls >50 0
+  Run 8, segment 0: p95 21.00 ms; CPU work p95 20.70; stalls >50 2
+  Run 8, segment 1: p95 18.60 ms; CPU work p95 16.20; stalls >50 3
+  Run 8, segment 2: p95 18.60 ms; CPU work p95 17.90; stalls >50 1
+  Run 8, segment 3: p95 18.70 ms; CPU work p95 17.70; stalls >50 4
+  Run 8, segment 4: p95 18.90 ms; CPU work p95 18.30; stalls >50 0
+Scope: recorded desktop scenario/settings only; not subjective, phone, Auto or cold-cache acceptance.

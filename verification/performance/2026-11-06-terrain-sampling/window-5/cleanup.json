@@ -1,0 +1,448 @@
+{
+  "recordedUtc": "2026-11-07T00:45:27.544100+00:00",
+  "reason": "Both source revisions fully compared; all task foreground work finished",
+  "manifests": [
+    {
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-184824-0aad9c68/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-184834-b04d8777/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-184844-c97bce19/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-184854-fe1c5c2a/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-185021-687f4f2d/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-185147-cbb3b84a/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-185314-fc34aadc/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-15/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-12/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-13/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-14/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-07/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-09/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-08/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-01/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-06/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-20/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-18/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-11/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-16/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-17/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-10/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-19/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-03/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-04/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-05/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-02/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-10/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-17/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-19/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-18/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-20/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-16/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-11/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-02/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-05/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-04/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-03/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-14/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-13/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-12/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-15/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-08/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-06/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-01/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-07/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-181208-ba4c8b77/20261106-181208-ba4c8b77-09/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-14/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-13/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-12/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-15/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-06/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-01/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-08/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-09/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-07/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-19/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-10/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-17/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-16/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-11/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-18/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-20/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-02/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-05/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-04/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-185439-1bd87b36/20261106-185439-1bd87b36-03/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-05/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-02/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-03/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-04/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-19/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-17/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-10/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-11/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-16/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-20/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-18/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-01/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-06/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-08/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-09/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-07/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-13/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-14/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-15/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-191443-dccfe54e/20261106-191443-dccfe54e-12/ownership.json",
+      "cleanupOk": true,
+      "state": "collected"
+    }
+  ],
+  "checkedIdentities": 1757,
+  "remaining": [],
+  "allTaskOwnedProcessesAbsent": true,
+  "keepAwakePid": 49926,
+  "keepAwakeAbsent": true,
+  "labLeaseAbsent": true,
+  "preExistingUserSessions": "Preserved; no task-owned long-lived development server remains"
+}

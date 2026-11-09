@@ -1,0 +1,87 @@
+{
+  "recordedAt": "2026-11-06T21:13:20.111275+00:00",
+  "reason": "Gary returned; foreground grant ended",
+  "manifests": [
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-01/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-02/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-03/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-04/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-05/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-06/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-07/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-08/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-09/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-10/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-11/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-12/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-13/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-14/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-155155-2266b14b/20261106-155155-2266b14b-15/ownership.json",
+      "state": "failed",
+      "cleanupOk": true
+    }
+  ],
+  "checkedIdentities": 333,
+  "remaining": [],
+  "keepAwakePid": 50107,
+  "keepAwakeAbsent": true,
+  "labLeaseAbsent": true,
+  "allTaskOwnedProcessesAbsent": true
+}

@@ -1,0 +1,51 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {setSessionSeed} from '../src/rng.js';
+import {bumpWorldgen} from '../src/worldgen/constants.js';
+import {setLandscapeVersion} from '../src/worldgen/landscapeCandidates.js';
+import * as current from '../src/worldgen/terrain.js';
+import * as legacy from '../verification/performance/2026-11-06-terrain-sampling/legacy-terrain.js';
+import {createGroundFixture,recordedScenarioCenters,productionSourceSha256} from '../verification/performance/2026-11-06-terrain-sampling/ground-fixture.mjs';
+
+const original=createGroundFixture(legacy),revised=createGroundFixture(current);
+const ray=new THREE.Raycaster(),down=new THREE.Vector3(0,-1,0);
+let snapshots=0,nonflat=0,rays=0;
+function compare(x,z){
+  const retained=current.terrainCacheStats().cells;
+  original.update(x,z);revised.update(x,z);
+  const a=original.mesh.geometry,b=revised.mesh.geometry;
+  assert.equal(a.attributes.position.count,19881,'exercise the full production ground lattice');
+  for(const name of ['position','normal','color','uv']){
+    assert.deepEqual(b.attributes[name].array,a.attributes[name].array,`${name} differs at ${x},${z}`);
+    assert.equal(b.attributes[name].version,a.attributes[name].version,`${name} GPU dirty version differs`);
+  }
+  assert.deepEqual(b.index.array,a.index.array);
+  assert.deepEqual(b.boundingSphere,a.boundingSphere);
+  assert.deepEqual(revised.mesh.material.map.offset,original.mesh.material.map.offset);
+  assert.equal(current.terrainCacheStats().cells,retained,'full ground recenter cannot populate or evict support planes');
+  for(let i=0;i<b.attributes.position.count;i+=101)if(Math.abs(b.attributes.position.getY(i))>.1)nonflat++;
+  // Real raycasts prove the final world transform and triangle buffers agree.
+  for(const [dx,dz]of [[-20,-20],[3.7,6.3],[0,0],[20,30]]){
+    ray.set(new THREE.Vector3(x+dx,1000,z+dz),down);
+    const before=ray.intersectObject(original.mesh),after=ray.intersectObject(revised.mesh);
+    assert(before.length&&after.length,'rays must hit actual geometry');
+    assert.equal(after[0].distance,before[0].distance);assert.deepEqual(after[0].point,before[0].point);rays++;
+  }
+  snapshots++;
+}
+try{
+  setLandscapeVersion(2);setSessionSeed(2404796662);
+  for(const t of [legacy,current])t.setTerrainEnabled(true);
+  const centers=recordedScenarioCenters(revised.snap);assert(centers.length>20,'cover the real scenario path and return');
+  current.sampleTerrainGround(-231,-692);assert(current.terrainCacheStats().cells>0);
+  for(const p of centers)compare(...p);
+  setSessionSeed(1977);
+  for(const p of [[-1040,-1440],[-1000,-1440],[-1000,-1480],[-1040,-1440]])compare(...p);
+  setLandscapeVersion(1);compare(-40,40);compare(0,0);
+  bumpWorldgen();compare(40,-40);
+  for(const t of [legacy,current])t.setTerrainEnabled(false);compare(-80,-40);
+  for(const t of [legacy,current])t.setTerrainEnabled(true);compare(-80,-40);
+  assert(nonflat>0,'exercise nonflat world positions, not only datum-zero pads');
+  console.log('PASS real ground resampling: exact positions/normals/colors/UVs/indices/bounds and dirty flags, real raycasts, actual scenario snapped centers, generations/seeds/toggles, and unchanged local-support cache.',{snapshots,rays,nonflat,productionSourceSha256});
+}finally{original.dispose();revised.dispose();}

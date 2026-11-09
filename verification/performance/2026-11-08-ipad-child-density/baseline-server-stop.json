@@ -1,0 +1,12 @@
+{
+  "serverProcess": {
+    "pid": 28196,
+    "before": "Sat Nov  7 23:38:06 2026     /opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python /Users/garyreckard/Sites/zerble-at-the-festival/.claude/serve_nocache.py 8770 --playtest drive --seed 2404796662 --tier auto --quality auto --autopilot --world-detail --lan --no-qr",
+    "signaled": "SIGTERM"
+  },
+  "keeper": {
+    "pid": 28487,
+    "before": ""
+  },
+  "remaining": []
+}

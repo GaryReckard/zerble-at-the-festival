@@ -160,6 +160,19 @@ worldgen terrain sampler when terrain is enabled. The historical arcade fixture 
 owns the course meshes, controls, fixed-step replay and camera clearance checks.
 The original course does not stream or place festival content. [Verification](verification/terrain/2026-10-24-driving-proof.md).
 
+The procedural `worldgen/terrain.js` sampler retains up to 4,096 terrain cells,
+with the original four vertex heights and lazily computed triangle planes per
+cell. FIFO ring slots store eviction order explicitly and reuse records, while
+height-only queries bypass this cache so ground-mesh recenters do not churn local
+support planes. Exact-lattice height queries read one vertex, retaining the
+original interpolation for negative zero and all off-lattice points. Ground queries preserve the original height arithmetic while
+reusing gradients and normals. Pooled values are copied before caller output
+publication to survive reentrant sampling. The existing seed/worldgen-epoch gate clears the cell cache alongside
+vertex and descriptor caches; landscape generation changes bump that epoch.
+Water classification remains a separate per-point query, and returned sample
+objects never expose the cached records. The cache changes retained CPU data,
+not terrain resolution, collision geometry or simulation cadence.
+
 The opt-in `surface=landscape` course uses `src/landscape/fixture.js` for bounded
 shared geometry and `src/landscape/support.js` for per-mover support identities.
 Read-only wheel/suspension samples stay on the selected layer; the optional

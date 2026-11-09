@@ -1,5 +1,6 @@
 // Capture-only frame measurements. Kept separate from AdaptiveQuality because
 // its 90-frame window resets on tier changes and cannot attribute one hitch.
+import {WORLD_SECTIONS,GROUND_SECTIONS} from './worldTimings.js';
 const round = (n) => Math.round(n * 10) / 10;
 
 export const PLAYTEST_SCENARIOS = Object.freeze({
@@ -62,6 +63,8 @@ export class FrameTelemetry {
     this.window = [];
     this.events = [];
     this.droppedEvents = 0;
+    this.worldEvents = [];
+    this.worldWindowMax = {};
   }
 
   record(frame) {
@@ -69,12 +72,16 @@ export class FrameTelemetry {
     const { wallMs, workMs, worldMs, renderMs } = frame;
     if (![wallMs, workMs, worldMs, renderMs].every(Number.isFinite)) return;
     this.window.push({ wallMs, workMs, worldMs, renderMs });
+    if(frame.worldParts)for(const key of WORLD_SECTIONS){
+      const value=frame.worldParts[key];
+      if(Number.isFinite(value))this.worldWindowMax[key]=Math.max(this.worldWindowMax[key]||0,value);
+    }
     if (wallMs < this.hitchMs && workMs < this.hitchMs) return;
     if (this.events.length === this.maxEvents) {
       this.events.shift();
       this.droppedEvents++;
     }
-    this.events.push({
+    const event={
       ts: frame.ts,
       phase: frame.phase || null,
       wallMs: round(wallMs),
@@ -86,7 +93,18 @@ export class FrameTelemetry {
       z: frame.z,
       chunkCount: frame.chunkCount,
       programCount: frame.programCount,
-    });
+    };
+    if(frame.worldParts){
+      event.worldParts=Object.fromEntries(WORLD_SECTIONS.map(k=>[k,round(frame.worldParts[k]||0)]));
+      event.worldGround=Object.fromEntries(GROUND_SECTIONS.map(k=>[k,round(frame.worldGround?.[k]||0)]));
+      event.worldClockReads=frame.worldClockReads;
+      // Retain early large world stalls even after the chronological ring wraps.
+      if(worldMs>=this.hitchMs){
+        this.worldEvents.push(event);this.worldEvents.sort((a,b)=>b.worldMs-a.worldMs||a.ts-b.ts);
+        if(this.worldEvents.length>24)this.worldEvents.pop();
+      }
+    }
+    this.events.push(event);
   }
 
   takeWindow() {
@@ -95,6 +113,7 @@ export class FrameTelemetry {
     if (!frames.length) return null;
     const walls = frames.map((f) => f.wallMs);
     const works = frames.map((f) => f.workMs);
+    const worldPartsMax=this.worldWindowMax;this.worldWindowMax={};
     return {
       frames: frames.length,
       wallP50: percentile(walls, 0.5),
@@ -108,6 +127,7 @@ export class FrameTelemetry {
       over33: walls.filter((n) => n > 33).length,
       over50: walls.filter((n) => n > 50).length,
       over100: walls.filter((n) => n > 100).length,
+      ...(Object.keys(worldPartsMax).length?{worldPartsMax:Object.fromEntries(Object.entries(worldPartsMax).map(([k,v])=>[k,round(v)]))}:{}),
     };
   }
 }

@@ -1,0 +1,60 @@
+{
+  "version": "complete-scenario-checkpoints-v1",
+  "recordedUtc": "2026-11-06T21:16:12.922971+00:00",
+  "foregroundAuthorized": false,
+  "reason": "Four preserved attempts show that short away windows can end before one twenty-run driving condition finishes; preserve complete independent conditions rather than restarting the entire suite",
+  "scope": [
+    "high:dense-festival-v1",
+    "high:streaming-drive-v1"
+  ],
+  "totalRequiredRuns": 40,
+  "runsPerCondition": {
+    "calibration": 4,
+    "freshHoldout": 8,
+    "pairedCandidate": 8,
+    "total": 20
+  },
+  "policy": "conservative-paired-v1",
+  "source": {
+    "A": {
+      "app": "c3c93589b89b7dad24b3352635622008d201ac98b2fdad76848f41201b1055b5",
+      "build": "5fe861d4b0102beb03b6cc003bad6485949b9a47d18b47d0181a754bd7254367",
+      "harness": "4ffdedbb5bc4d595d212a276ca3be24f2be0545d488b55aa0790d0b3c1f4c935"
+    },
+    "B": {
+      "app": "1dc95348d133420b5466d7a11a2c4fcc11e182d620297cec6110792bc836ceea",
+      "build": "e5aa76aeb071a6b84666cac47d0511be467f43da7992c1f1a26d80b69b0a81c3",
+      "harness": "4ffdedbb5bc4d595d212a276ca3be24f2be0545d488b55aa0790d0b3c1f4c935"
+    }
+  },
+  "execution": "Use the existing compare-builds.py --conditions argument for one complete condition per controller; parked first, then driving if foreground authorization remains active",
+  "safeCheckpoint": "Only a terminal completed controller with complete freshly calibrated and independently validated candidate comparison; no partial run, successful candidate prefix, or calibration/holdout prefix may be carried forward",
+  "reuseRequirements": [
+    "Both source app/build identities and collector identity match this plan exactly",
+    "All acknowledged capture payloads pass the existing loader and completed-run contract",
+    "Regenerate calibration, independent holdout and candidate comparison through the actual CLI and require exact report equality",
+    "Condition comparison is improved or no detectable change, with no regression in any protected metric or segment",
+    "Every owned-process cleanup receipt passes and exact task-owned processes are gone",
+    "All available hardware/browser/tier/viewport/seed conditions match the intended recorded fixed-tier comparison; changes require new qualification rather than relabelling"
+  ],
+  "interruption": "Preserve the failed attempt unchanged; repeat only its unfinished condition in a new reserved window with fresh calibration and holdout",
+  "priorAttempts": [
+    "comparisons/attempt-1",
+    "comparisons/attempt-2",
+    "comparisons/attempt-3",
+    "comparisons/attempt-4"
+  ],
+  "existingReusableConditions": [],
+  "finalAcceptance": "Require both complete conditions for these exact A/B identities, regenerate their reports and combine using the existing suite_verdict; retain CPU-cost and frame-delivery claim limits",
+  "limits": "No shortened workload, fewer independent runs, wider thresholds, reused incomplete stage, changed policy or accepted mobile/Auto claim",
+  "evidence": [
+    "compare-builds.py:15",
+    "compare-builds.py:19",
+    "compare-builds.py:56",
+    "compare-builds.py:58",
+    "../../../tooling/performance_lab/analysis.py:7",
+    "../../../tooling/performance_lab/analysis.py:45",
+    "../../../tooling/performance_lab/analysis.py:101"
+  ],
+  "failurePolicy": "A completed regressed or invalid comparison stops acceptance; never retry unchanged code merely to obtain a passing verdict. A new source revision requires new source-bound qualification and full conditions."
+}

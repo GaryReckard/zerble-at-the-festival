@@ -1,0 +1,174 @@
+[
+  {
+    "variant": "legacy",
+    "method": "sampleTerrainGround",
+    "cells": 10000,
+    "passes": [
+      4.540666999999985,
+      4.359583000000043,
+      3.66279099999997,
+      3.4390829999999823,
+      3.3463330000000724,
+      3.173417000000086
+    ],
+    "checksum": 221977.42153075992,
+    "cache": {
+      "version": 2,
+      "vertices": 10201,
+      "tiles": 33,
+      "owners": 219
+    },
+    "scope": "Offline cache-capacity churn with prewarmed vertices; not game FPS"
+  },
+  {
+    "variant": "current",
+    "method": "sampleTerrainGround",
+    "cells": 10000,
+    "passes": [
+      6.923999999999978,
+      7.712999999999965,
+      5.627540999999951,
+      6.027458000000024,
+      6.3503749999999854,
+      5.7202499999999645
+    ],
+    "checksum": 221977.42153075992,
+    "cache": {
+      "version": 2,
+      "vertices": 10201,
+      "tiles": 33,
+      "owners": 219,
+      "cells": 4096
+    },
+    "scope": "Offline cache-capacity churn with prewarmed vertices; not game FPS"
+  },
+  {
+    "variant": "current",
+    "method": "sampleTerrainGround",
+    "cells": 10000,
+    "passes": [
+      7.1584589999999935,
+      6.770083999999997,
+      6.687125000000037,
+      5.4467500000000655,
+      5.628540999999927,
+      5.2539580000000115
+    ],
+    "checksum": 221977.42153075992,
+    "cache": {
+      "version": 2,
+      "vertices": 10201,
+      "tiles": 33,
+      "owners": 219,
+      "cells": 4096
+    },
+    "scope": "Offline cache-capacity churn with prewarmed vertices; not game FPS"
+  },
+  {
+    "variant": "legacy",
+    "method": "sampleTerrainGround",
+    "cells": 10000,
+    "passes": [
+      4.56554200000005,
+      4.109124999999949,
+      3.6843339999999216,
+      3.4935840000000553,
+      3.34112499999992,
+      3.2302080000000615
+    ],
+    "checksum": 221977.42153075992,
+    "cache": {
+      "version": 2,
+      "vertices": 10201,
+      "tiles": 33,
+      "owners": 219
+    },
+    "scope": "Offline cache-capacity churn with prewarmed vertices; not game FPS"
+  },
+  {
+    "variant": "legacy",
+    "method": "terrainHeight",
+    "cells": 10000,
+    "passes": [
+      4.523874999999975,
+      3.8256670000000668,
+      3.700958000000014,
+      3.3838750000001028,
+      3.2234999999999445,
+      3.1278330000000096
+    ],
+    "checksum": 221962.5272597739,
+    "cache": {
+      "version": 2,
+      "vertices": 10201,
+      "tiles": 33,
+      "owners": 219
+    },
+    "scope": "Offline cache-capacity churn with prewarmed vertices; not game FPS"
+  },
+  {
+    "variant": "current",
+    "method": "terrainHeight",
+    "cells": 10000,
+    "passes": [
+      4.071916999999985,
+      3.5237079999999423,
+      3.843458000000055,
+      3.15362499999992,
+      3.002749999999992,
+      2.9985000000000355
+    ],
+    "checksum": 221962.5272597739,
+    "cache": {
+      "version": 2,
+      "vertices": 10201,
+      "tiles": 33,
+      "owners": 219,
+      "cells": 0
+    },
+    "scope": "Offline cache-capacity churn with prewarmed vertices; not game FPS"
+  },
+  {
+    "variant": "current",
+    "method": "terrainHeight",
+    "cells": 10000,
+    "passes": [
+      4.023957999999993,
+      3.6707079999999905,
+      3.629083000000037,
+      3.236291999999935,
+      3.1404169999999567,
+      2.9194579999999632
+    ],
+    "checksum": 221962.5272597739,
+    "cache": {
+      "version": 2,
+      "vertices": 10201,
+      "tiles": 33,
+      "owners": 219,
+      "cells": 0
+    },
+    "scope": "Offline cache-capacity churn with prewarmed vertices; not game FPS"
+  },
+  {
+    "variant": "legacy",
+    "method": "terrainHeight",
+    "cells": 10000,
+    "passes": [
+      4.398750000000064,
+      3.7557079999999132,
+      3.711332999999968,
+      3.2764590000000453,
+      3.2942500000000337,
+      3.170541999999955
+    ],
+    "checksum": 221962.5272597739,
+    "cache": {
+      "version": 2,
+      "vertices": 10201,
+      "tiles": 33,
+      "owners": 219
+    },
+    "scope": "Offline cache-capacity churn with prewarmed vertices; not game FPS"
+  }
+]

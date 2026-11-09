@@ -1,0 +1,274 @@
+{
+  "order": [
+    "legacy",
+    "current",
+    "current",
+    "legacy",
+    "legacy",
+    "current",
+    "current",
+    "legacy"
+  ],
+  "runs": [
+    {
+      "variant": "legacy",
+      "rounds": 120000,
+      "pointCount": 1024,
+      "results": {
+        "sampleTerrainGround": {
+          "coldMs": 624.64475,
+          "times": [
+            35.70024999999998,
+            35.07195899999999,
+            34.43158400000004
+          ],
+          "checksum": 35061.58221658939
+        },
+        "sampleTerrain": {
+          "coldMs": 1.1573329999999942,
+          "times": [
+            75.53845899999999,
+            71.767875,
+            71.90424999999993
+          ],
+          "checksum": 35061.58221658939
+        }
+      },
+      "cache": {
+        "version": 2,
+        "vertices": 132,
+        "tiles": 2,
+        "owners": 111
+      },
+      "scope": "Node sampler operation cost; not game FPS or iPad evidence"
+    },
+    {
+      "variant": "current",
+      "rounds": 120000,
+      "pointCount": 1024,
+      "results": {
+        "sampleTerrainGround": {
+          "coldMs": 626.1705420000001,
+          "times": [
+            11.852125000000001,
+            11.182916999999975,
+            10.818167000000017
+          ],
+          "checksum": 35061.58221658939
+        },
+        "sampleTerrain": {
+          "coldMs": 0.8583750000000236,
+          "times": [
+            50.49587500000007,
+            48.76141699999994,
+            48.15249999999992
+          ],
+          "checksum": 35061.58221658939
+        }
+      },
+      "cache": {
+        "version": 2,
+        "vertices": 132,
+        "tiles": 2,
+        "owners": 111,
+        "cells": 110
+      },
+      "scope": "Node sampler operation cost; not game FPS or iPad evidence"
+    },
+    {
+      "variant": "current",
+      "rounds": 120000,
+      "pointCount": 1024,
+      "results": {
+        "sampleTerrainGround": {
+          "coldMs": 621.089334,
+          "times": [
+            11.719542000000047,
+            11.132875000000013,
+            10.914750000000026
+          ],
+          "checksum": 35061.58221658939
+        },
+        "sampleTerrain": {
+          "coldMs": 0.8361659999999347,
+          "times": [
+            50.866499999999974,
+            50.33291600000007,
+            48.30429200000003
+          ],
+          "checksum": 35061.58221658939
+        }
+      },
+      "cache": {
+        "version": 2,
+        "vertices": 132,
+        "tiles": 2,
+        "owners": 111,
+        "cells": 110
+      },
+      "scope": "Node sampler operation cost; not game FPS or iPad evidence"
+    },
+    {
+      "variant": "legacy",
+      "rounds": 120000,
+      "pointCount": 1024,
+      "results": {
+        "sampleTerrainGround": {
+          "coldMs": 615.7665,
+          "times": [
+            35.30620799999997,
+            34.31229200000007,
+            34.332250000000045
+          ],
+          "checksum": 35061.58221658939
+        },
+        "sampleTerrain": {
+          "coldMs": 1.0339579999999842,
+          "times": [
+            72.83341599999994,
+            70.95558300000005,
+            70.10474999999997
+          ],
+          "checksum": 35061.58221658939
+        }
+      },
+      "cache": {
+        "version": 2,
+        "vertices": 132,
+        "tiles": 2,
+        "owners": 111
+      },
+      "scope": "Node sampler operation cost; not game FPS or iPad evidence"
+    },
+    {
+      "variant": "legacy",
+      "rounds": 120000,
+      "pointCount": 1024,
+      "results": {
+        "sampleTerrainGround": {
+          "coldMs": 609.913,
+          "times": [
+            34.75187500000004,
+            34.43166699999995,
+            34.094041999999945
+          ],
+          "checksum": 35061.58221658939
+        },
+        "sampleTerrain": {
+          "coldMs": 1.0493749999999409,
+          "times": [
+            72.429667,
+            71.11450000000002,
+            70.79104199999995
+          ],
+          "checksum": 35061.58221658939
+        }
+      },
+      "cache": {
+        "version": 2,
+        "vertices": 132,
+        "tiles": 2,
+        "owners": 111
+      },
+      "scope": "Node sampler operation cost; not game FPS or iPad evidence"
+    },
+    {
+      "variant": "current",
+      "rounds": 120000,
+      "pointCount": 1024,
+      "results": {
+        "sampleTerrainGround": {
+          "coldMs": 612.1046670000001,
+          "times": [
+            11.830749999999966,
+            11.384709000000043,
+            11.479209000000083
+          ],
+          "checksum": 35061.58221658939
+        },
+        "sampleTerrain": {
+          "coldMs": 0.8398339999999962,
+          "times": [
+            50.547916999999984,
+            49.212999999999965,
+            48.207042
+          ],
+          "checksum": 35061.58221658939
+        }
+      },
+      "cache": {
+        "version": 2,
+        "vertices": 132,
+        "tiles": 2,
+        "owners": 111,
+        "cells": 110
+      },
+      "scope": "Node sampler operation cost; not game FPS or iPad evidence"
+    },
+    {
+      "variant": "current",
+      "rounds": 120000,
+      "pointCount": 1024,
+      "results": {
+        "sampleTerrainGround": {
+          "coldMs": 619.9267910000001,
+          "times": [
+            12.206708000000049,
+            11.299250000000029,
+            11.378291000000104
+          ],
+          "checksum": 35061.58221658939
+        },
+        "sampleTerrain": {
+          "coldMs": 0.844333000000006,
+          "times": [
+            49.80883400000005,
+            48.21804199999997,
+            47.78362500000003
+          ],
+          "checksum": 35061.58221658939
+        }
+      },
+      "cache": {
+        "version": 2,
+        "vertices": 132,
+        "tiles": 2,
+        "owners": 111,
+        "cells": 110
+      },
+      "scope": "Node sampler operation cost; not game FPS or iPad evidence"
+    },
+    {
+      "variant": "legacy",
+      "rounds": 120000,
+      "pointCount": 1024,
+      "results": {
+        "sampleTerrainGround": {
+          "coldMs": 622.68725,
+          "times": [
+            36.16204099999993,
+            35.60295800000006,
+            35.9463750000001
+          ],
+          "checksum": 35061.58221658939
+        },
+        "sampleTerrain": {
+          "coldMs": 1.0540829999999914,
+          "times": [
+            75.226583,
+            74.21533399999998,
+            73.43754200000001
+          ],
+          "checksum": 35061.58221658939
+        }
+      },
+      "cache": {
+        "version": 2,
+        "vertices": 132,
+        "tiles": 2,
+        "owners": 111
+      },
+      "scope": "Node sampler operation cost; not game FPS or iPad evidence"
+    }
+  ]
+}

@@ -1,0 +1,562 @@
+{
+  "scope": "Sampling attribution only; CPU samples and elapsed main-loop timers are different measurements.",
+  "totalSampledMs": 5549.653,
+  "self": [
+    {
+      "function": "(idle)",
+      "file": "",
+      "line": 0,
+      "ms": 554.569
+    },
+    {
+      "function": "(program)",
+      "file": "",
+      "line": 0,
+      "ms": 412.809
+    },
+    {
+      "function": "sampleTerrain",
+      "file": "src/worldgen/terrain.js",
+      "line": 198,
+      "ms": 405.531
+    },
+    {
+      "function": "updateMatrixWorld",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 7720,
+      "ms": 278.368
+    },
+    {
+      "function": "projectObject",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 29679,
+      "ms": 223.659
+    },
+    {
+      "function": "renderBufferDirect",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 29173,
+      "ms": 163.659
+    },
+    {
+      "function": "sampleTerrainGround",
+      "file": "src/worldgen/terrain.js",
+      "line": 182,
+      "ms": 131.777
+    },
+    {
+      "function": "multiplyMatrices",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 6224,
+      "ms": 130.433
+    },
+    {
+      "function": "update",
+      "file": "src/people/children.js",
+      "line": 180,
+      "ms": 126.254
+    },
+    {
+      "function": "n",
+      "file": "src/people/baseline.js",
+      "line": 40,
+      "ms": 113.817
+    },
+    {
+      "function": "setValue",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 19190,
+      "ms": 112.583
+    },
+    {
+      "function": "_tickCamp",
+      "file": "src/people/campActivity.js",
+      "line": 180,
+      "ms": 99.303
+    },
+    {
+      "function": "tick",
+      "file": "src/people/campActivity.js",
+      "line": 138,
+      "ms": 92.668
+    },
+    {
+      "function": "_updateNpc",
+      "file": "src/crowd.js",
+      "line": 1034,
+      "ms": 86.504
+    },
+    {
+      "function": "nearestFootprintAvoidance",
+      "file": "src/crowd.js",
+      "line": 2928,
+      "ms": 84.701
+    },
+    {
+      "function": "renderObject",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 22581,
+      "ms": 76.224
+    },
+    {
+      "function": "setProgram",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 30131,
+      "ms": 70.93
+    },
+    {
+      "function": "propose",
+      "file": "src/landscape/support.js",
+      "line": 147,
+      "ms": 69.629
+    },
+    {
+      "function": "tickBody",
+      "file": "src/main.js",
+      "line": 1232,
+      "ms": 67.679
+    },
+    {
+      "function": "copyArray",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 18319,
+      "ms": 66.822
+    },
+    {
+      "function": "getParameters",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 20598,
+      "ms": 66.378
+    },
+    {
+      "function": "intersectsObject",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 13353,
+      "ms": 63.768
+    },
+    {
+      "function": "tileDescriptors",
+      "file": "src/worldgen/terrain.js",
+      "line": 87,
+      "ms": 56.508
+    },
+    {
+      "function": "getProgram",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 29985,
+      "ms": 54.891
+    },
+    {
+      "function": "bindVertexArray",
+      "file": "",
+      "line": 0,
+      "ms": 53.153
+    },
+    {
+      "function": "landscapeCandidateInCell",
+      "file": "src/worldgen/landscapeCandidates.js",
+      "line": 37,
+      "ms": 52.645
+    },
+    {
+      "function": "_writeMatrices",
+      "file": "src/crowd.js",
+      "line": 1628,
+      "ms": 45.464
+    },
+    {
+      "function": "readOwnedRecord",
+      "file": "src/people/personHandle.js",
+      "line": 48,
+      "ms": 45.415
+    },
+    {
+      "function": "update",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 18062,
+      "ms": 41.068
+    },
+    {
+      "function": "tick",
+      "file": "src/people/marketActivity.js",
+      "line": 55,
+      "ms": 37.996
+    },
+    {
+      "function": "setFromEuler",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 3413,
+      "ms": 37.686
+    },
+    {
+      "function": "(garbage collector)",
+      "file": "",
+      "line": 0,
+      "ms": 37.497
+    },
+    {
+      "function": "setValueM4",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 18525,
+      "ms": 37.421
+    },
+    {
+      "function": "setValueV3f",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 18400,
+      "ms": 36.811
+    },
+    {
+      "function": "sort",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 21396,
+      "ms": 36.796
+    },
+    {
+      "function": "renderObjects",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 29931,
+      "ms": 35.462
+    },
+    {
+      "function": "arraysEqual",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 18305,
+      "ms": 35.415
+    },
+    {
+      "function": "ground",
+      "file": "src/landscape/support.js",
+      "line": 60,
+      "ms": 34.32
+    },
+    {
+      "function": "refreshMaterialUniforms",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 27537,
+      "ms": 33.166
+    },
+    {
+      "function": "uniformMatrix4fv",
+      "file": "",
+      "line": 0,
+      "ms": 32.299
+    },
+    {
+      "function": "update",
+      "file": "src/crowd.js",
+      "line": 874,
+      "ms": 31.593
+    },
+    {
+      "function": "upload",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 19316,
+      "ms": 30.504
+    },
+    {
+      "function": "drawMarkers",
+      "file": "src/festivalMap/view.js",
+      "line": 231,
+      "ms": 29.556
+    },
+    {
+      "function": "propose",
+      "file": "src/landscape/support.js",
+      "line": 98,
+      "ms": 27.338
+    },
+    {
+      "function": "setup",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 15073,
+      "ms": 26.834
+    }
+  ],
+  "inclusive": [
+    {
+      "function": "(root)",
+      "file": "",
+      "line": 0,
+      "ms": 5549.653
+    },
+    {
+      "function": "tick",
+      "file": "src/main.js",
+      "line": 1208,
+      "ms": 4483.065
+    },
+    {
+      "function": "tickBody",
+      "file": "src/main.js",
+      "line": 1232,
+      "ms": 4469.928
+    },
+    {
+      "function": "wrapped",
+      "file": "src/people/baseline.js",
+      "line": 54,
+      "ms": 3655.34
+    },
+    {
+      "function": "render",
+      "file": "../../../../../node_modules/three/examples/jsm/postprocessing/EffectComposer.js",
+      "line": 105,
+      "ms": 2058.239
+    },
+    {
+      "function": "render",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 29530,
+      "ms": 2055.238
+    },
+    {
+      "function": "render",
+      "file": "../../../../../node_modules/three/examples/jsm/postprocessing/RenderPass.js",
+      "line": 27,
+      "ms": 2049.242
+    },
+    {
+      "function": "run",
+      "file": "src/people/runtime.js",
+      "line": 51,
+      "ms": 1988.992
+    },
+    {
+      "function": "run",
+      "file": "src/crowd.js",
+      "line": 211,
+      "ms": 1554.075
+    },
+    {
+      "function": "update",
+      "file": "src/crowd.js",
+      "line": 874,
+      "ms": 1548.072
+    },
+    {
+      "function": "_updateNpc",
+      "file": "src/crowd.js",
+      "line": 1034,
+      "ms": 1466.754
+    },
+    {
+      "function": "renderBufferDirect",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 29173,
+      "ms": 1118.684
+    },
+    {
+      "function": "renderScene",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 29793,
+      "ms": 1103.301
+    },
+    {
+      "function": "renderObjects",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 29931,
+      "ms": 1085.804
+    },
+    {
+      "function": "setProgram",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 30131,
+      "ms": 733.921
+    },
+    {
+      "function": "propose",
+      "file": "src/landscape/support.js",
+      "line": 147,
+      "ms": 714.553
+    },
+    {
+      "function": "sampleTerrain",
+      "file": "src/worldgen/terrain.js",
+      "line": 198,
+      "ms": 623.883
+    },
+    {
+      "function": "(idle)",
+      "file": "",
+      "line": 0,
+      "ms": 554.569
+    },
+    {
+      "function": "_moveGroundNpc",
+      "file": "src/crowd.js",
+      "line": 981,
+      "ms": 424.81
+    },
+    {
+      "function": "ground",
+      "file": "src/landscape/support.js",
+      "line": 60,
+      "ms": 419.753
+    },
+    {
+      "function": "(program)",
+      "file": "",
+      "line": 0,
+      "ms": 412.809
+    },
+    {
+      "function": "updateMatrixWorld",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 7720,
+      "ms": 371.123
+    },
+    {
+      "function": "projectObject",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 29679,
+      "ms": 348.788
+    },
+    {
+      "function": "_tickCamp",
+      "file": "src/crowd.js",
+      "line": 2243,
+      "ms": 331.903
+    },
+    {
+      "function": "tick",
+      "file": "src/people/campActivity.js",
+      "line": 138,
+      "ms": 327.31
+    },
+    {
+      "function": "_writeMatrices",
+      "file": "src/crowd.js",
+      "line": 1628,
+      "ms": 284.533
+    },
+    {
+      "function": "run",
+      "file": "src/people/children.js",
+      "line": 31,
+      "ms": 260.832
+    },
+    {
+      "function": "update",
+      "file": "src/people/children.js",
+      "line": 180,
+      "ms": 251.825
+    },
+    {
+      "function": "upload",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 19316,
+      "ms": 238.208
+    },
+    {
+      "function": "propose",
+      "file": "src/landscape/support.js",
+      "line": 98,
+      "ms": 219.164
+    },
+    {
+      "function": "render",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 22322,
+      "ms": 209.743
+    },
+    {
+      "function": "renderObject",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 22581,
+      "ms": 204.644
+    },
+    {
+      "function": "setValue",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 19300,
+      "ms": 196.84
+    },
+    {
+      "function": "canReachPlace",
+      "file": "src/crowd.js",
+      "line": 1011,
+      "ms": 188.283
+    },
+    {
+      "function": "commitPicnicMotion",
+      "file": "src/crowd.js",
+      "line": 2359,
+      "ms": 179.882
+    },
+    {
+      "function": "_applyRestMotion",
+      "file": "src/crowd.js",
+      "line": 2210,
+      "ms": 165.808
+    },
+    {
+      "function": "setValueM4",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 18525,
+      "ms": 152.356
+    },
+    {
+      "function": "setup",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 15073,
+      "ms": 151.651
+    },
+    {
+      "function": "setValue",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 19190,
+      "ms": 151.277
+    },
+    {
+      "function": "sampleTerrainGround",
+      "file": "src/worldgen/terrain.js",
+      "line": 182,
+      "ms": 131.777
+    },
+    {
+      "function": "n",
+      "file": "src/people/baseline.js",
+      "line": 40,
+      "ms": 130.725
+    },
+    {
+      "function": "multiplyMatrices",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 6224,
+      "ms": 130.433
+    },
+    {
+      "function": "getProgram",
+      "file": "../../../../../node_modules/three/build/three.module.js",
+      "line": 29985,
+      "ms": 127.772
+    },
+    {
+      "function": "_applyPicnicMotion",
+      "file": "src/crowd.js",
+      "line": 2353,
+      "ms": 116.457
+    },
+    {
+      "function": "ground",
+      "file": "src/landscape/peopleAdapter.js",
+      "line": 25,
+      "ms": 113.783
+    }
+  ],
+  "reachabilityCallers": [
+    {
+      "function": "canReachPlace <- _updateNpc",
+      "file": "src/crowd.js",
+      "line": 1034,
+      "ms": 176.369
+    },
+    {
+      "function": "canReachPlace <- tryClaim",
+      "file": "src/people/picnicActivity.js",
+      "line": 31,
+      "ms": 11.914
+    }
+  ]
+}

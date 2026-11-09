@@ -1,0 +1,7 @@
+{
+  "checkedUtc": "2026-11-07T16:28:06.645199+00:00",
+  "baseline": "00d10db620720b429a5ab93e6973495324b8d2e0c33e7b98ea6d22dedf64b708",
+  "fileCount": 303,
+  "workingTreeSourceMismatches": [],
+  "scope": "Only inventoried application/harness inputs, not unrelated untracked files"
+}

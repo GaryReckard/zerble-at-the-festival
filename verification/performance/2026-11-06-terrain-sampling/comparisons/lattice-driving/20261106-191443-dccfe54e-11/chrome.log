@@ -1,0 +1,60 @@
+
+DevTools listening on ws://127.0.0.1:55508/devtools/browser/146b0564-d1e5-4645-8583-5979e1e49b45
+Trying to load the allocator multiple times. This is *not* supported.
+[74059:40559574:1106/193010.913846:ERROR:components/policy/core/browser/policy_conversions_client.cc:332] DeveloperToolsDisabled has an error of type: Ignored because it was overridden by DeveloperToolsAvailability.
+[74059:40559574:1106/193011.368692:ERROR:components/webapps/browser/web_contents/web_app_url_loader.cc:201] Error loading https://meet.google.com/  page redirected to unexpected destination.
+[74059:40559574:1106/193011.461750:ERROR:components/webapps/browser/web_contents/web_app_url_loader.cc:201] Error loading https://meet.google.com/  page redirected to unexpected destination.
+[74324:40562290:1106/193011.467830:VERBOSE1:chrome/updater/event_history.cc:176] Failed to set permissions on /Library/Application Support/Google/GoogleUpdater/updater_history.jsonl: Operation not permitted (1)
+[74324:40562290:1106/193011.470224:VERBOSE1:chrome/updater/updater.cc:375] Version: 157.0.8089.0, opt, ARM_64, command line: /Library/Application Support/Google/GoogleUpdater/157.0.8089.0/GoogleUpdater.app/Contents/MacOS/GoogleUpdater --wake-all --system --enable-logging --vmodule=*/components/update_client/*=2,*/chrome/enterprise_companion/*=2,*/chrome/updater/*=2
+[74324:40562290:1106/193011.470259:VERBOSE1:chrome/updater/updater.cc:378] OS version: 26.7.1, arch: arm64, System uptime (seconds): 1117152, parent pid: 74059
+[74324:40562290:1106/193011.472625:VERBOSE1:chrome/updater/updater.cc:383] Available disk space in install directory (/Library/Application Support/Google/GoogleUpdater): 42173714432B (39.277GiB) / 994662584320B (926.352GiB)
+[74324:40562290:1106/193011.472674:VERBOSE1:chrome/updater/updater.cc:387] Available disk space in temporary directory (/var/folders/87/21271msd0sd1z2063kqknpbh0000gp/T/): 42173714432B (39.277GiB) / 994662584320B (926.352GiB)
+[74324:40562290:1106/193011.472731:VERBOSE1:chrome/updater/event_history.cc:239] Failed to write history event: logging not initialized
+[74326:40562297:1106/193011.484657:VERBOSE1:chrome/updater/event_history.cc:176] Failed to set permissions on /Library/Application Support/Google/GoogleUpdater/updater_history.jsonl: Operation not permitted (1)
+[74326:40562297:1106/193011.486447:VERBOSE1:chrome/updater/updater.cc:375] Version: 157.0.8089.0, opt, ARM_64, command line: /Library/Application Support/Google/GoogleUpdater/157.0.8089.0/GoogleUpdater.app/Contents/MacOS/GoogleUpdater --crash-handler --system --database=/Library/Application Support/Google/GoogleUpdater/157.0.8089.0/Crashpad --url=https://clients2.google.com/cr/report --annotation=prod=Update4 --annotation=ver=157.0.8089.0 --handshake-fd=4 --enable-logging --vmodule=*/components/update_client/*=2,*/chrome/enterprise_companion/*=2,*/chrome/updater/*=2
+[74326:40562297:1106/193011.486487:VERBOSE1:chrome/updater/updater.cc:378] OS version: 26.7.1, arch: arm64, System uptime (seconds): 1117152, parent pid: 1
+[74326:40562297:1106/193011.488668:VERBOSE1:chrome/updater/updater.cc:383] Available disk space in install directory (/Library/Application Support/Google/GoogleUpdater): 42173714432B (39.277GiB) / 994662584320B (926.352GiB)
+[74326:40562297:1106/193011.488714:VERBOSE1:chrome/updater/updater.cc:387] Available disk space in temporary directory (/var/folders/87/21271msd0sd1z2063kqknpbh0000gp/T/): 42173714432B (39.277GiB) / 994662584320B (926.352GiB)
+[74326:40562297:1106/193011.488781:VERBOSE1:chrome/updater/event_history.cc:239] Failed to write history event: logging not initialized
+[74326:40562297:1106/193011.488831:ERROR:third_party/crashpad/crashpad/client/crash_report_database_mac.mm:109] mkdir /Library/Application Support/Google/GoogleUpdater/157.0.8089.0/Crashpad/new: Permission denied (13)
+[74326:40562297:1106/193011.488878:VERBOSE1:chrome/updater/event_history.cc:239] Failed to write history event: logging not initialized
+[74326:40562297:1106/193011.488893:VERBOSE1:chrome/updater/updater.cc:420] UpdaterMain (--crash-handler) returned 1.
+[74324:40562290:1106/193011.489970:ERROR:third_party/crashpad/crashpad/util/file/file_io.cc:103] ReadExactly: expected 8, observed 0
+[74324:40562290:1106/193011.490099:VERBOSE1:chrome/updater/crash_reporter.cc:119] Failed to start handler.
+[74324:40562290:1106/193011.490150:ERROR:third_party/crashpad/crashpad/client/crash_report_database_mac.mm:109] mkdir /Library/Application Support/Google/GoogleUpdater/157.0.8089.0/Crashpad/new: Permission denied (13)
+[74324:40562290:1106/193011.490169:ERROR:chrome/updater/crash_client.cc:77] Failed to initialize Crashpad database.
+[74324:40562290:1106/193011.490184:VERBOSE1:chrome/updater/updater.cc:101] Crash reporting is not available.
+[74324:40562304:1106/193011.490487:VERBOSE1:chrome/updater/app/app_wakeall.cc:58] Launching `/Library/Application Support/Google/GoogleUpdater/157.0.8089.0/GoogleUpdater.app/Contents/MacOS/GoogleUpdater --wake --system`
+[74328:40562310:1106/193011.502271:VERBOSE1:chrome/updater/event_history.cc:176] Failed to set permissions on /Library/Application Support/Google/GoogleUpdater/updater_history.jsonl: Operation not permitted (1)
+[74328:40562310:1106/193011.504755:VERBOSE1:chrome/updater/updater.cc:375] Version: 157.0.8089.0, opt, ARM_64, command line: /Library/Application Support/Google/GoogleUpdater/157.0.8089.0/GoogleUpdater.app/Contents/MacOS/GoogleUpdater --wake --system --enable-logging --vmodule=*/components/update_client/*=2,*/chrome/enterprise_companion/*=2,*/chrome/updater/*=2
+[74328:40562310:1106/193011.504813:VERBOSE1:chrome/updater/updater.cc:378] OS version: 26.7.1, arch: arm64, System uptime (seconds): 1117152, parent pid: 74324
+[74328:40562310:1106/193011.507475:VERBOSE1:chrome/updater/updater.cc:383] Available disk space in install directory (/Library/Application Support/Google/GoogleUpdater): 42173681664B (39.277GiB) / 994662584320B (926.352GiB)
+[74328:40562310:1106/193011.507514:VERBOSE1:chrome/updater/updater.cc:387] Available disk space in temporary directory (/var/folders/87/21271msd0sd1z2063kqknpbh0000gp/T/): 42173681664B (39.277GiB) / 994662584320B (926.352GiB)
+[74328:40562310:1106/193011.507570:VERBOSE1:chrome/updater/event_history.cc:239] Failed to write history event: logging not initialized
+[74332:40562321:1106/193011.517804:VERBOSE1:chrome/updater/event_history.cc:176] Failed to set permissions on /Library/Application Support/Google/GoogleUpdater/updater_history.jsonl: Operation not permitted (1)
+[74332:40562321:1106/193011.519849:VERBOSE1:chrome/updater/updater.cc:375] Version: 157.0.8089.0, opt, ARM_64, command line: /Library/Application Support/Google/GoogleUpdater/157.0.8089.0/GoogleUpdater.app/Contents/MacOS/GoogleUpdater --crash-handler --system --database=/Library/Application Support/Google/GoogleUpdater/157.0.8089.0/Crashpad --url=https://clients2.google.com/cr/report --annotation=prod=Update4 --annotation=ver=157.0.8089.0 --handshake-fd=4 --enable-logging --vmodule=*/components/update_client/*=2,*/chrome/enterprise_companion/*=2,*/chrome/updater/*=2
+[74332:40562321:1106/193011.519915:VERBOSE1:chrome/updater/updater.cc:378] OS version: 26.7.1, arch: arm64, System uptime (seconds): 1117152, parent pid: 1
+[74332:40562321:1106/193011.522547:VERBOSE1:chrome/updater/updater.cc:383] Available disk space in install directory (/Library/Application Support/Google/GoogleUpdater): 42173681664B (39.277GiB) / 994662584320B (926.352GiB)
+[74332:40562321:1106/193011.522831:VERBOSE1:chrome/updater/updater.cc:387] Available disk space in temporary directory (/var/folders/87/21271msd0sd1z2063kqknpbh0000gp/T/): 42173681664B (39.277GiB) / 994662584320B (926.352GiB)
+[74332:40562321:1106/193011.522973:VERBOSE1:chrome/updater/event_history.cc:239] Failed to write history event: logging not initialized
+[74332:40562321:1106/193011.523056:ERROR:third_party/crashpad/crashpad/client/crash_report_database_mac.mm:109] mkdir /Library/Application Support/Google/GoogleUpdater/157.0.8089.0/Crashpad/new: Permission denied (13)
+[74332:40562321:1106/193011.523124:VERBOSE1:chrome/updater/event_history.cc:239] Failed to write history event: logging not initialized
+[74332:40562321:1106/193011.523149:VERBOSE1:chrome/updater/updater.cc:420] UpdaterMain (--crash-handler) returned 1.
+[74328:40562310:1106/193011.524005:ERROR:third_party/crashpad/crashpad/util/file/file_io.cc:103] ReadExactly: expected 8, observed 0
+[74328:40562310:1106/193011.524148:VERBOSE1:chrome/updater/crash_reporter.cc:119] Failed to start handler.
+[74328:40562310:1106/193011.524210:ERROR:third_party/crashpad/crashpad/client/crash_report_database_mac.mm:109] mkdir /Library/Application Support/Google/GoogleUpdater/157.0.8089.0/Crashpad/new: Permission denied (13)
+[74328:40562310:1106/193011.524235:ERROR:chrome/updater/crash_client.cc:77] Failed to initialize Crashpad database.
+[74328:40562310:1106/193011.524254:VERBOSE1:chrome/updater/updater.cc:101] Crash reporting is not available.
+[74328:40562310:1106/193011.524473:VERBOSE1:chrome/updater/ipc/update_service_internal_proxy_mojo.cc:61] Run
+[74059:40559667:1106/193011.559402:ERROR:google_apis/gcm/engine/registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR
+[74059:40559667:1106/193011.591958:ERROR:google_apis/gcm/engine/registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR
+[74059:40559574:1106/193011.721019:ERROR:components/webapps/browser/web_contents/web_app_url_loader.cc:201] Error loading https://meet.google.com/  page redirected to unexpected destination.
+Created TensorFlow Lite XNNPACK delegate for CPU.
+[74328:40562310:1106/193028.188928:VERBOSE1:chrome/updater/app/app.cc:52] Shutdown: 0
+[74328:40562310:1106/193028.189300:VERBOSE1:chrome/updater/event_history.cc:239] Failed to write history event: logging not initialized
+[74328:40562310:1106/193028.189341:VERBOSE1:chrome/updater/updater.cc:420] UpdaterMain (--wake) returned 0.
+[74324:40562304:1106/193028.228547:VERBOSE1:chrome/updater/app/app_wakeall.cc:68] `/Library/Application Support/Google/GoogleUpdater/157.0.8089.0/GoogleUpdater.app/Contents/MacOS/GoogleUpdater --wake --system` exited 0
+[74324:40562290:1106/193028.228824:VERBOSE1:chrome/updater/app/app.cc:52] Shutdown: 0
+[74324:40562290:1106/193028.229200:VERBOSE1:chrome/updater/event_history.cc:239] Failed to write history event: logging not initialized
+[74324:40562290:1106/193028.229226:VERBOSE1:chrome/updater/updater.cc:420] UpdaterMain (--wake-all) returned 0.
+[74059:40559667:1106/193036.185443:ERROR:google_apis/gcm/engine/connection_factory_impl.cc:474] ConnectionHandler failed with net error: -2

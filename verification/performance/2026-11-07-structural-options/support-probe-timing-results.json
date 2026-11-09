@@ -1,0 +1,297 @@
+{
+  "kind": "isolated-node-mechanism-timing",
+  "traceSha256": "17a1cbbfe8b0f49a7bf4bbaaed791da6e98bc80a35aa09735b96ad62df75cb0b",
+  "rosterSha256": "f0cb41be620652ca6ab48f4222749e6df05062ddd427ae1537439559adaa3aa0",
+  "probeSha256": "5417169d5f1f0b25b9a83343184273a30f8ebc6f628a37e7c166efab9174dcbd",
+  "node": "v24.10.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "rows": 921,
+  "selection": "Every eighth measuring-phase sampled row, preserving source order",
+  "trials": [
+    {
+      "trial": 0,
+      "order": [
+        "oracle",
+        "candidate"
+      ],
+      "oracle": {
+        "constructionMs": 4.007790999999997,
+        "firstProposalMs": 5.83016699999996,
+        "warmProposalsMs": 46.686000000000035
+      },
+      "candidate": {
+        "constructionMs": 4.694125000000099,
+        "firstProposalMs": 4.9401659999999765,
+        "warmProposalsMs": 43.749124999999935,
+        "stats": {
+          "attempts": 11973,
+          "hits": 7670,
+          "cold": 1032,
+          "reused": 7080,
+          "rejected": {
+            "lake-envelope": 364,
+            "triangle-edge": 1755,
+            "cell-edge": 2106,
+            "landscape-owner": 78
+          },
+          "oracleTerrainQueries": 50340,
+          "fastTerrainQueries": 49829,
+          "certificateVertexQueries": 2360,
+          "exclusionQueries": 2064,
+          "acquisitionTerrainQueries": 4957
+        }
+      }
+    },
+    {
+      "trial": 1,
+      "order": [
+        "candidate",
+        "oracle"
+      ],
+      "candidate": {
+        "constructionMs": 4.482959000000051,
+        "firstProposalMs": 5.888541999999916,
+        "warmProposalsMs": 62.80045800000005,
+        "stats": {
+          "attempts": 11973,
+          "hits": 7670,
+          "cold": 1032,
+          "reused": 7080,
+          "rejected": {
+            "lake-envelope": 364,
+            "triangle-edge": 1755,
+            "cell-edge": 2106,
+            "landscape-owner": 78
+          },
+          "oracleTerrainQueries": 50340,
+          "fastTerrainQueries": 49829,
+          "certificateVertexQueries": 2360,
+          "exclusionQueries": 2064,
+          "acquisitionTerrainQueries": 4957
+        }
+      },
+      "oracle": {
+        "constructionMs": 3.12337500000001,
+        "firstProposalMs": 3.7002500000000964,
+        "warmProposalsMs": 47.08616699999993
+      }
+    },
+    {
+      "trial": 2,
+      "order": [
+        "oracle",
+        "candidate"
+      ],
+      "oracle": {
+        "constructionMs": 3.23379100000011,
+        "firstProposalMs": 4.894958000000088,
+        "warmProposalsMs": 46.031791999999996
+      },
+      "candidate": {
+        "constructionMs": 3.926625000000058,
+        "firstProposalMs": 4.468375000000037,
+        "warmProposalsMs": 44.64579200000003,
+        "stats": {
+          "attempts": 11973,
+          "hits": 7670,
+          "cold": 1032,
+          "reused": 7080,
+          "rejected": {
+            "lake-envelope": 364,
+            "triangle-edge": 1755,
+            "cell-edge": 2106,
+            "landscape-owner": 78
+          },
+          "oracleTerrainQueries": 50340,
+          "fastTerrainQueries": 49829,
+          "certificateVertexQueries": 2360,
+          "exclusionQueries": 2064,
+          "acquisitionTerrainQueries": 4957
+        }
+      }
+    },
+    {
+      "trial": 3,
+      "order": [
+        "candidate",
+        "oracle"
+      ],
+      "candidate": {
+        "constructionMs": 4.173042000000123,
+        "firstProposalMs": 4.823832999999922,
+        "warmProposalsMs": 50.536542000000054,
+        "stats": {
+          "attempts": 11973,
+          "hits": 7670,
+          "cold": 1032,
+          "reused": 7080,
+          "rejected": {
+            "lake-envelope": 364,
+            "triangle-edge": 1755,
+            "cell-edge": 2106,
+            "landscape-owner": 78
+          },
+          "oracleTerrainQueries": 50340,
+          "fastTerrainQueries": 49829,
+          "certificateVertexQueries": 2360,
+          "exclusionQueries": 2064,
+          "acquisitionTerrainQueries": 4957
+        }
+      },
+      "oracle": {
+        "constructionMs": 3.1071249999999964,
+        "firstProposalMs": 3.967583000000104,
+        "warmProposalsMs": 43.005540999999994
+      }
+    },
+    {
+      "trial": 4,
+      "order": [
+        "oracle",
+        "candidate"
+      ],
+      "oracle": {
+        "constructionMs": 3.1021670000000086,
+        "firstProposalMs": 3.726667000000134,
+        "warmProposalsMs": 44.7489579999999
+      },
+      "candidate": {
+        "constructionMs": 5.451416999999992,
+        "firstProposalMs": 4.620582999999897,
+        "warmProposalsMs": 44.3856659999999,
+        "stats": {
+          "attempts": 11973,
+          "hits": 7670,
+          "cold": 1032,
+          "reused": 7080,
+          "rejected": {
+            "lake-envelope": 364,
+            "triangle-edge": 1755,
+            "cell-edge": 2106,
+            "landscape-owner": 78
+          },
+          "oracleTerrainQueries": 50340,
+          "fastTerrainQueries": 49829,
+          "certificateVertexQueries": 2360,
+          "exclusionQueries": 2064,
+          "acquisitionTerrainQueries": 4957
+        }
+      }
+    },
+    {
+      "trial": 5,
+      "order": [
+        "candidate",
+        "oracle"
+      ],
+      "candidate": {
+        "constructionMs": 4.053165999999919,
+        "firstProposalMs": 4.73479199999997,
+        "warmProposalsMs": 54.69095799999991,
+        "stats": {
+          "attempts": 11973,
+          "hits": 7670,
+          "cold": 1032,
+          "reused": 7080,
+          "rejected": {
+            "lake-envelope": 364,
+            "triangle-edge": 1755,
+            "cell-edge": 2106,
+            "landscape-owner": 78
+          },
+          "oracleTerrainQueries": 50340,
+          "fastTerrainQueries": 49829,
+          "certificateVertexQueries": 2360,
+          "exclusionQueries": 2064,
+          "acquisitionTerrainQueries": 4957
+        }
+      },
+      "oracle": {
+        "constructionMs": 3.0818329999999605,
+        "firstProposalMs": 3.906332999999904,
+        "warmProposalsMs": 42.66512499999999
+      }
+    },
+    {
+      "trial": 6,
+      "order": [
+        "oracle",
+        "candidate"
+      ],
+      "oracle": {
+        "constructionMs": 3.223833999999897,
+        "firstProposalMs": 4.899042000000009,
+        "warmProposalsMs": 44.10629199999994
+      },
+      "candidate": {
+        "constructionMs": 3.886790999999903,
+        "firstProposalMs": 4.594291999999996,
+        "warmProposalsMs": 41.071500000000015,
+        "stats": {
+          "attempts": 11973,
+          "hits": 7670,
+          "cold": 1032,
+          "reused": 7080,
+          "rejected": {
+            "lake-envelope": 364,
+            "triangle-edge": 1755,
+            "cell-edge": 2106,
+            "landscape-owner": 78
+          },
+          "oracleTerrainQueries": 50340,
+          "fastTerrainQueries": 49829,
+          "certificateVertexQueries": 2360,
+          "exclusionQueries": 2064,
+          "acquisitionTerrainQueries": 4957
+        }
+      }
+    },
+    {
+      "trial": 7,
+      "order": [
+        "candidate",
+        "oracle"
+      ],
+      "candidate": {
+        "constructionMs": 3.96024999999986,
+        "firstProposalMs": 4.672624999999925,
+        "warmProposalsMs": 42.292875000000095,
+        "stats": {
+          "attempts": 11973,
+          "hits": 7670,
+          "cold": 1032,
+          "reused": 7080,
+          "rejected": {
+            "lake-envelope": 364,
+            "triangle-edge": 1755,
+            "cell-edge": 2106,
+            "landscape-owner": 78
+          },
+          "oracleTerrainQueries": 50340,
+          "fastTerrainQueries": 49829,
+          "certificateVertexQueries": 2360,
+          "exclusionQueries": 2064,
+          "acquisitionTerrainQueries": 4957
+        }
+      },
+      "oracle": {
+        "constructionMs": 2.9050419999998667,
+        "firstProposalMs": 3.706333000000086,
+        "warmProposalsMs": 41.977833000000146
+      }
+    }
+  ],
+  "warmRepeats": 12,
+  "limitations": [
+    "Native terrain caches and JIT prewarmed; this is cold-certificate, not cold-world generation.",
+    "All methods replay through propose to retain exact before/target inputs across warm repetitions; acceptance/actor publication is not timed.",
+    "Contexts are reconstructed, so production acquisition/churn and unsampled histories are not reproduced.",
+    "No browser, renderer, dynamic runtime deck source, ordinary frame timing, physical device or thermal acceptance.",
+    "Trial batches include prototype generation/containment checks, exclusions and repeated failed-certificate maintenance.",
+    "Prototype stats instrumentation is included. No confidence interval or production speedup is inferred."
+  ],
+  "counterInterpretation": {
+    "exclusionQueries": "This prototype increments two potential exclusions per cold attempt before either call. A landscape-owner rejection short-circuits the lake lookup, so this raw counter is an upper bound. Actual exclusion invocations equal exclusionQueries minus rejected.landscape-owner. No raw values have been changed."
+  }
+}

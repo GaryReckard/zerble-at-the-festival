@@ -1,0 +1,1282 @@
+{
+  "scope": "Offline Node CPU-only attribution at selected route anchors. Nested calls are not additive; no GPU, frame, iPad or equal-work comparison claim.",
+  "seed": 2404796662,
+  "tier": "low",
+  "terrain": true,
+  "landscapePolicyInstalled": false,
+  "anchors": [
+    {
+      "x": -230.3,
+      "z": -691.8,
+      "totalMs": 2226.823625,
+      "rebuilds": 1,
+      "roadVerts": 3903,
+      "active": 1015,
+      "descriptorSha256": "1ac3d8b847976ba258c247116d85eaef2f1ccea04809774c55378c3752d1c618",
+      "calls": [
+        {
+          "name": "_planCellRecords",
+          "ms": 122.83224999999999
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.04641699999999105
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 9.407333000000023
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0018330000000048585
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2610420000000033
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.21299999999999386
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 14.151916
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0017500000000154614
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 16.73029199999999
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0030000000000143245
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 18.426999999999992
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0009579999999971278
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 6.125416999999999
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.001125000000001819
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 19.010665999999986
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0008750000000077307
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.3301659999999913
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 11.422958999999992
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.001082999999994172
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 12.026958999999977
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0016249999999899956
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 13.020291999999984
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0012910000000374566
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 14.301541999999984
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0020420000000171967
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.5002920000000017
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2015840000000253
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 1.7792079999999828
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 1.7127910000000384
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0061670000000049185
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 7.3357919999999694
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0054580000000328255
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 4.295708999999988
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0004999999999881766
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.20816600000000562
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 14.058540999999991
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0009580000000255495
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 10.11141600000002
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00033400000000938235
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 1.8571249999999964
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16204199999998536
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 16.822584000000006
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.001040999999986525
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 5.769334000000015
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0004999999999881766
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 12.19870800000001
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0004160000000297259
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 16.279042000000004
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0005419999999958236
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.21137499999997544
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 3.735125000000039
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0005409999999983484
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2695420000000013
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 3.90625
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0002910000000042601
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 15.381666999999993
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0009170000000153777
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.25787500000001273
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 5.677792000000011
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0004590000000348482
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.23187500000000227
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19883299999997917
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 4.495834000000002
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00020799999998644125
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19541700000002038
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 3.7550410000000056
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00020799999998644125
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 4.079833000000008
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00012500000002546585
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 27.134374999999977
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0006250000000136424
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 7.223124999999982
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00037500000001955414
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 4.074666999999977
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00037500000001955414
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 26.814082999999982
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0009169999999585343
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 14.263041999999928
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0005419999999958236
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.28512499999999363
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 14.174624999999992
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0005419999999958236
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 2.4206249999999727
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.21466699999996308
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 5.6335410000000365
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0002919999999448919
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 4.008624999999938
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00012500000002546585
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.23537499999997635
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 1.1584159999999883
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.42304200000000947
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.27445799999998144
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 9.342415999999957
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0010419999999840002
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 24.168999999999983
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.001082999999994172
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.34958400000004985
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.3035409999999956
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 3.048708999999917
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0005409999999983484
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2161670000000413
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1917079999999487
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.25820900000007896
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.22404199999994034
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2900830000000951
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.40949999999998
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 2.526707999999985
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0002919999999448919
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 9.223208
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0002919999999448919
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.24116700000001856
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 7.352125000000001
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00041600000008656934
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.3273749999999609
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.23558300000001964
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.3189159999999447
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 5.914834000000042
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0004159999999728825
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 8.012833
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0003330000000687505
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 6.827832999999941
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00029200000005857873
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.3037499999999227
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 27.062917000000084
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0009579999999687061
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 13.80645800000002
+        },
+        {
+          "name": "_writeRoads",
+          "ms": 46.84220800000003
+        },
+        {
+          "name": "_writeRoads",
+          "ms": 108.88683300000002
+        },
+        {
+          "name": "_applySnapshot",
+          "ms": 1602.798459
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.001209000000017113
+        }
+      ]
+    },
+    {
+      "x": -378,
+      "z": -628,
+      "totalMs": 204.38324999999986,
+      "rebuilds": 2,
+      "roadVerts": 3903,
+      "active": 1020,
+      "descriptorSha256": "960a76b66683ebfdaed24b6c8c300ee3f863472c7a94bf4dbc9cf39395220de0",
+      "calls": [
+        {
+          "name": "_planCellRecords",
+          "ms": 0.3865000000000691
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.28691699999990306
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18583300000000236
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.25283300000000963
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.22233299999970768
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.20358299999998053
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.31187499999987267
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17000000000007276
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1973750000001928
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19754199999988487
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18187500000021828
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.20604099999991377
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19162499999993088
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0004999999996471161
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18516700000009223
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2699999999999818
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17679199999975026
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.24299999999993815
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1983749999999418
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.21624999999994543
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19687500000009095
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1551670000003469
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16433299999971496
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.25408299999980954
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19937499999969077
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1558749999999236
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16341600000032486
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.177208999999948
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.25333299999965675
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00016599999980826396
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1470419999996011
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.172458000000006
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19879200000013952
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.14249999999992724
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2652499999999236
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1934160000000702
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2665839999999662
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17970800000011877
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1272089999997661
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16362500000013824
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.26770799999985684
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.14329199999974662
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.32349999999996726
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2167500000000473
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1977919999999358
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.000416000000313943
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19458300000042072
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.11862500000006548
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.21099999999978536
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16545799999994415
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19712500000014188
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.22491600000012113
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.4588330000001406
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.22716600000012477
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1687090000000353
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.23954100000037215
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2082909999999174
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.259541999999783
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2303750000000946
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18208300000014788
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0002919999997175182
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.12429199999996854
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1928749999997308
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16858300000012605
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16308299999991505
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1499999999996362
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1959580000002461
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1384170000001177
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2559999999998581
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18962499999997817
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17791699999997945
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1859159999999065
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.21441600000025574
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.12429199999996854
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17808300000024246
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.15991699999995035
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19049999999970169
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1708330000001297
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19058300000006057
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00016700000014679972
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.14754099999981918
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.20962499999995998
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18224999999983993
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17083299999967494
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.15970800000013696
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.23995800000011513
+        },
+        {
+          "name": "_writeRoads",
+          "ms": 43.00199999999995
+        },
+        {
+          "name": "_writeRoads",
+          "ms": 92.78966700000001
+        },
+        {
+          "name": "_applySnapshot",
+          "ms": 187.90433399999984
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0012500000002546585
+        }
+      ]
+    },
+    {
+      "x": -429,
+      "z": -585,
+      "totalMs": 140.91354200000023,
+      "rebuilds": 3,
+      "roadVerts": 4071,
+      "active": 1019,
+      "descriptorSha256": "88de5102f7ecd32acdb3ae9d0b0e7e9d9d13cf5cf7e293a0b267217d85cfecb8",
+      "calls": [
+        {
+          "name": "_planCellRecords",
+          "ms": 0.4020829999999478
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.32237499999973807
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.20775000000003274
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19954099999995378
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.21525000000019645
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2573749999996835
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.26216599999997925
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19158299999980954
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.21666700000014316
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.28745800000024246
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18612500000017462
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.27133299999968585
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00045799999998052954
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.29716700000017227
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.20941599999969185
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.23783400000002075
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16441699999995762
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.24995799999987867
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.15545800000018062
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.27283299999999144
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16766699999971024
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1382499999999709
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18024999999988722
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.28216699999984485
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.20654199999989942
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16008300000021336
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.21095800000011877
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17620800000031522
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0004999999996471161
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1733750000003056
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1393750000002001
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1553750000002765
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17287499999974898
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18066599999974642
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19900000000006912
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1706659999999829
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.23862499999995634
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1350840000000062
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1068329999998241
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16937499999994543
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18008300000019517
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16479100000015023
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.24575000000004366
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.20004100000005565
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17287500000020373
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18008300000019517
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.155083999999988
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00016700000014679972
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.22062499999992724
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17220799999995506
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16366599999992104
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18883299999970404
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17416700000012497
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18691599999965547
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.14420799999970768
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1492089999997006
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.19037500000013097
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.22404099999994287
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1924579999999878
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2068330000001879
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16570799999999508
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18541700000014316
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17275000000017826
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18612500000017462
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1887090000000171
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00016700000014679972
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17145799999980227
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.12187500000027285
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1857079999999769
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1836670000002414
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.36649999999963256
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.23362500000030195
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.20066700000006676
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.16933300000027884
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18491699999958655
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.1279589999999189
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.15429200000016863
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17391600000019025
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.20945799999981318
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.18445800000017698
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.22954200000003766
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.12649999999985084
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.00045799999998052954
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.3534999999997126
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.17904200000020865
+        },
+        {
+          "name": "_planCellRecords",
+          "ms": 0.2723750000000109
+        },
+        {
+          "name": "_writeRoads",
+          "ms": 7.127875000000131
+        },
+        {
+          "name": "_writeRoads",
+          "ms": 13.927708000000166
+        },
+        {
+          "name": "_applySnapshot",
+          "ms": 124.58512500000006
+        },
+        {
+          "name": "_updateHandoffs",
+          "ms": 0.0008749999997235136
+        }
+      ]
+    }
+  ]
+}

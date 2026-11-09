@@ -1,0 +1,645 @@
+{
+  "source": "registry-probe-results.json",
+  "signConvention": "candidate minus baseline; negative means candidate costs less",
+  "cases": [
+    {
+      "moverCount": 3,
+      "framesPerTrial": 2500,
+      "eventCounts": {
+        "resident": 2937,
+        "scannedPerBarrier": 3,
+        "staticEntries": 2934,
+        "ordinaryPublications": 8100,
+        "staticRadiusKeyVisitsIncludingTeardown": 1757
+      },
+      "costs": {
+        "maintenance": {
+          "baselineMedianTotalMs": 335.74854200000027,
+          "candidateMedianTotalMs": 1.18324999999993,
+          "candidateMinusBaselineMedianTotalMs": -334.56529200000034,
+          "baselineMedianPerFrameMs": 0.1342994168000001,
+          "candidateMedianPerFrameMs": 0.000473299999999972,
+          "candidateMinusBaselineMedianPerFrameMs": -0.13382611680000014,
+          "pairedCandidateMinusBaselineMs": [
+            -328.779125,
+            -333.27154200000007,
+            -334.0362070000001,
+            -335.6326680000002,
+            -334.9824590000003,
+            -344.06925100000035,
+            -340.1486249999989
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 335.69635400000016,
+              "candidateMedianTotalMs": 0.9746664999999552,
+              "medianPairedCandidateMinusBaselineTotalMs": -334.5093330000002
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 336.52458400000023,
+              "candidateMedianTotalMs": 1.2118329999998423,
+              "medianPairedCandidateMinusBaselineTotalMs": -335.6326680000002
+            }
+          }
+        },
+        "endToEnd": {
+          "baselineMedianTotalMs": 336.59204199999976,
+          "candidateMedianTotalMs": 1.313083000000006,
+          "candidateMinusBaselineMedianTotalMs": -335.27895899999976,
+          "baselineMedianPerFrameMs": 0.1346368167999999,
+          "candidateMedianPerFrameMs": 0.0005252332000000024,
+          "candidateMinusBaselineMedianPerFrameMs": -0.13411158359999992,
+          "pairedCandidateMinusBaselineMs": [
+            -325.10216699999995,
+            -334.176833,
+            -344.70570899999984,
+            -331.69158400000015,
+            -335.5202919999997,
+            -344.35916700000007,
+            -340.88279200000034
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 339.2714585000001,
+              "candidateMedianTotalMs": 1.1924165000000357,
+              "medianPairedCandidateMinusBaselineTotalMs": -338.201542
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 335.928042,
+              "candidateMedianTotalMs": 1.3989579999997659,
+              "medianPairedCandidateMinusBaselineTotalMs": -334.176833
+            }
+          }
+        },
+        "admission": {
+          "baselineMedianTotalMs": 5.320999999999913,
+          "candidateMedianTotalMs": 5.77150000000006,
+          "candidateMinusBaselineMedianTotalMs": 0.45050000000014734,
+          "baselineMedianPerFrameMs": null,
+          "candidateMedianPerFrameMs": null,
+          "candidateMinusBaselineMedianPerFrameMs": null,
+          "pairedCandidateMinusBaselineMs": [
+            -0.47162499999998886,
+            0.461208000000056,
+            0.7093330000000151,
+            0.3341659999996409,
+            0.20699999999987995,
+            0.6569589999999152,
+            0.5803749999995489
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 5.397833500000161,
+              "candidateMedianTotalMs": 5.830312500000105,
+              "medianPairedCandidateMinusBaselineTotalMs": 0.3936874999997144
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 5.310292000000004,
+              "candidateMedianTotalMs": 5.77150000000006,
+              "medianPairedCandidateMinusBaselineTotalMs": 0.461208000000056
+            }
+          }
+        },
+        "removal": {
+          "baselineMedianTotalMs": 0.9867500000000291,
+          "candidateMedianTotalMs": 2.552291999999966,
+          "candidateMinusBaselineMedianTotalMs": 1.5655419999999367,
+          "baselineMedianPerFrameMs": null,
+          "candidateMedianPerFrameMs": null,
+          "candidateMinusBaselineMedianPerFrameMs": null,
+          "pairedCandidateMinusBaselineMs": [
+            2.2384589999999207,
+            1.683208000000036,
+            3.877208000000337,
+            2.4170420000000377,
+            1.5507910000001175,
+            0.9339159999999538,
+            1.4104989999996178
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 0.9675419999998667,
+              "candidateMedianTotalMs": 2.9787500000000477,
+              "medianPairedCandidateMinusBaselineTotalMs": 1.894625000000019
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 1.0012910000000375,
+              "candidateMedianTotalMs": 2.552291999999966,
+              "medianPairedCandidateMinusBaselineTotalMs": 1.683208000000036
+            }
+          }
+        },
+        "queries": {
+          "baselineMedianTotalMs": 2.981166999999914,
+          "candidateMedianTotalMs": 2.576332999999977,
+          "candidateMinusBaselineMedianTotalMs": -0.4048339999999371,
+          "baselineMedianPerFrameMs": null,
+          "candidateMedianPerFrameMs": null,
+          "candidateMinusBaselineMedianPerFrameMs": null,
+          "pairedCandidateMinusBaselineMs": [
+            -2.4617090000000417,
+            -0.4319590000002336,
+            -0.4907090000001517,
+            0.21233299999994415,
+            -0.264166999999361,
+            -0.8882509999993999,
+            -0.14124900000024354
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 3.001145999999835,
+              "candidateMedianTotalMs": 2.5753334999999424,
+              "medianPairedCandidateMinusBaselineTotalMs": -0.37743799999975636
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 2.9742499999997563,
+              "candidateMedianTotalMs": 2.644916000000194,
+              "medianPairedCandidateMinusBaselineTotalMs": -0.4319590000002336
+            }
+          }
+        }
+      }
+    },
+    {
+      "moverCount": 48,
+      "framesPerTrial": 2500,
+      "eventCounts": {
+        "resident": 2937,
+        "scannedPerBarrier": 48,
+        "staticEntries": 2889,
+        "ordinaryPublications": 129600,
+        "staticRadiusKeyVisitsIncludingTeardown": 724
+      },
+      "costs": {
+        "maintenance": {
+          "baselineMedianTotalMs": 336.7146249999996,
+          "candidateMedianTotalMs": 6.240082999999686,
+          "candidateMinusBaselineMedianTotalMs": -330.47454199999993,
+          "baselineMedianPerFrameMs": 0.13468584999999986,
+          "candidateMedianPerFrameMs": 0.0024960331999998742,
+          "candidateMinusBaselineMedianPerFrameMs": -0.13218981679999997,
+          "pairedCandidateMinusBaselineMs": [
+            -320.90329100000054,
+            -334.19645799999944,
+            -330.66412499999933,
+            -329.6158750000004,
+            -331.78729100000055,
+            -334.70020900000236,
+            -330.38137500000084
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 336.4781459999999,
+              "candidateMedianTotalMs": 6.122146000000157,
+              "medianPairedCandidateMinusBaselineTotalMs": -330.5227500000001
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 341.0680000000011,
+              "candidateMedianTotalMs": 6.3677909999987605,
+              "medianPairedCandidateMinusBaselineTotalMs": -334.19645799999944
+            }
+          }
+        },
+        "endToEnd": {
+          "baselineMedianTotalMs": 337.91891699999996,
+          "candidateMedianTotalMs": 13.760209000000032,
+          "candidateMinusBaselineMedianTotalMs": -324.15870799999993,
+          "baselineMedianPerFrameMs": 0.1351675668,
+          "candidateMedianPerFrameMs": 0.005504083600000012,
+          "candidateMinusBaselineMedianPerFrameMs": -0.12966348319999998,
+          "pairedCandidateMinusBaselineMs": [
+            -324.1324990000003,
+            -324.2138759999998,
+            -321.90079199999946,
+            -336.47391700000117,
+            -326.62712499999907,
+            -326.92658400000073,
+            -322.7094990000005
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 337.1083330000006,
+              "candidateMedianTotalMs": 13.687334000000192,
+              "medianPairedCandidateMinusBaselineTotalMs": -323.4209990000004
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 341.9272920000003,
+              "candidateMedianTotalMs": 14.355249999999614,
+              "medianPairedCandidateMinusBaselineTotalMs": -326.92658400000073
+            }
+          }
+        },
+        "admission": {
+          "baselineMedianTotalMs": 4.954584000000068,
+          "candidateMedianTotalMs": 5.567458000001352,
+          "candidateMinusBaselineMedianTotalMs": 0.612874000001284,
+          "baselineMedianPerFrameMs": null,
+          "candidateMedianPerFrameMs": null,
+          "candidateMinusBaselineMedianPerFrameMs": null,
+          "pairedCandidateMinusBaselineMs": [
+            0.5945000000001528,
+            0.569749000000229,
+            0.6857499999996435,
+            0.5764170000002196,
+            1.3960430000006454,
+            0.5780830000021524,
+            0.6929160000017873
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 4.8968330000002425,
+              "candidateMedianTotalMs": 5.567500000000109,
+              "medianPairedCandidateMinusBaselineTotalMs": 0.6893330000007154
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 4.9893749999992,
+              "candidateMedianTotalMs": 5.567458000001352,
+              "medianPairedCandidateMinusBaselineTotalMs": 0.5764170000002196
+            }
+          }
+        },
+        "removal": {
+          "baselineMedianTotalMs": 0.9112910000003467,
+          "candidateMedianTotalMs": 1.798000000000684,
+          "candidateMinusBaselineMedianTotalMs": 0.8867090000003373,
+          "baselineMedianPerFrameMs": null,
+          "candidateMedianPerFrameMs": null,
+          "candidateMinusBaselineMedianPerFrameMs": null,
+          "pairedCandidateMinusBaselineMs": [
+            0.7640009999995527,
+            0.7831660000001648,
+            1.0388749999992797,
+            0.8579590000008466,
+            1.0889170000009472,
+            0.9506259999998292,
+            0.8718740000003891
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 0.8861245000002782,
+              "candidateMedianTotalMs": 1.824312000000191,
+              "medianPairedCandidateMinusBaselineTotalMs": 0.9553744999998344
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 0.9187499999998181,
+              "candidateMedianTotalMs": 1.798000000000684,
+              "medianPairedCandidateMinusBaselineTotalMs": 0.8579590000008466
+            }
+          }
+        },
+        "queries": {
+          "baselineMedianTotalMs": 2.9386670000003505,
+          "candidateMedianTotalMs": 2.753958000000239,
+          "candidateMinusBaselineMedianTotalMs": -0.1847090000001117,
+          "baselineMedianPerFrameMs": null,
+          "candidateMedianPerFrameMs": null,
+          "candidateMinusBaselineMedianPerFrameMs": null,
+          "pairedCandidateMinusBaselineMs": [
+            -0.4486669999996593,
+            -0.1847090000001117,
+            -0.11179100000026665,
+            -0.41908299999977316,
+            -0.13266699999985576,
+            -0.1233749999992142,
+            0.07658400000036636
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 2.9662915000003522,
+              "candidateMedianTotalMs": 2.844062500000291,
+              "medianPairedCandidateMinusBaselineTotalMs": -0.1222290000000612
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 2.9386670000003505,
+              "candidateMedianTotalMs": 2.7521250000008877,
+              "medianPairedCandidateMinusBaselineTotalMs": -0.1847090000001117
+            }
+          }
+        }
+      }
+    },
+    {
+      "moverCount": 2937,
+      "framesPerTrial": 2500,
+      "eventCounts": {
+        "resident": 2937,
+        "scannedPerBarrier": 2937,
+        "staticEntries": 0,
+        "ordinaryPublications": 7929900,
+        "staticRadiusKeyVisitsIncludingTeardown": 0
+      },
+      "costs": {
+        "maintenance": {
+          "baselineMedianTotalMs": 339.0277079999996,
+          "candidateMedianTotalMs": 341.099083000001,
+          "candidateMinusBaselineMedianTotalMs": 2.0713750000013533,
+          "baselineMedianPerFrameMs": 0.13561108319999984,
+          "candidateMedianPerFrameMs": 0.13643963320000038,
+          "candidateMinusBaselineMedianPerFrameMs": 0.0008285500000005413,
+          "pairedCandidateMinusBaselineMs": [
+            2.3149169999996957,
+            -3.0869170000005397,
+            2.649999999999636,
+            -19.516959000000497,
+            -6.911667000000307,
+            6.228250000000116,
+            17.282917000000452
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 337.1304164999992,
+              "candidateMedianTotalMs": 339.6128749999989,
+              "medianPairedCandidateMinusBaselineTotalMs": 2.482458499999666
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 343.985584,
+              "candidateMedianTotalMs": 341.099083000001,
+              "medianPairedCandidateMinusBaselineTotalMs": -3.0869170000005397
+            }
+          }
+        },
+        "endToEnd": {
+          "baselineMedianTotalMs": 444.96645799999897,
+          "candidateMedianTotalMs": 794.9889160000021,
+          "candidateMinusBaselineMedianTotalMs": 350.0224580000031,
+          "baselineMedianPerFrameMs": 0.17798658319999958,
+          "candidateMedianPerFrameMs": 0.3179955664000008,
+          "candidateMinusBaselineMedianPerFrameMs": 0.14000898320000124,
+          "pairedCandidateMinusBaselineMs": [
+            343.8861659999984,
+            338.1405840000007,
+            348.018541999998,
+            352.0769160000018,
+            346.346249000002,
+            347.1920829999981,
+            350.4054169999981
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 445.7757500000007,
+              "candidateMedianTotalMs": 794.7999789999994,
+              "medianPairedCandidateMinusBaselineTotalMs": 347.1823955
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 444.96645799999897,
+              "candidateMedianTotalMs": 794.9889160000021,
+              "medianPairedCandidateMinusBaselineTotalMs": 347.1920829999981
+            }
+          }
+        },
+        "admission": {
+          "baselineMedianTotalMs": 5.165417000000161,
+          "candidateMedianTotalMs": 5.294999999998254,
+          "candidateMinusBaselineMedianTotalMs": 0.12958299999809242,
+          "baselineMedianPerFrameMs": null,
+          "candidateMedianPerFrameMs": null,
+          "candidateMinusBaselineMedianPerFrameMs": null,
+          "pairedCandidateMinusBaselineMs": [
+            0.2296249999999418,
+            0.298584000000119,
+            -0.1402090000010503,
+            0.10487500000090222,
+            0.18608300000050804,
+            0.010874999999941792,
+            0.1321669999997539
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 5.150646000000052,
+              "candidateMedianTotalMs": 5.18847950000054,
+              "medianPairedCandidateMinusBaselineTotalMs": 0.15912500000013097
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 5.284124999998312,
+              "candidateMedianTotalMs": 5.294999999998254,
+              "medianPairedCandidateMinusBaselineTotalMs": 0.10487500000090222
+            }
+          }
+        },
+        "removal": {
+          "baselineMedianTotalMs": 1.0149579999997513,
+          "candidateMedianTotalMs": 1.246291999999812,
+          "candidateMinusBaselineMedianTotalMs": 0.23133400000006077,
+          "baselineMedianPerFrameMs": null,
+          "candidateMedianPerFrameMs": null,
+          "candidateMinusBaselineMedianPerFrameMs": null,
+          "pairedCandidateMinusBaselineMs": [
+            0.24420800000007148,
+            0.20591699999931734,
+            0.22954199999730918,
+            0.1970839999994496,
+            0.20916699999725097,
+            0.2413750000014261,
+            0.36020900000221445
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 0.9964794999996229,
+              "candidateMedianTotalMs": 1.2453959999984363,
+              "medianPairedCandidateMinusBaselineTotalMs": 0.23687499999869033
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 1.0291250000009313,
+              "candidateMedianTotalMs": 1.2598330000000715,
+              "medianPairedCandidateMinusBaselineTotalMs": 0.20591699999931734
+            }
+          }
+        },
+        "queries": {
+          "baselineMedianTotalMs": 2.5246250000000146,
+          "candidateMedianTotalMs": 2.540666999997484,
+          "candidateMinusBaselineMedianTotalMs": 0.016041999997469247,
+          "baselineMedianPerFrameMs": null,
+          "candidateMedianPerFrameMs": null,
+          "candidateMinusBaselineMedianPerFrameMs": null,
+          "pairedCandidateMinusBaselineMs": [
+            -0.017458000000260654,
+            0.08266700000058336,
+            -0.05954100000053586,
+            -0.17012500000055297,
+            0.020915999997669132,
+            0.17691600000034668,
+            0.06633399999554968
+          ],
+          "orderGroups": {
+            "baselineFirst": {
+              "trials": [
+                0,
+                2,
+                4,
+                6
+              ],
+              "baselineMedianTotalMs": 2.5599170000014055,
+              "candidateMedianTotalMs": 2.5746044999987134,
+              "medianPairedCandidateMinusBaselineTotalMs": 0.0017289999987042393
+            },
+            "candidateFirst": {
+              "trials": [
+                1,
+                3,
+                5
+              ],
+              "baselineMedianTotalMs": 2.4470409999994445,
+              "candidateMedianTotalMs": 2.529708000000028,
+              "medianPairedCandidateMinusBaselineTotalMs": 0.08266700000058336
+            }
+          }
+        }
+      }
+    }
+  ]
+}

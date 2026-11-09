@@ -1,0 +1,624 @@
+{
+  "scope": "Offline extraction from existing diagnostic profiles. No new timing, testing or runtime counters. No per-frame benefit estimates; absent sampling rows remain null. Inclusive functions overlap. Selection ranking is retrospective, not preregistered.",
+  "profiles": {
+    "high-route": {
+      "source": "high-route-all-functions.json",
+      "sha256": "8778f7defc43721f87d53a47ee83c93399c4deac9d5de13b16943a6ceb8ef615",
+      "topLevelFields": [
+        "scope",
+        "totalSampledMs",
+        "self",
+        "inclusive",
+        "reachabilityCallers"
+      ],
+      "rowFields": {
+        "self": [
+          "function",
+          "file",
+          "line",
+          "ms"
+        ],
+        "inclusive": [
+          "function",
+          "file",
+          "line",
+          "ms"
+        ],
+        "reachabilityCallers": [
+          "function",
+          "file",
+          "line",
+          "ms"
+        ]
+      },
+      "totalSampledMs": 59840.666,
+      "selected": {
+        "childrenUpdate": {
+          "self": {
+            "function": "update",
+            "file": "src/people/children.js",
+            "line": 180,
+            "ms": 362.692
+          },
+          "inclusive": {
+            "function": "update",
+            "file": "src/people/children.js",
+            "line": 180,
+            "ms": 2169.75
+          }
+        },
+        "childWorldProjection": {
+          "self": {
+            "function": "pushOutOfHardColliders",
+            "file": "src/people/children.js",
+            "line": 505,
+            "ms": 6.621
+          },
+          "inclusive": {
+            "function": "pushOutOfHardColliders",
+            "file": "src/people/children.js",
+            "line": 505,
+            "ms": 193.725
+          }
+        },
+        "childPresentationSync": {
+          "self": {
+            "function": "sync",
+            "file": "src/people/childPresentation.js",
+            "line": 69,
+            "ms": 173.461
+          },
+          "inclusive": {
+            "function": "sync",
+            "file": "src/people/childPresentation.js",
+            "line": 69,
+            "ms": 232.272
+          }
+        },
+        "adultWriteMatrices": {
+          "self": {
+            "function": "_writeMatrices",
+            "file": "src/crowd.js",
+            "line": 1628,
+            "ms": 509.281
+          },
+          "inclusive": {
+            "function": "_writeMatrices",
+            "file": "src/crowd.js",
+            "line": 1628,
+            "ms": 1525.613
+          }
+        },
+        "ordinaryChunkGeneration": {
+          "self": {
+            "function": "_generate",
+            "file": "src/chunks.js",
+            "line": 420,
+            "ms": 0.221
+          },
+          "inclusive": {
+            "function": "_generate",
+            "file": "src/chunks.js",
+            "line": 420,
+            "ms": 165.339
+          }
+        },
+        "lakeLoadUnload": {
+          "self": {
+            "function": "_loadUnloadWorldgen",
+            "file": "src/lakes.js",
+            "line": 183,
+            "ms": 8.185
+          },
+          "inclusive": {
+            "function": "_loadUnloadWorldgen",
+            "file": "src/lakes.js",
+            "line": 183,
+            "ms": 70.239
+          }
+        },
+        "groundRecenter": {
+          "self": {
+            "function": "resampleGroundSurface",
+            "file": "src/world.js",
+            "line": 211,
+            "ms": 5.766
+          },
+          "inclusive": {
+            "function": "resampleGroundSurface",
+            "file": "src/world.js",
+            "line": 211,
+            "ms": 138.226
+          }
+        },
+        "allWorldMatrices": {
+          "self": {
+            "function": "updateMatrixWorld",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 7720,
+            "ms": 3315.538
+          },
+          "inclusive": {
+            "function": "updateMatrixWorld",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 7720,
+            "ms": 4582.546
+          }
+        },
+        "allProjection": {
+          "self": {
+            "function": "projectObject",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 29679,
+            "ms": 3108.539
+          },
+          "inclusive": {
+            "function": "projectObject",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 29679,
+            "ms": 4550.451
+          }
+        },
+        "allDrawSubmission": {
+          "self": {
+            "function": "renderBufferDirect",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 29173,
+            "ms": 1951.754
+          },
+          "inclusive": {
+            "function": "renderBufferDirect",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 29173,
+            "ms": 11780.765
+          }
+        }
+      },
+      "capture": {
+        "source": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261107-102425-route-cpu-high-eddb8afc/capture.json",
+        "semantic": {
+          "childrenMax": 50,
+          "childrenMin": 50,
+          "contentPolicy": "{\"version\":\"live-festival-v2\",\"childConstruction\":\"private-seeded-v1\",\"childConstructionSeed\":3743026110,\"tier\":\"high\",\"crowdMax\":500,\"chunkLoadRadius\":2}",
+          "populationMax": 354,
+          "populationMin": 215,
+          "routePolicy": "road-follow-v2"
+        },
+        "cost": {
+          "drawsMax": 2516,
+          "drawsMin": 910
+        },
+        "firstSampleFieldNames": [
+          "adults",
+          "blocked",
+          "boosting",
+          "bubbles",
+          "children",
+          "damage",
+          "draws",
+          "dropped",
+          "heading",
+          "height",
+          "programs",
+          "quality",
+          "registry",
+          "requestedBoost",
+          "resources",
+          "segment",
+          "speed",
+          "steer",
+          "steps",
+          "t",
+          "targetHeight",
+          "targetWidth",
+          "throttle",
+          "triangles",
+          "width",
+          "x",
+          "z"
+        ]
+      }
+    },
+    "low-route": {
+      "source": "low-route-all-functions.json",
+      "sha256": "5bf5b62623e2572df112b522addd9e94b88feb8e614d8a93cfd933eb5917b890",
+      "topLevelFields": [
+        "scope",
+        "totalSampledMs",
+        "self",
+        "inclusive",
+        "reachabilityCallers"
+      ],
+      "rowFields": {
+        "self": [
+          "function",
+          "file",
+          "line",
+          "ms"
+        ],
+        "inclusive": [
+          "function",
+          "file",
+          "line",
+          "ms"
+        ],
+        "reachabilityCallers": [
+          "function",
+          "file",
+          "line",
+          "ms"
+        ]
+      },
+      "totalSampledMs": 60490.879,
+      "selected": {
+        "childrenUpdate": {
+          "self": {
+            "function": "update",
+            "file": "src/people/children.js",
+            "line": 180,
+            "ms": 161.588
+          },
+          "inclusive": {
+            "function": "update",
+            "file": "src/people/children.js",
+            "line": 180,
+            "ms": 1686.217
+          }
+        },
+        "childWorldProjection": {
+          "self": {
+            "function": "pushOutOfHardColliders",
+            "file": "src/people/children.js",
+            "line": 505,
+            "ms": 3.545
+          },
+          "inclusive": {
+            "function": "pushOutOfHardColliders",
+            "file": "src/people/children.js",
+            "line": 505,
+            "ms": 227.198
+          }
+        },
+        "childPresentationSync": {
+          "self": {
+            "function": "sync",
+            "file": "src/people/childPresentation.js",
+            "line": 69,
+            "ms": 179.565
+          },
+          "inclusive": {
+            "function": "sync",
+            "file": "src/people/childPresentation.js",
+            "line": 69,
+            "ms": 215.765
+          }
+        },
+        "adultWriteMatrices": {
+          "self": {
+            "function": "_writeMatrices",
+            "file": "src/crowd.js",
+            "line": 1628,
+            "ms": 320.075
+          },
+          "inclusive": {
+            "function": "_writeMatrices",
+            "file": "src/crowd.js",
+            "line": 1628,
+            "ms": 924.192
+          }
+        },
+        "ordinaryChunkGeneration": {
+          "self": null,
+          "inclusive": {
+            "function": "_generate",
+            "file": "src/chunks.js",
+            "line": 420,
+            "ms": 134.014
+          }
+        },
+        "lakeLoadUnload": {
+          "self": {
+            "function": "_loadUnloadWorldgen",
+            "file": "src/lakes.js",
+            "line": 183,
+            "ms": 19.33
+          },
+          "inclusive": {
+            "function": "_loadUnloadWorldgen",
+            "file": "src/lakes.js",
+            "line": 183,
+            "ms": 59.92
+          }
+        },
+        "groundRecenter": {
+          "self": {
+            "function": "resampleGroundSurface",
+            "file": "src/world.js",
+            "line": 211,
+            "ms": 7.842
+          },
+          "inclusive": {
+            "function": "resampleGroundSurface",
+            "file": "src/world.js",
+            "line": 211,
+            "ms": 144.812
+          }
+        },
+        "allWorldMatrices": {
+          "self": {
+            "function": "updateMatrixWorld",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 7720,
+            "ms": 2252.132
+          },
+          "inclusive": {
+            "function": "updateMatrixWorld",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 7720,
+            "ms": 3038.603
+          }
+        },
+        "allProjection": {
+          "self": {
+            "function": "projectObject",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 29679,
+            "ms": 1708.196
+          },
+          "inclusive": {
+            "function": "projectObject",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 29679,
+            "ms": 2760.989
+          }
+        },
+        "allDrawSubmission": {
+          "self": {
+            "function": "renderBufferDirect",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 29173,
+            "ms": 1314.927
+          },
+          "inclusive": {
+            "function": "renderBufferDirect",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 29173,
+            "ms": 6787.865
+          }
+        }
+      },
+      "capture": {
+        "source": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261107-103043-route-cpu-low-bba81581/capture.json",
+        "semantic": {
+          "childrenMax": 50,
+          "childrenMin": 50,
+          "contentPolicy": "{\"version\":\"live-festival-v2\",\"childConstruction\":\"private-seeded-v1\",\"childConstructionSeed\":3743026110,\"tier\":\"low\",\"crowdMax\":180,\"chunkLoadRadius\":1}",
+          "populationMax": 180,
+          "populationMin": 119,
+          "routePolicy": "road-follow-v2"
+        },
+        "cost": {
+          "drawsMax": 1850,
+          "drawsMin": 511
+        },
+        "firstSampleFieldNames": [
+          "adults",
+          "blocked",
+          "boosting",
+          "bubbles",
+          "children",
+          "damage",
+          "draws",
+          "dropped",
+          "heading",
+          "height",
+          "programs",
+          "quality",
+          "registry",
+          "requestedBoost",
+          "resources",
+          "segment",
+          "speed",
+          "steer",
+          "steps",
+          "t",
+          "targetHeight",
+          "targetWidth",
+          "throttle",
+          "triangles",
+          "width",
+          "x",
+          "z"
+        ]
+      }
+    },
+    "high-parked": {
+      "source": "high-parked-all-functions.json",
+      "sha256": "19afbfd0768fd9c3d8f6853b34065bbe7a562ff30de7823d4d1c6a619f8a2d9e",
+      "topLevelFields": [
+        "scope",
+        "totalSampledMs",
+        "self",
+        "inclusive",
+        "reachabilityCallers"
+      ],
+      "rowFields": {
+        "self": [
+          "function",
+          "file",
+          "line",
+          "ms"
+        ],
+        "inclusive": [
+          "function",
+          "file",
+          "line",
+          "ms"
+        ],
+        "reachabilityCallers": [
+          "function",
+          "file",
+          "line",
+          "ms"
+        ]
+      },
+      "totalSampledMs": 29517.608,
+      "selected": {
+        "childrenUpdate": {
+          "self": {
+            "function": "update",
+            "file": "src/people/children.js",
+            "line": 180,
+            "ms": 180.854
+          },
+          "inclusive": {
+            "function": "update",
+            "file": "src/people/children.js",
+            "line": 180,
+            "ms": 988.955
+          }
+        },
+        "childWorldProjection": {
+          "self": null,
+          "inclusive": null
+        },
+        "childPresentationSync": {
+          "self": {
+            "function": "sync",
+            "file": "src/people/childPresentation.js",
+            "line": 69,
+            "ms": 88.481
+          },
+          "inclusive": {
+            "function": "sync",
+            "file": "src/people/childPresentation.js",
+            "line": 69,
+            "ms": 182.801
+          }
+        },
+        "adultWriteMatrices": {
+          "self": {
+            "function": "_writeMatrices",
+            "file": "src/crowd.js",
+            "line": 1628,
+            "ms": 251.614
+          },
+          "inclusive": {
+            "function": "_writeMatrices",
+            "file": "src/crowd.js",
+            "line": 1628,
+            "ms": 770.441
+          }
+        },
+        "ordinaryChunkGeneration": {
+          "self": null,
+          "inclusive": null
+        },
+        "lakeLoadUnload": {
+          "self": {
+            "function": "_loadUnloadWorldgen",
+            "file": "src/lakes.js",
+            "line": 183,
+            "ms": 6.868
+          },
+          "inclusive": {
+            "function": "_loadUnloadWorldgen",
+            "file": "src/lakes.js",
+            "line": 183,
+            "ms": 20.479
+          }
+        },
+        "groundRecenter": {
+          "self": null,
+          "inclusive": null
+        },
+        "allWorldMatrices": {
+          "self": {
+            "function": "updateMatrixWorld",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 7720,
+            "ms": 1514.832
+          },
+          "inclusive": {
+            "function": "updateMatrixWorld",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 7720,
+            "ms": 2067.815
+          }
+        },
+        "allProjection": {
+          "self": {
+            "function": "projectObject",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 29679,
+            "ms": 1393.311
+          },
+          "inclusive": {
+            "function": "projectObject",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 29679,
+            "ms": 2131.046
+          }
+        },
+        "allDrawSubmission": {
+          "self": {
+            "function": "renderBufferDirect",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 29173,
+            "ms": 725.844
+          },
+          "inclusive": {
+            "function": "renderBufferDirect",
+            "file": "../../../../../node_modules/three/build/three.module.js",
+            "line": 29173,
+            "ms": 5951.503
+          }
+        }
+      },
+      "capture": {
+        "source": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261107-103726-route-cpu-high-2296026c/capture.json",
+        "semantic": {
+          "childrenMax": 50,
+          "childrenMin": 50,
+          "contentPolicy": "{\"version\":\"live-festival-v2\",\"childConstruction\":\"private-seeded-v1\",\"childConstructionSeed\":3743026110,\"tier\":\"high\",\"crowdMax\":500,\"chunkLoadRadius\":2}",
+          "populationMax": 307,
+          "populationMin": 305,
+          "routePolicy": "parked-v1"
+        },
+        "cost": {
+          "drawsMax": 1859,
+          "drawsMin": 1847
+        },
+        "firstSampleFieldNames": [
+          "adults",
+          "blocked",
+          "boosting",
+          "bubbles",
+          "children",
+          "damage",
+          "draws",
+          "dropped",
+          "heading",
+          "height",
+          "programs",
+          "quality",
+          "registry",
+          "requestedBoost",
+          "resources",
+          "segment",
+          "speed",
+          "steer",
+          "steps",
+          "t",
+          "targetHeight",
+          "targetWidth",
+          "throttle",
+          "triangles",
+          "width",
+          "x",
+          "z"
+        ]
+      }
+    }
+  }
+}

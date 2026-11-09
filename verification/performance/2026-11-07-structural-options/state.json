@@ -1,0 +1,61 @@
+{
+  "goal": "Select, test and exhaustively plan one worthwhile structural performance redesign; no production implementation",
+  "phase": "Complete: no selected structural rewrite",
+  "change": "openspec/changes/structural-performance-redesign",
+  "productionSource": "source-manifest.json",
+  "productionFilesChangedByThisGoal": [],
+  "foregroundReserved": true,
+  "grant": "grant.json",
+  "caffeinateSession": null,
+  "caffeinateIdentity": "caffeinate-identity.json",
+  "activeProfileSession": null,
+  "profiles": [
+    {
+      "name": "high-route",
+      "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261107-102425-route-cpu-high-eddb8afc",
+      "log": "/private/tmp/zerble-structural-high-profile.log"
+    },
+    {
+      "name": "low-route",
+      "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261107-103043-route-cpu-low-bba81581",
+      "log": "/private/tmp/zerble-structural-low-profile.log"
+    },
+    {
+      "name": "high-parked",
+      "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261107-103726-route-cpu-high-2296026c",
+      "log": "/private/tmp/zerble-structural-parked-profile.log"
+    }
+  ],
+  "councilFolder": "openspec/changes/structural-performance-redesign/deliberations/001-options",
+  "councilAgents": [
+    "options_architect",
+    "options_profiler",
+    "options_maverick"
+  ],
+  "roundsUsed": 2,
+  "roundLimit": 3,
+  "next": [],
+  "supportTraceSession": null,
+  "supportTrace": "support-request-trace.json",
+  "supportTraceV2Directory": ".claude/captures/performance-lab/diagnostics/20261107-105730-support-trace-high-3ca3d717",
+  "councilRound1": "openspec/changes/structural-performance-redesign/deliberations/001-options/results.md",
+  "previousGoalTurn": "progress: user explainer visualization completed; original selection objective remains active",
+  "supportDecision": "support-probe-report.md: no stable net warm benefit; cold regressions",
+  "registryDecision": "registry-probe-report.md: ~0.13ms/frame controlled Node saving; all-mover regression; no selection",
+  "renderDiagnosticManifest": "render-probe-manifest.json",
+  "renderBuildProvenance": "render-build-provenance.json",
+  "keeperCleanup": "keeper-cleanup.json",
+  "captureCleanup": "capture-cleanup-2.json",
+  "renderSummary": "render-summary.json",
+  "councilRound2": "openspec/changes/structural-performance-redesign/deliberations/002-selection/results.md",
+  "decision": "No inventoried candidate earned a production rewrite; no further discriminator required",
+  "selectedCandidate": null,
+  "productionPlanningActivated": false,
+  "thirdDeliberationRequired": false,
+  "completedUtc": "2026-11-07T16:35:30.192240+00:00",
+  "completionAudit": "completion-audit.md",
+  "documentationChecks": "documentation-checks.json",
+  "factCheck": "final-fact-check.md",
+  "foregroundCaptureActive": false,
+  "ownedKeeperActive": false
+}

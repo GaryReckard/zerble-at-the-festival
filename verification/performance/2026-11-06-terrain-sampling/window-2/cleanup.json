@@ -1,0 +1,118 @@
+{
+  "recordedAt": "2026-11-06T17:17:35.724148+00:00",
+  "window": "window-2/grant.json",
+  "reason": "Gary returned; foreground grant ended",
+  "manifests": [
+    {
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-115143-ecf3bc7e/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-115159-136b88c6/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-115209-fa709a66/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-115219-c0f480eb/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-115346-25188273/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-115513-d905f797/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-115640-aad351a0/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/diagnostics/20261106-115813-cpu-high-e19d86be/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-115907-438be3f1/20261106-115907-438be3f1-10/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-115907-438be3f1/20261106-115907-438be3f1-11/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-115907-438be3f1/20261106-115907-438be3f1-02/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-115907-438be3f1/20261106-115907-438be3f1-05/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-115907-438be3f1/20261106-115907-438be3f1-04/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-115907-438be3f1/20261106-115907-438be3f1-03/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-115907-438be3f1/20261106-115907-438be3f1-13/ownership.json",
+      "state": "failed",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-115907-438be3f1/20261106-115907-438be3f1-12/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-115907-438be3f1/20261106-115907-438be3f1-08/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-115907-438be3f1/20261106-115907-438be3f1-06/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-115907-438be3f1/20261106-115907-438be3f1-01/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-115907-438be3f1/20261106-115907-438be3f1-07/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-115907-438be3f1/20261106-115907-438be3f1-09/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    }
+  ],
+  "checkedIdentities": 430,
+  "remaining": [],
+  "keepAwakePid": 63767,
+  "keepAwakeAbsent": true,
+  "labLeaseAbsent": true,
+  "allTaskOwnedProcessesAbsent": true
+}

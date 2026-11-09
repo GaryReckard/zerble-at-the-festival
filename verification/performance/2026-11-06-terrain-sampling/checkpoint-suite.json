@@ -1,0 +1,120 @@
+{
+  "state": "completed",
+  "verdict": "no detectable change",
+  "source": {
+    "A": {
+      "app": "c3c93589b89b7dad24b3352635622008d201ac98b2fdad76848f41201b1055b5",
+      "build": "5fe861d4b0102beb03b6cc003bad6485949b9a47d18b47d0181a754bd7254367",
+      "harness": "4ffdedbb5bc4d595d212a276ca3be24f2be0545d488b55aa0790d0b3c1f4c935",
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/snapshots/c3c93589b89b7dad24b3352635622008d201ac98b2fdad76848f41201b1055b5"
+    },
+    "B": {
+      "app": "1dc95348d133420b5466d7a11a2c4fcc11e182d620297cec6110792bc836ceea",
+      "build": "e5aa76aeb071a6b84666cac47d0511be467f43da7992c1f1a26d80b69b0a81c3",
+      "harness": "4ffdedbb5bc4d595d212a276ca3be24f2be0545d488b55aa0790d0b3c1f4c935",
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/snapshots/1dc95348d133420b5466d7a11a2c4fcc11e182d620297cec6110792bc836ceea"
+    }
+  },
+  "conditions": {
+    "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+    "dpr": 1,
+    "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+    "height": 720,
+    "seed": 2404796662,
+    "tier": "high",
+    "width": 1280
+  },
+  "totalRuns": 40,
+  "rows": [
+    {
+      "condition": "high-dense-festival-v1",
+      "verdict": "no detectable change",
+      "p95A": 17.950000047683716,
+      "p95B": 18.5,
+      "workMedianA": 14.25,
+      "workMedianB": 13.25,
+      "pairedP95": {
+        "change": 0.5499999523162842,
+        "direction": 0,
+        "pairedChanges": [
+          0.5,
+          0.5999999046325684,
+          0.5999999046325684,
+          0.5
+        ],
+        "threshold": 2.0
+      },
+      "pairedStallRate": {
+        "change": 0.0,
+        "direction": 0,
+        "pairedChanges": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "threshold": 0.1
+      },
+      "worstA": 26.299999952316284,
+      "worstB": 28.100000143051147,
+      "stallsA": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "stallsB": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "condition": "high-streaming-drive-v1",
+      "verdict": "no detectable change",
+      "p95A": 19.100000023841858,
+      "p95B": 18.40000009536743,
+      "workMedianA": 14.900000095367432,
+      "workMedianB": 13.949999928474426,
+      "pairedP95": {
+        "change": -0.6499999761581421,
+        "direction": 0,
+        "pairedChanges": [
+          -1.0,
+          -0.5,
+          -0.7999999523162842,
+          -0.3000001907348633
+        ],
+        "threshold": 2.0
+      },
+      "pairedStallRate": {
+        "change": -0.016330079538201578,
+        "direction": 0,
+        "pairedChanges": [
+          -0.016345019561151197,
+          0.000275298188788603,
+          -0.048732162504564414,
+          -0.01631513951525196
+        ],
+        "threshold": 0.1
+      },
+      "worstA": 206.09999990463257,
+      "worstB": 130.20000004768372,
+      "stallsA": [
+        10,
+        10,
+        12,
+        10
+      ],
+      "stallsB": [
+        9,
+        10,
+        9,
+        9
+      ]
+    }
+  ],
+  "analysisRegenerated": true,
+  "scope": "Fixed-tier hardware Chrome only. Lower work timers, not a detected FPS gain or iPad/Auto acceptance."
+}

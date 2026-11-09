@@ -115,27 +115,36 @@ export function buildWorld(scene, crowd, playerPos = new THREE.Vector3(0, 0, 0),
 let _groundLastResampleX = NaN;
 let _groundLastResampleZ = NaN;
 
-export function updateWorld(playerPos, dt = 0.016, preparePhysical = null) {
+export function updateWorld(playerPos, dt = 0.016, preparePhysical = null, timings = null) {
   // One world-owned streaming deadline (festival-horizon design D3): lakes +
   // full chunks consume it first; the far-field horizon plans only in the
   // remainder. There is no second budget.
   const streamStartedAt = performance.now();
+  if(timings)timings.begin(streamStartedAt);
   // Lakes update first (same reason as boot: chunks consult lake footprints).
   if(landscapeRuntime)landscapeRuntime.update(landscapeRuntime.player||playerPos,{deadline:streamStartedAt+PERF.chunkBudgetMs,time:performance.now()/1000,nightness:timeOfDay?.nightness||0,dt,movers:landscapeRuntime.getMovers?.()||[]});
+  if(timings)timings.mark('landscape');
   if (lakeManager) lakeManager.update(_scene, playerPos, dt);
+  if(timings)timings.mark('lakes');
   if (chunkManager) chunkManager.update(playerPos, streamStartedAt + PERF.chunkBudgetMs);
+  if(timings)timings.mark('chunks');
   // Physical terrain/prop preparation shares the existing streaming wall.
   // The callback receives an absolute deadline and must bound its work units.
   const streamDeadline = streamStartedAt + PERF.chunkBudgetMs;
   if (preparePhysical && performance.now() < streamDeadline) preparePhysical(streamDeadline);
+  if(timings)timings.mark('physical');
   // The horizon's remainder is measured HERE — lakes + full chunks + physical preparation are the
   // streaming spend that consumes the wall first; time-of-day is not
   // streaming work and doesn't count against it.
   const streamRemainderMs = Math.max(0, PERF.chunkBudgetMs - (performance.now() - streamStartedAt));
   if (timeOfDay) {
     timeOfDay.update(dt);
+  }
+  if(timings)timings.mark('lighting');
+  if (timeOfDay) {
     updateVendorTents(timeOfDay.t, timeOfDay.nightness, dt);
   }
+  if(timings)timings.mark('vendors');
   if (farField && farField.enabled) {
     farField.update(playerPos.x, playerPos.z, {
       dt,
@@ -146,6 +155,7 @@ export function updateWorld(playerPos, dt = 0.016, preparePhysical = null) {
       budgetMs: streamRemainderMs,
     });
   }
+  if(timings)timings.mark('farField');
   // Keep the sky dome, ground plane and mountain ring centered on the player
   // so the world feels infinite — chunks at fixed world coords slide past,
   // but the backdrops always look the same distance away.
@@ -178,6 +188,7 @@ export function updateWorld(playerPos, dt = 0.016, preparePhysical = null) {
       moonMesh.visible = false;
     }
   }
+  if(timings)timings.mark('backdrop');
   if (groundMesh) {
     const groundX = Math.round(playerPos.x / GROUND_SNAP) * GROUND_SNAP;
     const groundZ = Math.round(playerPos.z / GROUND_SNAP) * GROUND_SNAP;
@@ -186,11 +197,12 @@ export function updateWorld(playerPos, dt = 0.016, preparePhysical = null) {
       groundZ !== _groundLastResampleZ
     ) {
       groundMesh.position.set(groundX, 0, groundZ);
-      resampleGroundSurface(groundMesh, groundX, groundZ);
+      resampleGroundSurface(groundMesh, groundX, groundZ, timings);
       _groundLastResampleX = groundX;
       _groundLastResampleZ = groundZ;
     }
   }
+  if(timings)timings.mark('ground');
   if (mountainsGroup) mountainsGroup.position.set(playerPos.x, 0, playerPos.z);
   // Keep the sun's shadow frustum centered on the player too, so shadows
   // continue to render no matter how far Zerble drives. The TimeOfDay system
@@ -206,9 +218,11 @@ export function updateWorld(playerPos, dt = 0.016, preparePhysical = null) {
     sun.target.position.set(playerPos.x, 0, playerPos.z);
     sun.target.updateMatrixWorld();
   }
+  if(timings)timings.mark('sun');
 }
 
-function resampleGroundSurface(mesh, originX, originZ) {
+function resampleGroundSurface(mesh, originX, originZ, timings = null) {
+  const samplesStarted=timings?timings.stamp():0;
   const geo = mesh.geometry;
   const pos = geo.attributes.position;
   const colors = geo.attributes.color.array;
@@ -225,7 +239,15 @@ function resampleGroundSurface(mesh, originX, originZ) {
     -(originZ + GROUND_SIZE / 2) / GRASS_TILE_METERS,
   );
   // Changed relief needs matching lighting and bounds after every recenter.
-  if (terrainEnabled()) { geo.computeVertexNormals(); geo.computeBoundingSphere(); }
+  if(timings)timings.nested('samples',samplesStarted);
+  if (terrainEnabled()) {
+    const normalsStarted=timings?timings.stamp():0;
+    geo.computeVertexNormals();
+    if(timings)timings.nested('normals',normalsStarted);
+    const boundsStarted=timings?timings.stamp():0;
+    geo.computeBoundingSphere();
+    if(timings)timings.nested('bounds',boundsStarted);
+  }
 }
 
 function smoothstep(t) {

@@ -67,6 +67,15 @@ def summarize(path):
           f"requested: {session.get('qualityPolicyRequested', 'unrecorded')} | "
           f"locked from first frame: {session.get('qualityLockedFromFirstFrame', 'unrecorded')} | "
           f"comparison locked: {session.get('qualityLockedDuringComparison', False)}")
+    pilot = session.get('autopilot')
+    if session.get('childCohort'):
+        print(f"Child fixture: {session['childCohort']} | children: {session.get('childPopulation')} | adults at export: {session.get('adultPopulation')}")
+    if pilot:
+        print(f"Autopilot: {pilot.get('version')} | {pilot.get('state')} | "
+              f"checkpoints {pilot.get('checkpointCount')}/4 | distance {pilot.get('travelMetres', 0):.1f}m | "
+              f"max corridor {pilot.get('maxCorridorMetres', 0):.1f}m")
+        if not pilot.get('complete') or report.get('valid') is False:
+            print(f"CHECK: autopilot run is INVALID: {pilot.get('reason') or 'capture interrupted'}; not a completed route comparison.")
     if session.get('qualityPolicyRequested') == 'baseline' and not session.get('qualityLockedFromFirstFrame'):
         print('CHECK: requested baseline lock was not applied; do not treat this as Low Baseline.')
     if session.get('qualityLockedFromFirstFrame') and any(row.get('qualityLevel') != 0 for row in samples):
@@ -139,6 +148,17 @@ def summarize(path):
             print(f"  {name:28} {data.get('count', 0):4} calls  total {data.get('totalMs', 0):7.1f}ms  max {data.get('maxMs', 0):6.1f}ms")
     elif 'drive' in by_phase:
         print('\nNo chunks generated during this capture; the drive may not have crossed a streaming boundary.')
+
+    detail = report.get('worldUpdateTimings') or {}
+    worst_world = detail.get('worstFrames') or []
+    if worst_world:
+        print('\nLargest retained world-update frames (top-level parts; ground detail is nested):')
+        for event in worst_world[:8]:
+            parts = ', '.join(f'{key}={value:.1f}ms' for key, value in
+                              sorted((event.get('worldParts') or {}).items(), key=lambda item: item[1], reverse=True) if value)
+            print(f"  {event.get('phase')} world {event.get('worldMs')}ms at {event.get('x')},{event.get('z')}: {parts}")
+            if any((event.get('worldGround') or {}).values()):
+                print('    ground subparts (already included): ' + str(event['worldGround']))
 
     if report.get('feltLag'):
         print('\nFelt-lag taps:')

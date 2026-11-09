@@ -17,9 +17,14 @@ const _kidDodgeOut={x:0,z:0};
 const KID_SOFT_SEPARATION=1.4,KID_HARD_SEPARATION=.82;
 
 export class KidGaggle {
-  constructor({ gaggleCount = 8, runtime = null, key = 'children', collisionOrder=30, honkOrder=20, surfaceAccess=null, constructionRandom=Math.random } = {}) {
+  constructor({ gaggleCount = 8, runtime = null, key = 'children', collisionOrder=30, honkOrder=20, surfaceAccess=null, constructionRandom=Math.random, retainedGaggles=null } = {}) {
     if (!Number.isInteger(gaggleCount) || gaggleCount < 1 || gaggleCount > 8) {
       throw new RangeError('Kid gaggle count must be an integer between 1 and 8.');
+    }
+    if(retainedGaggles!==null&&(!Array.isArray(retainedGaggles)||!retainedGaggles.length||
+      new Set(retainedGaggles).size!==retainedGaggles.length||
+      retainedGaggles.some(i=>!Number.isInteger(i)||i<0||i>=gaggleCount))) {
+      throw new RangeError('Retained gaggles must be distinct original group indices.');
     }
     this.surfaceAccess=surfaceAccess;
     this.group = new THREE.Group();
@@ -43,6 +48,7 @@ export class KidGaggle {
     try {
       const GAGGLE_COUNT = gaggleCount;
       const centers = [];
+      const gaggleIndices = new WeakMap();
       for (let i = 0; i < GAGGLE_COUNT; i++) {
         const ang = (i / GAGGLE_COUNT) * TAU + constructionRandom() * 0.3;
         // 25-75m out from origin so gaggles fan out across the visible startup
@@ -51,7 +57,7 @@ export class KidGaggle {
         centers.push(new THREE.Vector3(Math.cos(ang) * r, 0, Math.sin(ang) * r));
       }
 
-      for (const c of centers) {
+      for (const [gaggleIndex,c] of centers.entries()) {
         const gaggleSize = 5 + Math.floor(constructionRandom() * 4);  // 5-8 kids
         for (let i = 0; i < gaggleSize; i++) {
           const k = buildKid();
@@ -59,6 +65,7 @@ export class KidGaggle {
           k.position.x += (constructionRandom() - 0.5) * 8;
           k.position.z += (constructionRandom() - 0.5) * 8;
           if(this.surfaceAccess)this.surfaceAccess.ground(k,{radius:.4,relocate:true});else k.position.y = terrainHeight(k.position.x, k.position.z);
+          gaggleIndices.set(k,gaggleIndex);
           k.userData.center = c.clone();
           k.userData.heading = constructionRandom() * TAU;
           // displayedYaw is what actually rotates the mesh — it lerps toward
@@ -95,6 +102,15 @@ export class KidGaggle {
             kind: 'kid',
           });
         }
+      }
+      // Construct the complete cohort first, including model UUIDs and support
+      // placement, so surviving children and subsequent random draws match the
+      // full fixture. This experiment measures steady play, not cheaper boot.
+      if(retainedGaggles!==null)for(let i=this.kids.length-1;i>=0;i--){
+        const kid=this.kids[i];
+        if(retainedGaggles.includes(gaggleIndices.get(kid)))continue;
+        this.peopleHandles.remove(kid.userData.personHandle,()=>disposeSceneResources(kid));
+        this.group.remove(kid);this.kids.splice(i,1);this.colliders.splice(i,1);
       }
     } catch(error) {
       try {this.dispose('construction-failed');} catch(cleanupError) {

@@ -1,0 +1,31 @@
+{
+  "recordedUtc": "2026-11-06T23:46:00.176392+00:00",
+  "scope": "One exact-lattice height shortcut in terrainHeight; no mesh, normal, color, physics or population changes",
+  "baseline": "baseline-manifest.json",
+  "candidate": "lattice-manifest.json",
+  "previousAccepted": "checkpoint-suite.json",
+  "offlineOrder": [
+    "pooled",
+    "lattice",
+    "lattice",
+    "pooled",
+    "pooled",
+    "lattice",
+    "lattice",
+    "pooled"
+  ],
+  "offlineMetric": "Whole real ground recenter over all21 saved scenario centers; one independent Node process per run; equal geometry hashes required",
+  "qualification": "Ordinary ready-title Low/Mid/High; real driving Low/Mid/High; High parked",
+  "conditions": [
+    "high:dense-festival-v1",
+    "high:streaming-drive-v1"
+  ],
+  "calibration": 4,
+  "freshHoldout": 8,
+  "pairedCandidate": 8,
+  "totalRuns": 40,
+  "policy": "conservative-paired-v1",
+  "checkpointBoundary": "Only completed scenario with exactly regenerated reports and verified cleanup",
+  "failurePolicy": "Preserve invalid or regressed attempts; no retries of completed unfavorable comparisons; no widened thresholds",
+  "authorization": "window-5/grant.json"
+}

@@ -9,7 +9,7 @@
 //     caller, reported once per session (see `firsts`/`features`), or rolled up
 //     into session_end. `time_in_run_s` rides along on most events.
 
-import { PERFORMANCE_LAB } from './performanceLab/config.js';
+import { PERFORMANCE_LAB, DEVICE_AUTOPILOT } from './performanceLab/config.js';
 
 import { PASSPORT_STAMPS } from './playerStats.js';
 
@@ -35,7 +35,7 @@ function emptyRun() {
 }
 
 function send(name, params) {
-  if(PERFORMANCE_LAB)return;
+  if(PERFORMANCE_LAB||DEVICE_AUTOPILOT)return;
   try {
     if (typeof window === 'undefined') return;
     if (typeof window.gtag !== 'function') return;

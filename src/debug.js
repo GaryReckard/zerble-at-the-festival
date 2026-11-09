@@ -23,6 +23,9 @@ import { getSessionSeed } from './rng.js';
 import { PEAK_CENTER } from './trip.js';
 import { chunkGenStats } from './chunks.js';
 import { FrameTelemetry, PLAYTEST_SCENARIOS } from './perfTelemetry.js';
+import {DEVICE_AUTOPILOT,DEVICE_CHILD_COHORT} from './performanceLab/config.js';
+import {createDeviceAutopilot,DEVICE_ROUTE} from './deviceAutopilot.js';
+import {Input} from './input.js';
 import { readRenderPipelineSize } from './renderSizing.js';
 import {
   getFrameStats, getLevelName, getLevelNames, getLevelCount,
@@ -125,6 +128,8 @@ const state = {
   deviceCaptureVisibility: [],
   deviceCaptureErrors: [],
   deviceCaptureQualityLocked: false,
+  deviceAutopilot: null,
+  deviceAutopilotInputGuard: null,
   frameTelemetry: new FrameTelemetry(),
 };
 
@@ -142,6 +147,7 @@ export function installDebug(hooks) {
   // an in-flight buffer if the tab is closed between samples).
   window.addEventListener('beforeunload', () => { if (state.perfRecording) savePerfLog(state.perfSamples); });
   window.addEventListener('pagehide', () => {
+    if(state.deviceAutopilot&&!state.deviceCaptureFinished)abortDeviceAutopilot('pagehide');
     if (state.deviceCaptureStarted && !state.deviceCaptureFinished) uploadDeviceCapture('pagehide', true);
   });
   if (DEVICE_CAPTURE_ENABLED) {
@@ -189,6 +195,22 @@ export function recordCaptureFrame(frame) {
   });
 }
 export function npcsFrozen() { return state.freezeNPCs; }
+
+function abortDeviceAutopilot(reason) {
+  if(!state.deviceAutopilot||state.deviceCaptureFinished)return;
+  state.deviceAutopilot.fail(reason);state.deviceCaptureInvalid=true;
+  state.deviceCaptureErrors.push({ts:Date.now(),message:'Autopilot: '+reason,file:'',line:0});
+  finishDeviceScenario();
+}
+
+export function advanceCaptureAutopilot() {
+  const pilot=state.deviceAutopilot;
+  if(!pilot||state.deviceCaptureFinished)return;
+  state.hooks?.getTimeOfDay?.()?.setT(.3);
+  pilot.update(state.perfPhase);
+  if(pilot.state==='failed')abortDeviceAutopilot(pilot.reason);
+  else if(pilot.complete&&state.perfPhase==='drive')advanceDeviceScenario();
+}
 
 // ---------------- internals ----------------
 
@@ -2198,6 +2220,7 @@ function buildDeviceCaptureControl() {
   };
   state.deviceCaptureMarkBtn = button('FELT LAG', markDeviceLag);
   state.deviceCaptureSendBtn = button('SEND', () => uploadDeviceCapture('manual', false));
+  if(DEVICE_AUTOPILOT)button('STOP TEST',()=>abortDeviceAutopilot('user-stop'));
   root.appendChild(actions);
   document.body.appendChild(root);
   state.deviceCaptureEl = status;
@@ -2234,6 +2257,11 @@ function updateDeviceCaptureControl(message) {
   el.textContent = phase
     ? `● ${PERF.name.toUpperCase()} ${CAPTURE_QUALITY_POLICY === 'baseline' ? 'BASELINE LOCK' : `${(CAPTURE_QUALITY_POLICY || 'auto').toUpperCase()}${state.deviceCaptureQualityLocked ? ' (HELD)' : ''}`} · ${phase.id.toUpperCase()} · ${remaining}s left. ${phase.instruction}`
     : `● REC ${mm}:${ss}. Drive normally; tap FELT LAG when it stutters.`;
+  if(state.deviceAutopilot&&!state.deviceCaptureFinished){
+    el.textContent=state.perfPhase==='drive'
+      ? `● AUTOPILOT · route ${Math.min(4,state.deviceAutopilot.snapshot().segment+1)}/4. Do not steer; tap STOP TEST to end.`
+      : `● AUTOPILOT · ${state.perfPhase.toUpperCase()} · ${remaining}s left. Controls paused.`;
+  }
 }
 
 function startDeviceCapture() {
@@ -2258,6 +2286,20 @@ function startDeviceCapture() {
   state.deviceCaptureMarks = [];
   state.deviceCaptureVisibility = [];
   state.deviceCaptureErrors = [];
+  if(DEVICE_AUTOPILOT){
+    state.deviceAutopilot=createDeviceAutopilot({cart:state.hooks.zerble,
+      acquire:(control,abort)=>Input.acquireDiagnostic(control,abort),
+      stopCart:()=>state.hooks.stopCaptureCart?.(),ready:()=>state.hooks.captureDrivingReady?.()!==false});
+    if(getSessionSeed()!==DEVICE_ROUTE.seed)state.deviceAutopilot.fail('wrong-world-seed');
+    if(state.hooks.captureMode?.()!=='cruisin')state.deviceAutopilot.fail('wrong-game-mode');
+    state.deviceAutopilotInputGuard=event=>{
+      if(event.target.closest?.('#device-perf-capture'))return;
+      if(event.target.closest?.('button,input,select,[role="button"]')){
+        event.preventDefault();event.stopImmediatePropagation();abortDeviceAutopilot('settings-or-hud-input');
+      }
+    };
+    for(const type of ['click','pointerdown','touchstart'])document.addEventListener(type,state.deviceAutopilotInputGuard,{capture:true,passive:false});
+  }
   state.deviceCaptureQualityLocked = CAPTURE_QUALITY_POLICY === 'baseline';
   state.deviceCaptureQualityWasEnabled = aqIsEnabled();
   for (const stage of Object.values(chunkGenStats.stages)) {
@@ -2289,6 +2331,7 @@ function captureVisibilityChange() {
   if (!state.deviceCaptureStarted || state.deviceCaptureFinished) return;
   const now = Date.now();
   state.deviceCaptureVisibility.push({ ts: now, hidden: document.hidden, phase: state.perfPhase || null });
+  if(state.deviceAutopilot&&document.hidden){abortDeviceAutopilot('foreground-lost');return;}
   if (document.hidden) state.deviceCaptureHiddenAt = now;
   else if (state.deviceCaptureHiddenAt) {
     state.deviceCapturePausedMs += now - state.deviceCaptureHiddenAt;
@@ -2304,6 +2347,7 @@ function captureVisibilityChange() {
 function captureError(message, file, line) {
   if (!state.deviceCaptureStarted || state.deviceCaptureErrors.length >= 20) return;
   state.deviceCaptureErrors.push({ ts: Date.now(), message: String(message).slice(0, 300), file: String(file || '').split('/').pop(), line });
+  if(state.deviceAutopilot&&!state.deviceCaptureFinished)abortDeviceAutopilot('runtime-error');
 }
 
 function markDeviceLag() {
@@ -2321,7 +2365,9 @@ function advanceDeviceScenario() {
   const previous = state.deviceCapturePhaseIndex;
   if (previous >= 0) {
     const outgoing = phases[previous];
-    if (captureElapsedSeconds() - state.deviceCapturePhaseStartedS < outgoing.seconds) return;
+    if (captureElapsedSeconds() - state.deviceCapturePhaseStartedS < outgoing.seconds &&
+        !(state.deviceAutopilot?.complete&&outgoing.id==='drive')) return;
+    if(state.deviceAutopilot&&outgoing.id==='drive'&&!state.deviceAutopilot.complete){abortDeviceAutopilot('route-timeout');return;}
     const tripState = state.hooks?.Trip?.state;
     if (DEVICE_SCENARIO === 'trip' && outgoing.id === 'fade-in') {
       if (tripState === 'fading_in') return;
@@ -2360,6 +2406,8 @@ function finishDeviceScenario() {
   samplePerf(true);
   state.deviceCaptureFinished = true;
   state.deviceCaptureResult = 'pending';
+  state.deviceAutopilot?.stop();
+  if(state.deviceAutopilotInputGuard){for(const type of ['click','pointerdown','touchstart'])document.removeEventListener(type,state.deviceAutopilotInputGuard,true);state.deviceAutopilotInputGuard=null;}
   state.perfPhase = '';
   state.deviceCapturePhaseEvents.push({ ts: Date.now(), phase: 'complete', elapsedS: Math.round(captureElapsedSeconds() * 10) / 10 });
   if (DEVICE_SCENARIO === 'trip') {
@@ -2402,6 +2450,7 @@ function buildDeviceCaptureReport(reason, sampleTail = null) {
   const samples = sampleTail ? state.perfSamples.slice(-sampleTail) : state.perfSamples.slice();
   return {
     schema: 'zerble-device-perf-v2',
+    valid: !state.deviceCaptureInvalid,
     reason,
     capturedAt: new Date().toISOString(),
     startedAt: new Date(state.deviceCaptureStartedAt).toISOString(),
@@ -2410,6 +2459,10 @@ function buildDeviceCaptureReport(reason, sampleTail = null) {
     sampleCount: samples.length,
     samples,
     frameEvents: reason === 'pagehide' ? state.frameTelemetry.events.slice(-40) : state.frameTelemetry.events.slice(),
+    worldUpdateTimings: DEVICE_CAPTURE_PARAMS.get('perfWorld')==='1'?{
+      version:'world-sections-v1',note:'Top-level parts partition updateWorld; ground details are nested, not additive. Clock reads and capture bookkeeping perturb timing.',
+      worstFrames:state.frameTelemetry.worldEvents.slice(),maxRetained:24,
+    }:null,
     droppedFrameEvents: state.frameTelemetry.droppedEvents,
     phaseEvents: state.deviceCapturePhaseEvents.slice(),
     feltLag: state.deviceCaptureMarks.slice(),
@@ -2421,6 +2474,11 @@ function buildDeviceCaptureReport(reason, sampleTail = null) {
     session: {
       seed: getSessionSeed(),
       scenario: DEVICE_SCENARIO || 'free',
+      autopilot:state.deviceAutopilot?.snapshot()||null,
+      childCohort:DEVICE_AUTOPILOT?DEVICE_CHILD_COHORT:null,
+      childPopulation:hooks?.kids?.populationSize??null,
+      adultPopulation:hooks?.crowd?.populationSize??null,
+      mode:hooks?.captureMode?.()||null,
       postprocessPreparation: hooks?.renderer?.__postprocessPreparation || null,
       qualityPolicyRequested: DEVICE_CAPTURE_PARAMS.get('perfQuality') || 'auto',
       qualityPolicy: CAPTURE_QUALITY_POLICY || 'auto',

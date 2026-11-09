@@ -1,0 +1,10 @@
+{
+  "sourceInputsMatched": 303,
+  "app": "1dc95348d133420b5466d7a11a2c4fcc11e182d620297cec6110792bc836ceea",
+  "snapshotVerified": true,
+  "capabilityPassed": true,
+  "fullCheck": "checks/offline-final-npm-check.log",
+  "build": "checks/offline-final-npm-build.log",
+  "unchangedSourceIntegration": "revision-qualification-results.json",
+  "checkpointPlan": "scenario-checkpoint-plan.json"
+}

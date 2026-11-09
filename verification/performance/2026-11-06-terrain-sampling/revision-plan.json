@@ -1,0 +1,20 @@
+{
+  "state": "Window ended; attempt-2 failed foreground-lost on first paired baseline run; candidate unmeasured",
+  "recipe": "revised-pooled-plane-height-bypass-v2",
+  "priorAttempt": "comparisons/attempt-1",
+  "conditions": [
+    "high:streaming-drive-v1",
+    "high:dense-festival-v1"
+  ],
+  "calibration": 4,
+  "freshHoldout": 8,
+  "pairedCandidate": 8,
+  "totalRuns": 40,
+  "policy": "unchanged conservative-paired-v1; fresh calibration and holdout; no threshold rescue",
+  "qualification": "New-source ordinary Low/Mid/High starts and real driving routes, plus High parked diagnostic collection and CPU attribution",
+  "scope": "Fresh independent calibration, holdout and paired comparisons for both driving and parked festival frames of the revised source. Drive first to prioritize the rejected case. No prior-variant parked acceptance is reused.",
+  "estimatedForegroundMinutes": 55,
+  "ownership": "One supervised hardware-Chrome session at a time; exact owned-PID reconciliation; preserve pre-existing user sessions/server; new bounded owned caffeinate only after authorization",
+  "windowGrant": "window-2/grant.json",
+  "amendment": "Before any revised comparison capture: new authorization lasts until Gary returns, so both original scenario scopes will be tested for this exact build. Stop promptly on his return and preserve partial/failed attempts."
+}

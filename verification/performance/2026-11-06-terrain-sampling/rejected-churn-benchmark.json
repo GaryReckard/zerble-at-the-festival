@@ -1,0 +1,84 @@
+[
+  {
+    "variant": "legacy",
+    "cells": 10000,
+    "passes": [
+      4.2990839999999935,
+      3.8374999999999773,
+      3.4599580000000287,
+      3.2770830000000615,
+      3.522958000000017,
+      3.22304100000008
+    ],
+    "checksum": 221977.42153075992,
+    "cache": {
+      "version": 2,
+      "vertices": 10201,
+      "tiles": 33,
+      "owners": 219
+    },
+    "scope": "Offline cache-capacity churn with prewarmed vertices; not game FPS"
+  },
+  {
+    "variant": "rejected",
+    "cells": 10000,
+    "passes": [
+      13.22079199999996,
+      17.108625000000075,
+      17.80574999999999,
+      14.315666999999962,
+      14.186542000000031,
+      14.709708000000091
+    ],
+    "checksum": 221977.42153075992,
+    "cache": {
+      "version": 2,
+      "vertices": 10201,
+      "tiles": 33,
+      "owners": 219,
+      "cells": 4096
+    },
+    "scope": "Offline cache-capacity churn with prewarmed vertices; not game FPS"
+  },
+  {
+    "variant": "rejected",
+    "cells": 10000,
+    "passes": [
+      12.283667000000037,
+      19.473792000000003,
+      14.841290999999956,
+      17.403958999999986,
+      14.153208999999947,
+      14.631167000000005
+    ],
+    "checksum": 221977.42153075992,
+    "cache": {
+      "version": 2,
+      "vertices": 10201,
+      "tiles": 33,
+      "owners": 219,
+      "cells": 4096
+    },
+    "scope": "Offline cache-capacity churn with prewarmed vertices; not game FPS"
+  },
+  {
+    "variant": "legacy",
+    "cells": 10000,
+    "passes": [
+      4.243249999999989,
+      3.8855839999999944,
+      3.514291999999955,
+      3.3247080000001006,
+      3.2382499999999936,
+      3.0579170000000886
+    ],
+    "checksum": 221977.42153075992,
+    "cache": {
+      "version": 2,
+      "vertices": 10201,
+      "tiles": 33,
+      "owners": 219
+    },
+    "scope": "Offline cache-capacity churn with prewarmed vertices; not game FPS"
+  }
+]

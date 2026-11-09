@@ -44,7 +44,8 @@ function setup(scenario) {
     },
     navigator: {}, console: { error() {} }, Blob,
   });
-  vm.runInContext(lifecycle + '\n' + upload, context);
+  const abort = source.slice(source.indexOf('function abortDeviceAutopilot('), source.indexOf('export function advanceCaptureAutopilot('));
+  vm.runInContext(abort + '\n' + lifecycle + '\n' + upload, context);
   return {
     state, document, samples, uploads, deferred, driveLocks,
     setNow(value) { now = value; },
@@ -101,6 +102,25 @@ assert.equal(driving.driveLocks.at(-1), true, 'recovery phase parks immediately'
 driving.setNow(155_000);
 driving.call('advanceDeviceScenario');
 assert.equal(driving.driveLocks.at(-1), false, 'completion releases control');
+
+
+// The same real phase functions must stop at route completion rather than
+// claim success merely because a wall-clock drive phase expired.
+function attachPilot(flow) {
+  const pilot = {complete:false,reason:null,stops:0,fail(reason){this.reason=reason;},stop(){this.stops++;}};
+  flow.state.deviceAutopilot=pilot;
+  return pilot;
+}
+const automatic=setup('drive'),automaticPilot=attachPilot(automatic);
+automatic.call('advanceDeviceScenario');automatic.setNow(20000);automatic.call('advanceDeviceScenario');
+automatic.setNow(45000);automatic.call('advanceDeviceScenario');automatic.setNow(50000);automaticPilot.complete=true;automatic.call('advanceDeviceScenario');
+assert.equal(automatic.state.perfPhase,'parked-after','completed route advances before drive wall limit');
+automatic.setNow(70000);automatic.call('advanceDeviceScenario');assert.equal(automaticPilot.stops,1);assert(!automatic.state.deviceCaptureInvalid);
+const timeout=setup('drive'),timeoutPilot=attachPilot(timeout);
+timeout.call('advanceDeviceScenario');timeout.setNow(20000);timeout.call('advanceDeviceScenario');timeout.setNow(45000);timeout.call('advanceDeviceScenario');
+timeout.setNow(135000);timeout.call('advanceDeviceScenario');assert.equal(timeoutPilot.reason,'route-timeout');assert(timeout.state.deviceCaptureInvalid);assert.equal(timeoutPilot.stops,1);
+const hiddenPilot=setup('drive'),hiddenController=attachPilot(hiddenPilot);hiddenPilot.call('advanceDeviceScenario');hiddenPilot.document.hidden=true;hiddenPilot.call('captureVisibilityChange');
+assert.equal(hiddenController.reason,'foreground-lost');assert(hiddenPilot.state.deviceCaptureFinished);assert(hiddenPilot.state.deviceCaptureInvalid);
 
 const parked = setup('parked');
 parked.call('advanceDeviceScenario');
@@ -175,7 +195,7 @@ for (const policy of ['auto', 'baseline', 'sustained']) {
       deviceCapturePhaseEvents: [], deviceCaptureMarks: [], deviceCaptureVisibility: [], deviceCaptureErrors: [],
       deviceCaptureQualityLocked: policy === 'baseline' },
     DEVICE_CAPTURE_PARAMS: new URLSearchParams(`?perfCapture=1&perfScenario=parked&perfQuality=${policy}&captureToken=secret`),
-    DEVICE_SCENARIO: 'parked', CAPTURE_QUALITY_POLICY: policy,
+    DEVICE_SCENARIO: 'parked', CAPTURE_QUALITY_POLICY: policy, DEVICE_AUTOPILOT:false, DEVICE_CHILD_COHORT:'full-v1',
     chunkGenStats: { stages: {}, count: 0 }, captureElapsedSeconds: () => 60,
     PERF: { name: 'low', crowdMax: 180, shadows: false, chunkLoadRadius: 1, chunkUnloadRadius: 2, bubblePoolMax: 200 },
     DETECTED_TIER: 'low', getSessionSeed: () => 3948869160,
@@ -186,6 +206,11 @@ for (const policy of ['auto', 'baseline', 'sustained']) {
   vm.runInContext(reportSource, context);
   const report = vm.runInContext('buildDeviceCaptureReport("complete")', context);
   assert.equal(report.session.postprocessPreparation.status, 'ready');
+  assert.equal(report.session.childCohort,null);
+  context.DEVICE_AUTOPILOT=true;context.DEVICE_CHILD_COHORT='half-v1';
+  context.state.hooks.kids={populationSize:23};context.state.hooks.crowd={populationSize:180};
+  const densityReport=vm.runInContext('buildDeviceCaptureReport("complete")',context);
+  assert.equal(densityReport.session.childCohort,'half-v1');assert.equal(densityReport.session.childPopulation,23);assert.equal(densityReport.session.adultPopulation,180);
   assert.equal(report.session.postprocessPreparation.materials, 9);
   assert.equal(report.session.qualityPolicy, policy);
   assert.equal(report.session.qualityLockedFromFirstFrame, policy === 'baseline');

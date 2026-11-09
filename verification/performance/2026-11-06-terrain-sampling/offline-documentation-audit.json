@@ -1,0 +1,252 @@
+{
+  "state": "passed",
+  "scope": "Final offline handoff, not revised browser acceptance",
+  "documents": [
+    {
+      "file": "README.md",
+      "outline": [
+        [
+          1,
+          "# Terrain sampling cache, November 6, 2026"
+        ],
+        [
+          3,
+          "## Current state"
+        ],
+        [
+          24,
+          "## Measured lead and implementation"
+        ],
+        [
+          47,
+          "## Behavioral proof"
+        ],
+        [
+          61,
+          "## Additional offline production-ground verification"
+        ],
+        [
+          120,
+          "## First-candidate operation experiment"
+        ],
+        [
+          140,
+          "## Rejected runtime trial and revision"
+        ]
+      ],
+      "references": [
+        {
+          "line": 6,
+          "target": "plan.json"
+        },
+        {
+          "line": 18,
+          "target": "revised-candidate-manifest.json"
+        },
+        {
+          "line": 19,
+          "target": "offline-source-reconciliation.json"
+        },
+        {
+          "line": 20,
+          "target": "revised-initial-manifest.json"
+        },
+        {
+          "line": 22,
+          "target": "offline-environment.json"
+        },
+        {
+          "line": 26,
+          "target": "baseline-manifest.json"
+        },
+        {
+          "line": 30,
+          "target": "baseline-attribution.json"
+        },
+        {
+          "line": 35,
+          "target": "../../../src/worldgen/terrain.js"
+        },
+        {
+          "line": 49,
+          "target": "legacy-terrain.js"
+        },
+        {
+          "line": 50,
+          "target": "../../../bin/test-terrain-cell-cache"
+        },
+        {
+          "line": 64,
+          "target": "ground-fixture.mjs"
+        },
+        {
+          "line": 69,
+          "target": "../../../bin/test-terrain-ground-recenter"
+        },
+        {
+          "line": 75,
+          "target": "checks/production-ground-recenter.log"
+        },
+        {
+          "line": 79,
+          "target": "production-ground-benchmark.json"
+        },
+        {
+          "line": 81,
+          "target": "ground-bench.mjs"
+        },
+        {
+          "line": 96,
+          "target": "production-ground-attribution.json"
+        },
+        {
+          "line": 97,
+          "target": "ground-attribution.mjs"
+        },
+        {
+          "line": 104,
+          "target": "checks/offline-final-npm-check.log"
+        },
+        {
+          "line": 105,
+          "target": "checks/offline-final-npm-build.log"
+        },
+        {
+          "line": 113,
+          "target": "offline-review.md"
+        },
+        {
+          "line": 117,
+          "target": "checks/offline-final-cache.log"
+        },
+        {
+          "line": 122,
+          "target": "initial-operation-bench.mjs"
+        },
+        {
+          "line": 125,
+          "target": "operation-benchmark.json"
+        },
+        {
+          "line": 134,
+          "target": "operation-helper-provenance.json"
+        },
+        {
+          "line": 136,
+          "target": "bench.mjs"
+        },
+        {
+          "line": 142,
+          "target": "qualification-results.json"
+        },
+        {
+          "line": 145,
+          "target": "checks/npm-check.log"
+        },
+        {
+          "line": 146,
+          "target": "checks/npm-build.log"
+        },
+        {
+          "line": 148,
+          "target": "candidate-attribution.json"
+        },
+        {
+          "line": 149,
+          "target": "profiles/baseline/cpu.json"
+        },
+        {
+          "line": 149,
+          "target": "profiles/candidate/cpu.json"
+        },
+        {
+          "line": 155,
+          "target": "comparisons/attempt-1/result.json"
+        },
+        {
+          "line": 161,
+          "target": "comparisons/attempt-1/regeneration.json"
+        },
+        {
+          "line": 163,
+          "target": "../../../src/world.js"
+        },
+        {
+          "line": 165,
+          "target": "rejected-churn-benchmark.json"
+        },
+        {
+          "line": 166,
+          "target": "rejected-churn-bench.mjs"
+        },
+        {
+          "line": 175,
+          "target": "checks/revised-cache.log"
+        },
+        {
+          "line": 178,
+          "target": "revised-churn-benchmark.json"
+        },
+        {
+          "line": 184,
+          "target": "revised-operation-benchmark.json"
+        },
+        {
+          "line": 187,
+          "target": "checks/revised-npm-check.log"
+        },
+        {
+          "line": 188,
+          "target": "checks/revised-npm-build.log"
+        },
+        {
+          "line": 188,
+          "target": "revision-plan.json"
+        },
+        {
+          "line": 194,
+          "target": "revised-churn-benchmark-overlap.json"
+        },
+        {
+          "line": 197,
+          "target": "cleanup-attempt-1.json"
+        }
+      ]
+    },
+    {
+      "file": "offline-review.md",
+      "outline": [
+        [
+          1,
+          "# Offline cache review, November 6"
+        ],
+        [
+          7,
+          "## Reviewed invariants"
+        ],
+        [
+          43,
+          "## Scope of the conclusion"
+        ]
+      ],
+      "references": [
+        {
+          "line": 14,
+          "target": "../../../bin/test-terrain-ground-recenter"
+        },
+        {
+          "line": 30,
+          "target": "production-ground-benchmark.json"
+        },
+        {
+          "line": 32,
+          "target": "production-ground-attribution.json"
+        },
+        {
+          "line": 36,
+          "target": "qualify-revision.py"
+        }
+      ]
+    }
+  ]
+}

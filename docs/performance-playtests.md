@@ -170,3 +170,79 @@ work separate from the far-field visual review.
 ## Repeatable lab scenarios
 
 The [local performance lab](performance-lab.md) extends the capture/report path with immutable source snapshots, exact frames and script-owned comparisons. Both scenarios passed real hardware, overhead, calibration, fresh holdout and injected-cost sensitivity checks on the reserved Mac; its foreground Chrome controller requires an explicitly assigned quiet window for captures. Existing guided desktop/phone playtests remain supported.
+
+
+## Fixed-route device autopilot and world attribution
+
+Use this after a free driving capture identifies a problem, to repeat the same
+seeded road route without holding the touch controls:
+
+```sh
+bin/playtest-perf drive --autopilot --world-detail --tier auto --port 8770
+```
+
+Open the generated link in Safari on the iPad and tap the ready Just Cruisin'
+plank. That real gesture still performs synchronous iOS audio initialization.
+The game settles for 20 seconds, parks for 25 seconds, follows four ordered road
+segments, then parks for a 20-second recovery check and uploads the report. The
+drive has a 90-second wall limit and ends early when the complete route is
+reached. Keep the page foregrounded and do not steer or change settings; FELT LAG
+and STOP TEST remain available. Wait for SAVED before closing the page. A wreck,
+route departure, foreground loss, emergency stop or incomplete route invalidates
+the run and must not be relabelled as a successful comparison.
+
+The route uses seed 2404796662, start (-230.3, -691.8), heading 2.3580 and the
+existing road-follow-v2 guidance. Other seeds and scenarios are rejected by the
+launcher. Start placement is applied before world construction, not corrected
+by teleports during the drive. The controller feeds normal throttle, steering,
+boost and braking through exclusive diagnostic input ownership, preserving
+physics, obstacles and damage. Ordinary camera input is suppressed during the
+route. Initial camera, time of day and seeded child construction are controlled;
+Auto quality still responds normally. Automated runs suppress outbound game
+analytics and global leaderboard requests. Use a dedicated test origin/port to
+keep local test progress separate from normal play.
+
+`--world-detail` adds `perfWorld=1` to the capture URL. Top-level world sections
+partition the timed update; ground sampling, normals and bounds are nested in
+the ground section and must not be added again. Detailed slow events snapshot
+those values before the reusable per-frame counters reset, and a separate
+24-event reservoir keeps the largest world stalls even after the chronological
+ring evicts early events. Reported elapsed time includes scheduling/collection
+inside each interval and the diagnostic clock reads perturb timing. These
+measurements locate a hot section, not its exclusive CPU/GPU cost or an accepted
+optimization benefit.
+
+Use `bin/report-perf-playtest` on the saved JSON to see route validity and largest
+world-stall sections. Manual runs without these flags retain their existing
+behavior. The fixed route is a feedback-controlled workload, not exact input or
+full-world determinism: crowd evolution, frame schedules and Auto transitions
+can still differ. Any before/after claim needs matched route/settings/build
+identities and appropriate repeated comparisons. A human-driven earlier capture
+is not an equal-work control for this new route/instrumentation policy.
+
+### Comparing child population on the device
+
+Use `bin/playtest-perf drive --autopilot --world-detail --child-cohort half-v1 --tier auto --port 8770`
+for the reduced fixture. The default `--child-cohort full-v1` retains all eight
+groups; `half-v1` retains original groups 0, 2, 4 and 6, which are 23 of the
+fixed seed's 50 children. Adults and the route are unchanged. The same served
+build can test both by changing only `perfKids=full-v1` to `perfKids=half-v1`.
+The variant is gated by the explicit device autopilot flags and does not change
+ordinary play or the calibrated lab fixtures.
+
+The constructor first builds all eight groups, then revokes excluded handles,
+removes aligned colliders and releases owned resources before presentation
+batching. Shared pools remain intact. This retains construction draws and the
+surviving actors' initial state, but does not claim cheaper startup or identical
+frame-by-frame gameplay. Exported `session.childCohort`, `childPopulation` and
+`adultPopulation` identify the fixture and final counts. Auto can choose different
+quality levels, so compare quality/resolution alongside frame delivery and use
+repeated alternating runs before drawing a performance conclusion.
+
+Before hands-off iPad runs, temporarily set Settings → Display & Brightness →
+Auto-Lock → Never if that option is available, and restore the prior setting
+afterward. Keep Safari visible throughout the roughly two-minute run, and close
+the previous game tab before opening another test. A foreground loss invalidates
+the capture even if uploading succeeds. Check `valid`, all four route checkpoints,
+visibility events and errors; a locked screen after the final saved report does
+not invalidate an already-completed run.

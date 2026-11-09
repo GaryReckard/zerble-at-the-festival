@@ -1,0 +1,219 @@
+{
+  "sourceRawSha256": "848acca821ac6909f85a47eb99da8adce8c790639f9e9d9a01c697fc1cfaac96",
+  "scope": "One guided physical-iPad symptom capture, not equal-content A/B acceptance",
+  "reason": "complete",
+  "durationS": 156.1,
+  "samples": 154,
+  "iPadOS": "18.7.8",
+  "Safari": "18.7.5",
+  "model": "Not supplied; desktop-style UA does not establish exact hardware model",
+  "phaseSummary": {
+    "settle": {
+      "samples": 20,
+      "medianSampledFps": 22.0,
+      "medianWindowP95Ms": 59,
+      "maxWallMs": 1494,
+      "maxWorkMs": 1448,
+      "maxWorldMs": 1172,
+      "maxRenderMs": 353,
+      "recordedFrames": 382,
+      "over50": 80,
+      "over100": 11,
+      "qualities": {
+        "baseline": 10,
+        "pixel-87": 6,
+        "no-bloom": 4
+      },
+      "medianDraws": 515.0
+    },
+    "parked": {
+      "samples": 25,
+      "medianSampledFps": 34,
+      "medianWindowP95Ms": 50,
+      "maxWallMs": 70,
+      "maxWorkMs": 42,
+      "maxWorldMs": 1,
+      "maxRenderMs": 7,
+      "recordedFrames": 800,
+      "over50": 40,
+      "over100": 0,
+      "qualities": {
+        "no-bloom": 2,
+        "pixel-75": 5,
+        "pixel-50": 18
+      },
+      "medianDraws": 514
+    },
+    "drive": {
+      "samples": 89,
+      "medianSampledFps": 29,
+      "medianWindowP95Ms": 56,
+      "maxWallMs": 495,
+      "maxWorkMs": 472,
+      "maxWorldMs": 451,
+      "maxRenderMs": 199,
+      "recordedFrames": 2563,
+      "over50": 212,
+      "over100": 23,
+      "qualities": {
+        "pixel-50": 89
+      },
+      "medianDraws": 710
+    },
+    "parked-after": {
+      "samples": 20,
+      "medianSampledFps": 40.0,
+      "medianWindowP95Ms": 47.0,
+      "maxWallMs": 124,
+      "maxWorkMs": 104,
+      "maxWorldMs": 1,
+      "maxRenderMs": 7,
+      "recordedFrames": 794,
+      "over50": 32,
+      "over100": 1,
+      "qualities": {
+        "pixel-50": 20
+      },
+      "medianDraws": 469.0
+    }
+  },
+  "sampledDriveTravelMetres": 1558.2451668323972,
+  "movingDriveSamples": 85,
+  "driveSamples": 89,
+  "chunksGenerated": 66,
+  "chunkMaximumMs": 31,
+  "retainedWorstWorldEvents": [
+    {
+      "ts": 1794110978444,
+      "phase": "drive",
+      "wallMs": 31,
+      "workMs": 375,
+      "previousWorkMs": 22,
+      "worldMs": 357,
+      "renderMs": 5,
+      "x": 616,
+      "z": 312,
+      "chunkCount": 45,
+      "programCount": 70
+    },
+    {
+      "ts": 1794110955212,
+      "phase": "drive",
+      "wallMs": 43,
+      "workMs": 360,
+      "previousWorkMs": 29,
+      "worldMs": 338,
+      "renderMs": 8,
+      "x": 381,
+      "z": 326,
+      "chunkCount": 33,
+      "programCount": 71
+    },
+    {
+      "ts": 1794111003464,
+      "phase": "drive",
+      "wallMs": 27,
+      "workMs": 323,
+      "previousWorkMs": 18,
+      "worldMs": 307,
+      "renderMs": 5,
+      "x": 1093,
+      "z": 504,
+      "chunkCount": 69,
+      "programCount": 73
+    },
+    {
+      "ts": 1794110968776,
+      "phase": "drive",
+      "wallMs": 33,
+      "workMs": 301,
+      "previousWorkMs": 21,
+      "worldMs": 282,
+      "renderMs": 7,
+      "x": 443,
+      "z": 365,
+      "chunkCount": 39,
+      "programCount": 73
+    },
+    {
+      "ts": 1794110991585,
+      "phase": "drive",
+      "wallMs": 33,
+      "workMs": 287,
+      "previousWorkMs": 23,
+      "worldMs": 269,
+      "renderMs": 6,
+      "x": 855,
+      "z": 402,
+      "chunkCount": 57,
+      "programCount": 70
+    },
+    {
+      "ts": 1794110939087,
+      "phase": "drive",
+      "wallMs": 36,
+      "workMs": 253,
+      "previousWorkMs": 25,
+      "worldMs": 221,
+      "renderMs": 9,
+      "x": 99,
+      "z": 213,
+      "chunkCount": 18,
+      "programCount": 72
+    },
+    {
+      "ts": 1794110947432,
+      "phase": "drive",
+      "wallMs": 39,
+      "workMs": 219,
+      "previousWorkMs": 29,
+      "worldMs": 195,
+      "renderMs": 7,
+      "x": 218,
+      "z": 320,
+      "chunkCount": 27,
+      "programCount": 72
+    },
+    {
+      "ts": 1794110988890,
+      "phase": "drive",
+      "wallMs": 34,
+      "workMs": 191,
+      "previousWorkMs": 22,
+      "worldMs": 173,
+      "renderMs": 5,
+      "x": 818,
+      "z": 374,
+      "chunkCount": 54,
+      "programCount": 70
+    }
+  ],
+  "droppedDetailedFrameEvents": 179,
+  "errors": [],
+  "visibilityEvents": [],
+  "feltLag": [
+    {
+      "seed": 3948869160,
+      "x": 0,
+      "z": 65,
+      "heading": 0,
+      "tod": 0.156,
+      "sessionTime": 23.3,
+      "note": "Felt lag",
+      "ts": 1794110879482,
+      "kind": "felt-lag",
+      "elapsedS": 6,
+      "phase": "settle",
+      "speed": 0
+    }
+  ],
+  "muted": true,
+  "bloomOffDuringDrive": true,
+  "shadowsOffDuringDrive": true,
+  "cheapBubblesDuringDrive": true,
+  "driveTarget": {
+    "width": 675,
+    "height": 462.5
+  },
+  "frameMetricCaveat": "FPS values are medians of sampled rolling values; p95 values are medians of window p95s, not one pooled whole-phase percentile. Dropped detailed events cannot be reconstructed."
+}

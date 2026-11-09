@@ -1,0 +1,109 @@
+{
+  "valid": true,
+  "route": {
+    "version": "device-road-follow-v1",
+    "routePolicy": "road-follow-v2",
+    "seed": 2404796662,
+    "start": {
+      "x": -230.3,
+      "z": -691.8,
+      "heading": 2.358
+    },
+    "state": "completed",
+    "reason": null,
+    "segment": 4,
+    "checkpointCount": 4,
+    "checkpoints": [
+      {
+        "segment": 0,
+        "x": -322.08880615234375,
+        "z": -657.8078002929688,
+        "seconds": 7.3070000000000075
+      },
+      {
+        "segment": 1,
+        "x": -457.5251770019531,
+        "z": -546.961181640625,
+        "seconds": 21.129
+      },
+      {
+        "segment": 2,
+        "x": -365.95550537109375,
+        "z": -548.5804443359375,
+        "seconds": 31.33
+      },
+      {
+        "segment": 3,
+        "x": -232.97726440429688,
+        "z": -689.2092895507812,
+        "seconds": 47.84600000000002
+      }
+    ],
+    "frames": 1185,
+    "travelMetres": 641.3903909011159,
+    "maxCorridorMetres": 5.40735676478214,
+    "complete": true,
+    "control": {
+      "throttle": 0,
+      "steer": 0,
+      "boost": false,
+      "brake": true,
+      "distance": 4.297956900222316
+    }
+  },
+  "durationSeconds": 114.3,
+  "errors": 0,
+  "visibilityEvents": 0,
+  "sourceApp": "7c5a6bd933f86db327d4c78d3b662fd938438f4af203c29c06ac11e5a1f861a1",
+  "baselineSha256": "53ba284a1b717ba92bc91f59310e8d581b30bf6b218b7b22c2079f65fdb63db0",
+  "maxObservedPlanningStepMs": 3,
+  "qualityLevels": [
+    "baseline",
+    "no-bloom",
+    "pixel-50",
+    "pixel-75",
+    "pixel-87"
+  ],
+  "phaseFpsMedian": {
+    "settle": 22.5,
+    "parked": 29,
+    "drive": 25,
+    "parked-after": 26
+  },
+  "worstDriveWorldFrame": {
+    "ts": 1794114135445,
+    "phase": "drive",
+    "wallMs": 33,
+    "workMs": 445,
+    "previousWorkMs": 23,
+    "worldMs": 424,
+    "renderMs": 5,
+    "x": -378,
+    "z": -628,
+    "chunkCount": 18,
+    "programCount": 71,
+    "worldParts": {
+      "landscape": 0,
+      "lakes": 0,
+      "chunks": 0,
+      "physical": 0,
+      "lighting": 0,
+      "vendors": 1,
+      "farField": 423,
+      "backdrop": 0,
+      "ground": 0,
+      "sun": 0
+    },
+    "worldGround": {
+      "samples": 0,
+      "normals": 0,
+      "bounds": 0
+    },
+    "worldClockReads": 10
+  },
+  "limits": [
+    "Single physical-iPad diagnostic; Auto changed quality and resolution.",
+    "No reduced-child physical-iPad run yet; no calibrated gain verdict.",
+    "Elapsed intervals include scheduling and collection costs."
+  ]
+}

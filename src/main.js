@@ -1,4 +1,5 @@
-import {PERFORMANCE_LAB,childConstructionRandom} from './performanceLab/config.js';
+import {PERFORMANCE_LAB,DEVICE_AUTOPILOT,DEVICE_CHILD_COHORT,childConstructionRandom} from './performanceLab/config.js';
+import {createWorldTimings} from './worldTimings.js';
 let performanceLab = null;
 import {FESTIVAL_TUNING} from './worldgen/tuning.js';
 import {setLandscapeVersion,landscapeVersion} from './worldgen/landscapeCandidates.js';
@@ -72,7 +73,7 @@ import { Birds } from './birds.js';
 import { ChaseCamera } from './camera.js';
 import { registry } from './registry.js';
 import { Sound } from './sound.js';
-import { installDebug, shouldRunFrame, isGod, npcsFrozen, recordCaptureFrame } from './debug.js';
+import { installDebug, shouldRunFrame, isGod, npcsFrozen, recordCaptureFrame, advanceCaptureAutopilot } from './debug.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { nearestHeart, heartsInBounds } from './worldgen/hearts.js';
 import { CONFIG } from './worldgen/constants.js';
@@ -216,6 +217,7 @@ const playerStats = createPlayerStats({
 // juice) instead of a fresh spawn. sessionStorage so it survives the reload but
 // not a tab close; consumed (cleared) on read so a later manual reload is fresh.
 const __resume = (() => {
+  if(DEVICE_AUTOPILOT)return null;
   try {
     const raw = sessionStorage.getItem('zerble.resume');
     if (!raw) return null;
@@ -738,7 +740,8 @@ const bubbleChallenges = new ChallengeTracker(bubbleProgress, {
   mode: () => RunMode.isFestival() ? 'festival' : 'cruisin',
 }, ['heart', 'music', 'ember', 'firefly', 'rainbow', 'sparkler', 'lantern', 'smile', 'confetti', 'mushroom', 'brass']);
 const kids = withBaselineRandom(()=>new KidGaggle({runtime:people,surfaceAccess:landscapePeople,
-  ...(PERFORMANCE_LAB?{constructionRandom:childConstructionRandom(getSessionSeed())}:{})}),0x43484c44,peopleBaselineCohort);
+  retainedGaggles:DEVICE_CHILD_COHORT==='half-v1'?[0,2,4,6]:null,
+  ...((PERFORMANCE_LAB||DEVICE_AUTOPILOT)?{constructionRandom:childConstructionRandom(getSessionSeed())}:{})}),0x43484c44,peopleBaselineCohort);
 // Retain a local individual-rendering control for frozen-scene comparisons.
 if(!(/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&new URLSearchParams(location.search).get('kidBatch')==='0')){
   try{kids.presentation=createChildPresentation({scene,source:kids.group,seed:getSessionSeed()});}
@@ -1200,6 +1203,8 @@ let _perfLastTick = 0;
 let _perfWorldMs = 0;
 let _perfRenderMs = 0;
 let _perfPreviousWorkMs = 0;
+const _perfWorldParts = new URLSearchParams(location.search).get('perfCapture')==='1'&&
+  new URLSearchParams(location.search).get('perfWorld')==='1'?createWorldTimings():null;
 if (PERF_CAPTURE_TIMING) document.addEventListener('visibilitychange', () => {
   _perfLastTick = 0;
   _perfPreviousWorkMs = 0;
@@ -1212,6 +1217,7 @@ function tick() {
     _perfLastTick = frameStartedAt;
     _perfWorldMs = 0;
     _perfRenderMs = 0;
+    _perfWorldParts?.reset();
   }
   const rawDelta = clock.getDelta();
   const dt = Math.min(rawDelta, 0.05);
@@ -1222,6 +1228,7 @@ function tick() {
     recordCaptureFrame({
       ts: Date.now(), wallMs, workMs, previousWorkMs: _perfPreviousWorkMs,
       worldMs: _perfWorldMs, renderMs: _perfRenderMs, hidden: document.hidden,
+      worldParts:_perfWorldParts?.parts,worldGround:_perfWorldParts?.ground,worldClockReads:_perfWorldParts?.clockReads,
     });
     performanceLab?.end(wallMs,workMs);
     _perfPreviousWorkMs = workMs;
@@ -1235,6 +1242,7 @@ function tickBody(dt) {
     if (!LAYOUT_CAPTURE_MODE) composer.render();
     return;
   }
+  advanceCaptureAutopilot();
   if (running && !vehicleGameOver) {
     if(peopleBaseline&&peopleBaselineAuto){peopleBaselineAuto=false;peopleBaselineButton.click();}
     if(peopleBaseline?.active) {
@@ -1780,7 +1788,7 @@ function tickBody(dt) {
     // Procedural world expands around Zerble.
     const worldStartedAt = PERF_CAPTURE_TIMING ? performance.now() : 0;
     peopleFrameTrace?.mark('world-before', registry.entries.size);
-    updateWorld(zerble.position, dt, physicalWorld?.prepare);
+    updateWorld(zerble.position, dt, physicalWorld?.prepare, _perfWorldParts);
     peopleFrameTrace?.mark('world-after', registry.entries.size);
     if (PERF_CAPTURE_TIMING) _perfWorldMs = performance.now() - worldStartedAt;
 
@@ -3115,8 +3123,11 @@ installDebug({
   getRunning: () => running,
   setCaptureDriveLocked: (locked) => {
     captureDriveLocked = locked;
-    if (locked) zerble.speed = 0;
+    if (locked) {physicalWorld?.setSpeed(0);zerble.speed = 0;}
   },
+  captureDrivingReady:()=>running&&!vehicleGameOver&&!controlsLocked&&(!physicalRequested||!!physicalWorld&&!physicalLoadError),
+  captureMode:()=>RunMode.name,
+  stopCaptureCart:()=>{if(!physicalClosing)physicalWorld?.setSpeed(0);zerble.speed=0;},
   getTimeOfDay,
   getFarField,                          // perf samples record horizon counters
   getLandscapeRuntime,

@@ -1,0 +1,10 @@
+
+DevTools listening on ws://127.0.0.1:53240/devtools/browser/40fbbc0a-5c4b-4b25-9616-b4dacce09698
+Trying to load the allocator multiple times. This is *not* supported.
+[68415:40491870:1106/190747.718771:ERROR:components/policy/core/browser/policy_conversions_client.cc:332] DeveloperToolsDisabled has an error of type: Ignored because it was overridden by DeveloperToolsAvailability.
+[68415:40491978:1106/190747.838077:ERROR:base/process/process_mac.cc:45] task_policy_set TASK_CATEGORY_POLICY: (os/kern) invalid argument (4)
+[68415:40491978:1106/190747.838095:ERROR:base/process/process_mac.cc:90] task_policy_set TASK_SUPPRESSION_POLICY: (os/kern) invalid argument (4)
+[68415:40491870:1106/190747.851582:ERROR:content/browser/network_service_instance_impl.cc:652] Network service crashed or was terminated, restarting service.
+[68415:40491870:1106/190747.852841:ERROR:content/browser/gpu/gpu_process_host.cc:1042] GPU process exited unexpectedly: exit_code=15
+[68586:40494234:1106/190747.886585:ERROR:base/apple/mach_port_rendezvous_mac.cc:256] bootstrap_look_up com.google.Chrome.MachPortRendezvousServer.1: Permission denied (1100)
+[68586:40494234:1106/190747.886850:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)

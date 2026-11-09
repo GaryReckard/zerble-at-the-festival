@@ -1,0 +1,29 @@
+{
+  "recordedUtc": "2026-11-06T23:11:55.985559+00:00",
+  "manifests": [
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-01/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-02/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-03/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-04/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-05/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-06/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-07/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-08/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-09/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-10/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-11/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-12/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-13/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-14/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-15/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-16/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-17/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-18/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-19/ownership.json",
+    ".claude/captures/performance-lab/comparisons/20261106-175157-fc4fefd7/20261106-175157-fc4fefd7-20/ownership.json"
+  ],
+  "checkedIdentities": 386,
+  "allOwnedProcessesAbsent": true,
+  "labLeaseAbsent": true,
+  "keepAwake": "Still owned for continuing authorized window"
+}

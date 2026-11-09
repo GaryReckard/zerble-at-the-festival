@@ -16,10 +16,20 @@ def main():
     parser.add_argument('--tier', choices=('auto', 'low', 'mid', 'high'), default='auto')
     parser.add_argument('--quality', choices=('auto', 'baseline', 'sustained'), default='auto',
                         help='baseline locks rung zero; sustained ignores p95-only pressure; both require --tier low')
-    parser.add_argument('--seed', default='3948869160')
+    parser.add_argument('--seed')
+    parser.add_argument('--autopilot', action='store_true', help='repeat the fixed seeded road route through normal driving controls')
+    parser.add_argument('--child-cohort', choices=('full-v1','half-v1'), default='full-v1', help='capture-only child density fixture; half-v1 retains four original groups')
+    parser.add_argument('--world-detail', action='store_true', help='capture per-section world timings and retain the largest world stalls')
     parser.add_argument('--port', type=int, default=8765)
     parser.add_argument('--no-qr', action='store_true')
     args = parser.parse_args()
+    if args.child_cohort != 'full-v1' and not args.autopilot:
+        parser.error('--child-cohort half-v1 requires --autopilot')
+    if args.autopilot and args.scenario != 'drive':
+        parser.error('--autopilot requires drive')
+    if args.autopilot and args.seed not in (None, '2404796662'):
+        parser.error('--autopilot requires its fixed route seed 2404796662')
+    args.seed = args.seed or ('2404796662' if args.autopilot else '3948869160')
     if args.quality != 'auto' and args.tier != 'low':
         parser.error('--quality baseline/sustained requires --tier low')
     if args.desktop and args.no_qr:
@@ -33,6 +43,11 @@ def main():
     command = [sys.executable, str(root / '.claude' / 'serve_nocache.py'), str(args.port),
                '--playtest', args.scenario, '--seed', args.seed, '--tier', args.tier,
                '--quality', args.quality]
+    command.extend(['--child-cohort', args.child_cohort])
+    if args.autopilot:
+        command.append('--autopilot')
+    if args.world_detail:
+        command.append('--world-detail')
     if args.desktop:
         if not args.no_open:
             command.append('--desktop-open')

@@ -1,0 +1,7 @@
+{
+  "node": "v24.10.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "threeRevision": "160",
+  "scope": "Offline Node experiments; Mac foreground load uncontrolled"
+}

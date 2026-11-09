@@ -1,0 +1,67 @@
+{
+  "recordedAt": "2026-11-06T20:11:37.238458+00:00",
+  "reason": "Gary returned; foreground grant ended",
+  "manifests": [
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-145559-1e1732df/20261106-145559-1e1732df-01/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-145559-1e1732df/20261106-145559-1e1732df-02/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-145559-1e1732df/20261106-145559-1e1732df-03/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-145559-1e1732df/20261106-145559-1e1732df-04/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-145559-1e1732df/20261106-145559-1e1732df-05/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-145559-1e1732df/20261106-145559-1e1732df-06/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-145559-1e1732df/20261106-145559-1e1732df-07/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-145559-1e1732df/20261106-145559-1e1732df-08/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-145559-1e1732df/20261106-145559-1e1732df-09/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-145559-1e1732df/20261106-145559-1e1732df-10/ownership.json",
+      "state": "collected",
+      "cleanupOk": true
+    },
+    {
+      "path": ".claude/captures/performance-lab/comparisons/20261106-145559-1e1732df/20261106-145559-1e1732df-11/ownership.json",
+      "state": "failed",
+      "cleanupOk": true
+    }
+  ],
+  "checkedIdentities": 225,
+  "remaining": [],
+  "keepAwakePid": 97183,
+  "keepAwakeAbsent": true,
+  "labLeaseAbsent": true,
+  "allTaskOwnedProcessesAbsent": true
+}

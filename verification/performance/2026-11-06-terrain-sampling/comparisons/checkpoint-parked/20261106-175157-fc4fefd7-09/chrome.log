@@ -1,0 +1,5 @@
+
+DevTools listening on ws://127.0.0.1:62897/devtools/browser/1791eb14-394c-4458-9ccd-60dcdf550aa2
+Trying to load the allocator multiple times. This is *not* supported.
+[52073:40297383:1106/180029.487915:ERROR:components/policy/core/browser/policy_conversions_client.cc:332] DeveloperToolsDisabled has an error of type: Ignored because it was overridden by DeveloperToolsAvailability.
+[52073:40297383:1106/180029.620406:ERROR:content/browser/gpu/gpu_process_host.cc:1042] GPU process exited unexpectedly: exit_code=15

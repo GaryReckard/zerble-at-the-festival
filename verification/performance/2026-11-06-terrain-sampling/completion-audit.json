@@ -1,0 +1,92 @@
+{
+  "recordedUtc": "2026-11-07T00:47:54.424199+00:00",
+  "goalComplete": true,
+  "currentManifest": "lattice-manifest.json",
+  "currentSourceInputsMatched": 303,
+  "immutablePromotedFilesVerified": 1260,
+  "qualificationOperationsVerified": 7,
+  "finalComparisonRuns": 40,
+  "earlierCacheOnlyComparisonRuns": 40,
+  "requirements": [
+    {
+      "requirement": "Identify and implement a practical performance improvement without reducing terrain detail or changing handling",
+      "state": "proved",
+      "evidence": [
+        "baseline-attribution.json",
+        "../../../src/worldgen/terrain.js",
+        "lattice-ground-benchmark.json"
+      ]
+    },
+    {
+      "requirement": "Preserve exact sampler and actual production-ground behavior",
+      "state": "proved",
+      "evidence": [
+        "checks/lattice-npm-check.log",
+        "../../../bin/test-terrain-cell-cache",
+        "../../../bin/test-terrain-ground-recenter"
+      ]
+    },
+    {
+      "requirement": "Full project check and production build for current source",
+      "state": "proved",
+      "evidence": [
+        "checks/lattice-npm-check.log",
+        "checks/lattice-npm-build.log",
+        "lattice-manifest.json"
+      ]
+    },
+    {
+      "requirement": "Real title-gesture ordinary and diagnostic Low/Mid/High integration",
+      "state": "proved",
+      "evidence": [
+        "lattice-qualification-results.json",
+        "window-5/qualification-promotion.json"
+      ]
+    },
+    {
+      "requirement": "Fresh calibrated final-source parked and driving comparisons, with unchanged policy and complete report regeneration",
+      "state": "proved",
+      "evidence": [
+        "lattice-suite.json",
+        "comparisons/lattice-parked/regeneration.json",
+        "comparisons/lattice-driving/regeneration.json"
+      ]
+    },
+    {
+      "requirement": "Preserve failed attempts, worst frames and precise limits; do not claim an undetected overall FPS gain",
+      "state": "proved",
+      "evidence": [
+        "comparisons/attempt-1/result.json",
+        "comparisons/attempt-2/result.json",
+        "comparisons/attempt-3/result.json",
+        "comparisons/attempt-4/result.json",
+        "lattice-README.md"
+      ]
+    },
+    {
+      "requirement": "Update architecture, changelog, roadmap and evidence for final source",
+      "state": "proved",
+      "evidence": [
+        "../../../ARCHITECTURE.md",
+        "../../../CHANGELOG.md",
+        "../../../ROADMAP.md",
+        "../../README.md",
+        "lattice-README.md"
+      ]
+    },
+    {
+      "requirement": "Stop owned browser/worker/keep-awake processes and preserve user sessions",
+      "state": "proved",
+      "evidence": [
+        "window-5/cleanup.json"
+      ]
+    }
+  ],
+  "primaryVerdict": "no detectable change",
+  "remainingWithinDeclaredScope": [],
+  "separateFollowUps": [
+    "Physical older-iPad Safari and actual Auto driving acceptance",
+    "Attribution of remaining 130.5 ms worst driving frames"
+  ],
+  "publication": "Local codex/terrain-sampling-cache branch; no merge or deployment"
+}

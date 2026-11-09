@@ -1,0 +1,9 @@
+{
+  "historicalExecutedHelper": "initial-operation-bench.mjs",
+  "sha256": "9a94fccd35d5c7230948f4469b9439f1319355651bee80e1a8306f55fe941d48",
+  "historicalCurrentLabel": "The root sampler of the source selected for each experiment: rejected first candidate or initial revised snapshot, not the latest checkout",
+  "initialCandidateManifest": "rejected-candidate-manifest.json",
+  "revisedExperimentManifest": "revised-initial-manifest.json",
+  "currentHelper": "bench.mjs",
+  "reproduction": "Use explicit legacy/rejected/current modes; current always means latest checkout and records its source hash"
+}

@@ -1,0 +1,147 @@
+{
+  "state": "completed",
+  "verdict": "no detectable change",
+  "source": {
+    "A": {
+      "app": "c3c93589b89b7dad24b3352635622008d201ac98b2fdad76848f41201b1055b5",
+      "build": "5fe861d4b0102beb03b6cc003bad6485949b9a47d18b47d0181a754bd7254367",
+      "harness": "4ffdedbb5bc4d595d212a276ca3be24f2be0545d488b55aa0790d0b3c1f4c935",
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/snapshots/c3c93589b89b7dad24b3352635622008d201ac98b2fdad76848f41201b1055b5"
+    },
+    "B": {
+      "app": "00d10db620720b429a5ab93e6973495324b8d2e0c33e7b98ea6d22dedf64b708",
+      "build": "3b5abd86ab55a6300025860fe636b86e365b442b854973af8548c26fabb7abd3",
+      "harness": "4ffdedbb5bc4d595d212a276ca3be24f2be0545d488b55aa0790d0b3c1f4c935",
+      "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/snapshots/00d10db620720b429a5ab93e6973495324b8d2e0c33e7b98ea6d22dedf64b708"
+    }
+  },
+  "conditions": {
+    "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+    "dpr": 1,
+    "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+    "height": 720,
+    "seed": 2404796662,
+    "tier": "high",
+    "width": 1280
+  },
+  "totalRuns": 40,
+  "rows": [
+    {
+      "condition": "high-dense-festival-v1",
+      "verdict": "no detectable change",
+      "p95A": 18.100000023841858,
+      "p95B": 18.25,
+      "p99A": 18.700000047683716,
+      "p99B": 18.649999976158142,
+      "workMedianA": 14.300000071525574,
+      "workMedianB": 13.049999952316284,
+      "pairedP95": {
+        "change": 0.20000004768371582,
+        "direction": 0,
+        "pairedChanges": [
+          0.3000001907348633,
+          0.10000014305114746,
+          0,
+          0.2999999523162842
+        ],
+        "threshold": 2.0
+      },
+      "pairedP99": {
+        "change": 0.0,
+        "direction": 0,
+        "pairedChanges": [
+          0.2999999523162842,
+          0.0,
+          -0.20000004768371582,
+          0.0
+        ],
+        "threshold": 3.0
+      },
+      "pairedStallRate": {
+        "change": 0.0,
+        "direction": 0,
+        "pairedChanges": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "threshold": 0.1
+      },
+      "worstA": 30.300000190734863,
+      "worstB": 28.799999952316284,
+      "stallsA": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "stallsB": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "condition": "high-streaming-drive-v1",
+      "verdict": "no detectable change",
+      "p95A": 19.149999976158142,
+      "p95B": 18.550000071525574,
+      "p99A": 27.700000047683716,
+      "p99B": 21.800000071525574,
+      "workMedianA": 15.149999856948853,
+      "workMedianB": 13.850000023841858,
+      "pairedP95": {
+        "change": -0.6499999761581421,
+        "direction": 0,
+        "pairedChanges": [
+          -0.5999999046325684,
+          -0.8000001907348633,
+          -0.5999999046325684,
+          -0.7000000476837158
+        ],
+        "threshold": 2.0
+      },
+      "pairedP99": {
+        "change": -5.849999904632568,
+        "direction": -1,
+        "pairedChanges": [
+          -6.0,
+          -5.799999952316284,
+          -5.8999998569488525,
+          -5.799999952316284
+        ],
+        "threshold": 3.0
+      },
+      "pairedStallRate": {
+        "change": -0.016288070755285294,
+        "direction": 0,
+        "pairedChanges": [
+          -0.016222886386753177,
+          -0.016353255123817412,
+          -0.032743619514236655,
+          -0.016215309435967606
+        ],
+        "threshold": 0.1
+      },
+      "worstA": 140.59999990463257,
+      "worstB": 130.5,
+      "stallsA": [
+        10,
+        10,
+        11,
+        10
+      ],
+      "stallsB": [
+        9,
+        9,
+        9,
+        9
+      ]
+    }
+  ],
+  "analysisRegenerated": true,
+  "currentSourceInputsMatched": 303,
+  "scope": "Original baseline versus cache plus exact-lattice revision; fixed-tier hardware Chrome. Overall primary frame-delivery verdict unchanged; p99 is secondary. Not iPad/Auto acceptance."
+}

@@ -1,0 +1,8 @@
+{
+  "nodes": 7751,
+  "meshObjects": 5770,
+  "visiblePlainOpaque": 3790,
+  "identityBuckets80m": 2212,
+  "repeatedObjectUpperBound": 1578,
+  "scope": "Unculled final-route snapshot; includes unknown/dynamic eligibility, not render draws or achievable savings"
+}

@@ -1,0 +1,14 @@
+{
+  "checkedUtc": "2026-11-08T04:42:41.710013+00:00",
+  "fullCheck": "npm run check exit0; check.log",
+  "build": "npm run build exit0; build.log",
+  "routeValid": true,
+  "checkpointCount": 4,
+  "routeChunks": 25,
+  "stopInvalid": true,
+  "worldAttributionExported": true,
+  "missingLinks": [],
+  "sourceApp": "7c5a6bd933f86db327d4c78d3b662fd938438f4af203c29c06ac11e5a1f861a1",
+  "iPadCapture": "Awaiting next physical-device run; no mobile improvement claim",
+  "scriptSyntax": true
+}

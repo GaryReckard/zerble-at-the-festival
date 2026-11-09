@@ -1,0 +1,18 @@
+{
+  "checkedUtc": "2026-11-07T16:30:25.115848+00:00",
+  "recordedIdentity": {
+    "pid": 78705,
+    "ppid": 78703,
+    "pgid": 78703,
+    "started": "Sat Nov 7 10:23:26 2026",
+    "command": "/usr/bin/caffeinate -di -t 7200"
+  },
+  "matchedBeforeSignal": {
+    "pid": 78705,
+    "started": "Sat Nov 7 10:23:26 2026",
+    "command": "/usr/bin/caffeinate -di -t 7200"
+  },
+  "stopped": true,
+  "absentAfter": true,
+  "userProcessesStopped": false
+}

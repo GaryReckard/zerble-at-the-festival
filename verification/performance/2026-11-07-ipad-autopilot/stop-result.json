@@ -1,0 +1,37 @@
+{
+  "ok": true,
+  "expectedInterruption": true,
+  "hardware": {
+    "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+    "focused": true,
+    "visible": true,
+    "labAbsent": true
+  },
+  "autopilot": {
+    "checkpointCount": 0,
+    "checkpoints": [],
+    "complete": false,
+    "control": {
+      "boost": false,
+      "brake": true,
+      "steer": 0,
+      "throttle": 0
+    },
+    "frames": 0,
+    "maxCorridorMetres": 0,
+    "reason": "user-stop",
+    "routePolicy": "road-follow-v2",
+    "seed": 2404796662,
+    "segment": 0,
+    "start": {
+      "heading": 2.358,
+      "x": -230.3,
+      "z": -691.8
+    },
+    "state": "failed",
+    "travelMetres": 0,
+    "version": "device-road-follow-v1"
+  },
+  "worldWorstFrames": 0,
+  "errors": []
+}

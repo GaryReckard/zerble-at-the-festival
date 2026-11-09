@@ -1,0 +1,15 @@
+{
+  "recordedUtc": "2026-11-07T15:56:22.741964+00:00",
+  "captures": [
+    "20261107-102425-route-cpu-high-eddb8afc",
+    "20261107-103043-route-cpu-low-bba81581",
+    "20261107-103726-route-cpu-high-2296026c",
+    "20261107-105352-support-trace-high-8a8810d9"
+  ],
+  "checkedIdentities": 81,
+  "remaining": [],
+  "exactOwnedProcessesAbsent": true,
+  "labLeaseAbsent": true,
+  "keepAwake": "Remains task-owned until investigation window ends; not a browser process",
+  "signalError": "Parked capture retained one denied signal; independent exact-PID inspection proves absence"
+}

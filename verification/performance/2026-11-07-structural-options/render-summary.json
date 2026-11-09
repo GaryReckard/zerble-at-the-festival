@@ -1,0 +1,2443 @@
+{
+  "scope": "Frozen rendering attribution; no ordinary frame or device acceptance",
+  "tiers": {
+    "high": {
+      "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261107-112117-render-probe-high-e0ba69d3",
+      "rawSha256": "31280b656030832cddf9bce3821c66a5f2ed14d7efcc2c05dde0c1679deebf6d",
+      "hardware": {
+        "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+        "visible": true,
+        "focused": true,
+        "width": 1280,
+        "height": 720,
+        "targetWidth": 1280,
+        "targetHeight": 720,
+        "childBatch": true,
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+      },
+      "elapsedMs": 47101,
+      "frames": 2304,
+      "cleanup": {
+        "checkedPids": [
+          4085,
+          4087,
+          4111,
+          4112,
+          4118,
+          4119,
+          4120,
+          4121,
+          4122,
+          4125,
+          4126,
+          4127,
+          4128,
+          4144,
+          4508,
+          4509,
+          4511,
+          4512,
+          4526,
+          4528,
+          4531,
+          4538
+        ],
+        "inspectionError": null,
+        "ok": true,
+        "remaining": [],
+        "terminationErrors": []
+      },
+      "restored": {
+        "restored": true,
+        "paused": false,
+        "events": []
+      },
+      "nomination": {
+        "static-flags": {
+          "qualifyingViews": 0,
+          "regressionViews": 0,
+          "advances": false
+        },
+        "vendor-instances": {
+          "qualifyingViews": 0,
+          "regressionViews": 0,
+          "advances": false
+        }
+      },
+      "rows": [
+        {
+          "mode": "third",
+          "time": "noon",
+          "mechanism": "static-flags",
+          "baselineMedianMs": 7.5,
+          "candidateMedianMs": 7.5,
+          "deltaMs": 0.0,
+          "pairedMedianDeltaMs": -0.024999916553497314,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.0
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.04999995231628418
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.09999990463256836
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.04999983310699463
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.04999995231628418,
+            "candidate-first": -0.049999892711639404
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 1976,
+            "candidateMaxCalls": 1976,
+            "baselineMaxTriangles": 1066441,
+            "candidateMaxTriangles": 1066441,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 8752,
+            "originalWorldMatrixFingerprint": "79fd0168",
+            "cameraFingerprint": "4d4f12ef",
+            "registryFingerprint": "3fd13fd6",
+            "predictedBuckets": 128,
+            "mechanism": "static-flags",
+            "booths": 37,
+            "cells": 7,
+            "skips": {
+              "static-transparent": 8,
+              "static-instanced": 37
+            },
+            "counts": {
+              "geometryObjects": 1476,
+              "textures": 48,
+              "programs": 85,
+              "originalMeshes": 6524,
+              "selectedVendorMeshes": 481,
+              "selectedStaticMeshes": 74,
+              "currentMeshes": 6524,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "third",
+            "t": 0.3009700000001325,
+            "registryEntries": 2937
+          },
+          "candidateCounts": {
+            "geometryObjects": 1476,
+            "textures": 48,
+            "programs": 85,
+            "originalMeshes": 6524,
+            "selectedVendorMeshes": 481,
+            "selectedStaticMeshes": 74,
+            "currentMeshes": 6524,
+            "adapterGroups": 0,
+            "batchMeshes": 0,
+            "submittedInstances": 0,
+            "sourceLayersZero": 0
+          },
+          "constructionMs": [],
+          "matrixAudit": {
+            "baseline": {
+              "updateMatrix": 74,
+              "worldMultiply": 74
+            },
+            "flags": {
+              "updateMatrix": 0,
+              "worldMultiply": 74
+            },
+            "parentMutation": {
+              "worldChanged": true,
+              "forcePropagatedDespiteWorldAutoUpdateFalse": true,
+              "positionDelta": 0.125,
+              "explicitRepublishFinite": true,
+              "exactRevert": true
+            },
+            "interpretation": "Pinned r160 parent force still recomputes child world matrices; flags avoid local composition only. No world-multiply skipping is claimed."
+          }
+        },
+        {
+          "mode": "third",
+          "time": "noon",
+          "mechanism": "vendor-instances",
+          "baselineMedianMs": 7.5,
+          "candidateMedianMs": 7.700000047683716,
+          "deltaMs": 0.20000004768371582,
+          "pairedMedianDeltaMs": 0.22500014305114746,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.20000004768371582
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.40000009536743164
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.2500002384185791
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.14999985694885254
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.22500014305114746,
+            "candidate-first": 0.2749999761581421
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 1976,
+            "candidateMaxCalls": 1825,
+            "baselineMaxTriangles": 1066441,
+            "candidateMaxTriangles": 1066793,
+            "callsRegressed": false,
+            "trianglesRegressed": true
+          },
+          "inventory": {
+            "originalNodes": 8752,
+            "originalWorldMatrixFingerprint": "79fd0168",
+            "cameraFingerprint": "4d4f12ef",
+            "registryFingerprint": "3fd13fd6",
+            "predictedBuckets": 128,
+            "mechanism": "vendor-instances",
+            "booths": 37,
+            "cells": 7,
+            "skips": {
+              "static-transparent": 8,
+              "static-instanced": 37
+            },
+            "counts": {
+              "geometryObjects": 1476,
+              "textures": 48,
+              "programs": 85,
+              "originalMeshes": 6524,
+              "selectedVendorMeshes": 481,
+              "selectedStaticMeshes": 74,
+              "currentMeshes": 6524,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "third",
+            "t": 0.3009700000001325,
+            "registryEntries": 2937
+          },
+          "candidateCounts": {
+            "geometryObjects": 1476,
+            "textures": 48,
+            "programs": 85,
+            "originalMeshes": 6524,
+            "selectedVendorMeshes": 481,
+            "selectedStaticMeshes": 74,
+            "currentMeshes": 6652,
+            "adapterGroups": 7,
+            "batchMeshes": 128,
+            "submittedInstances": 261,
+            "sourceLayersZero": 481
+          },
+          "constructionMs": [
+            5.8999998569488525,
+            5.1000001430511475
+          ],
+          "matrixAudit": null
+        },
+        {
+          "mode": "third",
+          "time": "midnight",
+          "mechanism": "static-flags",
+          "baselineMedianMs": 6.799999952316284,
+          "candidateMedianMs": 6.700000047683716,
+          "deltaMs": -0.09999990463256836,
+          "pairedMedianDeltaMs": -0.04999995231628418,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.3499997854232788
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.0
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.09999990463256836
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.10000002384185791
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": -0.22499984502792358,
+            "candidate-first": 0.050000011920928955
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 1994,
+            "candidateMaxCalls": 1994,
+            "baselineMaxTriangles": 1068709,
+            "candidateMaxTriangles": 1068709,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 8752,
+            "originalWorldMatrixFingerprint": "7623eb7",
+            "cameraFingerprint": "4d4f12ef",
+            "registryFingerprint": "502fad67",
+            "predictedBuckets": 128,
+            "mechanism": "static-flags",
+            "booths": 37,
+            "cells": 7,
+            "skips": {
+              "static-transparent": 8,
+              "static-instanced": 37
+            },
+            "counts": {
+              "geometryObjects": 1480,
+              "textures": 59,
+              "programs": 136,
+              "originalMeshes": 6524,
+              "selectedVendorMeshes": 481,
+              "selectedStaticMeshes": 74,
+              "currentMeshes": 6524,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "third",
+            "t": 0.7500450000001324,
+            "registryEntries": 2937
+          },
+          "candidateCounts": {
+            "geometryObjects": 1480,
+            "textures": 59,
+            "programs": 136,
+            "originalMeshes": 6524,
+            "selectedVendorMeshes": 481,
+            "selectedStaticMeshes": 74,
+            "currentMeshes": 6524,
+            "adapterGroups": 0,
+            "batchMeshes": 0,
+            "submittedInstances": 0,
+            "sourceLayersZero": 0
+          },
+          "constructionMs": [],
+          "matrixAudit": {
+            "baseline": {
+              "updateMatrix": 74,
+              "worldMultiply": 74
+            },
+            "flags": {
+              "updateMatrix": 0,
+              "worldMultiply": 74
+            },
+            "parentMutation": {
+              "worldChanged": true,
+              "forcePropagatedDespiteWorldAutoUpdateFalse": true,
+              "positionDelta": 0.125,
+              "explicitRepublishFinite": true,
+              "exactRevert": true
+            },
+            "interpretation": "Pinned r160 parent force still recomputes child world matrices; flags avoid local composition only. No world-multiply skipping is claimed."
+          }
+        },
+        {
+          "mode": "third",
+          "time": "midnight",
+          "mechanism": "vendor-instances",
+          "baselineMedianMs": 6.799999952316284,
+          "candidateMedianMs": 6.899999976158142,
+          "deltaMs": 0.10000002384185791,
+          "pairedMedianDeltaMs": 0.050000011920928955,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.1499999761581421
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 1.1920928955078125e-07
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.19999992847442627
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.09999990463256836
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": -0.02499997615814209,
+            "candidate-first": 0.050000011920928955
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 1994,
+            "candidateMaxCalls": 1846,
+            "baselineMaxTriangles": 1068709,
+            "candidateMaxTriangles": 1069061,
+            "callsRegressed": false,
+            "trianglesRegressed": true
+          },
+          "inventory": {
+            "originalNodes": 8752,
+            "originalWorldMatrixFingerprint": "7623eb7",
+            "cameraFingerprint": "4d4f12ef",
+            "registryFingerprint": "502fad67",
+            "predictedBuckets": 128,
+            "mechanism": "vendor-instances",
+            "booths": 37,
+            "cells": 7,
+            "skips": {
+              "static-transparent": 8,
+              "static-instanced": 37
+            },
+            "counts": {
+              "geometryObjects": 1480,
+              "textures": 59,
+              "programs": 136,
+              "originalMeshes": 6524,
+              "selectedVendorMeshes": 481,
+              "selectedStaticMeshes": 74,
+              "currentMeshes": 6524,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "third",
+            "t": 0.7500450000001324,
+            "registryEntries": 2937
+          },
+          "candidateCounts": {
+            "geometryObjects": 1480,
+            "textures": 59,
+            "programs": 136,
+            "originalMeshes": 6524,
+            "selectedVendorMeshes": 481,
+            "selectedStaticMeshes": 74,
+            "currentMeshes": 6652,
+            "adapterGroups": 7,
+            "batchMeshes": 128,
+            "submittedInstances": 258,
+            "sourceLayersZero": 481
+          },
+          "constructionMs": [
+            8.5,
+            5.099999904632568
+          ],
+          "matrixAudit": null
+        },
+        {
+          "mode": "first",
+          "time": "noon",
+          "mechanism": "static-flags",
+          "baselineMedianMs": 6.850000023841858,
+          "candidateMedianMs": 6.799999952316284,
+          "deltaMs": -0.05000007152557373,
+          "pairedMedianDeltaMs": -0.025000035762786865,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.0
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.10000002384185791
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.0
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.05000007152557373
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.0,
+            "candidate-first": -0.07500004768371582
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 1498,
+            "candidateMaxCalls": 1498,
+            "baselineMaxTriangles": 1005129,
+            "candidateMaxTriangles": 1005129,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 8752,
+            "originalWorldMatrixFingerprint": "224e855e",
+            "cameraFingerprint": "b2004d1b",
+            "registryFingerprint": "f36cae99",
+            "predictedBuckets": 128,
+            "mechanism": "static-flags",
+            "booths": 37,
+            "cells": 7,
+            "skips": {
+              "static-transparent": 8,
+              "static-instanced": 37
+            },
+            "counts": {
+              "geometryObjects": 1481,
+              "textures": 59,
+              "programs": 142,
+              "originalMeshes": 6524,
+              "selectedVendorMeshes": 481,
+              "selectedStaticMeshes": 74,
+              "currentMeshes": 6524,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "first",
+            "t": 0.30097222222222236,
+            "registryEntries": 2937
+          },
+          "candidateCounts": {
+            "geometryObjects": 1481,
+            "textures": 59,
+            "programs": 142,
+            "originalMeshes": 6524,
+            "selectedVendorMeshes": 481,
+            "selectedStaticMeshes": 74,
+            "currentMeshes": 6524,
+            "adapterGroups": 0,
+            "batchMeshes": 0,
+            "submittedInstances": 0,
+            "sourceLayersZero": 0
+          },
+          "constructionMs": [],
+          "matrixAudit": {
+            "baseline": {
+              "updateMatrix": 74,
+              "worldMultiply": 74
+            },
+            "flags": {
+              "updateMatrix": 0,
+              "worldMultiply": 74
+            },
+            "parentMutation": {
+              "worldChanged": true,
+              "forcePropagatedDespiteWorldAutoUpdateFalse": true,
+              "positionDelta": 0.125,
+              "explicitRepublishFinite": true,
+              "exactRevert": true
+            },
+            "interpretation": "Pinned r160 parent force still recomputes child world matrices; flags avoid local composition only. No world-multiply skipping is claimed."
+          }
+        },
+        {
+          "mode": "first",
+          "time": "noon",
+          "mechanism": "vendor-instances",
+          "baselineMedianMs": 6.75,
+          "candidateMedianMs": 6.900000095367432,
+          "deltaMs": 0.15000009536743164,
+          "pairedMedianDeltaMs": 0.15000009536743164,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.20000004768371582
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.20000004768371582
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.10000002384185791
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.10000014305114746
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.15000003576278687,
+            "candidate-first": 0.15000009536743164
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 1498,
+            "candidateMaxCalls": 1391,
+            "baselineMaxTriangles": 1005129,
+            "candidateMaxTriangles": 1006185,
+            "callsRegressed": false,
+            "trianglesRegressed": true
+          },
+          "inventory": {
+            "originalNodes": 8752,
+            "originalWorldMatrixFingerprint": "224e855e",
+            "cameraFingerprint": "b2004d1b",
+            "registryFingerprint": "f36cae99",
+            "predictedBuckets": 128,
+            "mechanism": "vendor-instances",
+            "booths": 37,
+            "cells": 7,
+            "skips": {
+              "static-transparent": 8,
+              "static-instanced": 37
+            },
+            "counts": {
+              "geometryObjects": 1481,
+              "textures": 59,
+              "programs": 142,
+              "originalMeshes": 6524,
+              "selectedVendorMeshes": 481,
+              "selectedStaticMeshes": 74,
+              "currentMeshes": 6524,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "first",
+            "t": 0.30097222222222236,
+            "registryEntries": 2937
+          },
+          "candidateCounts": {
+            "geometryObjects": 1481,
+            "textures": 59,
+            "programs": 142,
+            "originalMeshes": 6524,
+            "selectedVendorMeshes": 481,
+            "selectedStaticMeshes": 74,
+            "currentMeshes": 6652,
+            "adapterGroups": 7,
+            "batchMeshes": 128,
+            "submittedInstances": 217,
+            "sourceLayersZero": 481
+          },
+          "constructionMs": [
+            5.1000001430511475,
+            4.900000095367432
+          ],
+          "matrixAudit": null
+        },
+        {
+          "mode": "first",
+          "time": "midnight",
+          "mechanism": "static-flags",
+          "baselineMedianMs": 6.0,
+          "candidateMedianMs": 5.950000047683716,
+          "deltaMs": -0.04999995231628418,
+          "pairedMedianDeltaMs": -0.04999995231628418,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.0
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.09999990463256836
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.19999992847442627
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.1499999761581421
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": -0.09999996423721313,
+            "candidate-first": 0.025000035762786865
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 1506,
+            "candidateMaxCalls": 1506,
+            "baselineMaxTriangles": 1005209,
+            "candidateMaxTriangles": 1005209,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 8755,
+            "originalWorldMatrixFingerprint": "89cbf2dc",
+            "cameraFingerprint": "b2004d1b",
+            "registryFingerprint": "c2a42b38",
+            "predictedBuckets": 128,
+            "mechanism": "static-flags",
+            "booths": 37,
+            "cells": 7,
+            "skips": {
+              "static-transparent": 8,
+              "static-instanced": 37
+            },
+            "counts": {
+              "geometryObjects": 1481,
+              "textures": 59,
+              "programs": 142,
+              "originalMeshes": 6527,
+              "selectedVendorMeshes": 481,
+              "selectedStaticMeshes": 74,
+              "currentMeshes": 6527,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "first",
+            "t": 0.7510174999998669,
+            "registryEntries": 2937
+          },
+          "candidateCounts": {
+            "geometryObjects": 1481,
+            "textures": 59,
+            "programs": 142,
+            "originalMeshes": 6527,
+            "selectedVendorMeshes": 481,
+            "selectedStaticMeshes": 74,
+            "currentMeshes": 6527,
+            "adapterGroups": 0,
+            "batchMeshes": 0,
+            "submittedInstances": 0,
+            "sourceLayersZero": 0
+          },
+          "constructionMs": [],
+          "matrixAudit": {
+            "baseline": {
+              "updateMatrix": 74,
+              "worldMultiply": 74
+            },
+            "flags": {
+              "updateMatrix": 0,
+              "worldMultiply": 74
+            },
+            "parentMutation": {
+              "worldChanged": true,
+              "forcePropagatedDespiteWorldAutoUpdateFalse": true,
+              "positionDelta": 0.125,
+              "explicitRepublishFinite": true,
+              "exactRevert": true
+            },
+            "interpretation": "Pinned r160 parent force still recomputes child world matrices; flags avoid local composition only. No world-multiply skipping is claimed."
+          }
+        },
+        {
+          "mode": "first",
+          "time": "midnight",
+          "mechanism": "vendor-instances",
+          "baselineMedianMs": 6.0,
+          "candidateMedianMs": 6.1000001430511475,
+          "deltaMs": 0.10000014305114746,
+          "pairedMedianDeltaMs": 0.20000004768371582,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.1499999761581421
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.10000014305114746
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.25000011920928955
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.25000011920928955
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.20000004768371582,
+            "candidate-first": 0.1750001311302185
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 1506,
+            "candidateMaxCalls": 1399,
+            "baselineMaxTriangles": 1005209,
+            "candidateMaxTriangles": 1006265,
+            "callsRegressed": false,
+            "trianglesRegressed": true
+          },
+          "inventory": {
+            "originalNodes": 8755,
+            "originalWorldMatrixFingerprint": "89cbf2dc",
+            "cameraFingerprint": "b2004d1b",
+            "registryFingerprint": "c2a42b38",
+            "predictedBuckets": 128,
+            "mechanism": "vendor-instances",
+            "booths": 37,
+            "cells": 7,
+            "skips": {
+              "static-transparent": 8,
+              "static-instanced": 37
+            },
+            "counts": {
+              "geometryObjects": 1481,
+              "textures": 59,
+              "programs": 142,
+              "originalMeshes": 6527,
+              "selectedVendorMeshes": 481,
+              "selectedStaticMeshes": 74,
+              "currentMeshes": 6527,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "first",
+            "t": 0.7510174999998669,
+            "registryEntries": 2937
+          },
+          "candidateCounts": {
+            "geometryObjects": 1481,
+            "textures": 59,
+            "programs": 142,
+            "originalMeshes": 6527,
+            "selectedVendorMeshes": 481,
+            "selectedStaticMeshes": 74,
+            "currentMeshes": 6655,
+            "adapterGroups": 7,
+            "batchMeshes": 128,
+            "submittedInstances": 217,
+            "sourceLayersZero": 481
+          },
+          "constructionMs": [
+            5.199999809265137,
+            6.700000047683716
+          ],
+          "matrixAudit": null
+        },
+        {
+          "mode": "top",
+          "time": "noon",
+          "mechanism": "static-flags",
+          "baselineMedianMs": 5.5,
+          "candidateMedianMs": 5.400000095367432,
+          "deltaMs": -0.09999990463256836,
+          "pairedMedianDeltaMs": -0.04999995231628418,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.09999990463256836
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.04999995231628418
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.39999985694885254
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.04999995231628418
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": -0.1499999761581421,
+            "candidate-first": -0.04999995231628418
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 776,
+            "candidateMaxCalls": 776,
+            "baselineMaxTriangles": 780641,
+            "candidateMaxTriangles": 780641,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 8758,
+            "originalWorldMatrixFingerprint": "ee6f654b",
+            "cameraFingerprint": "e320bf12",
+            "registryFingerprint": "cfa31562",
+            "predictedBuckets": 128,
+            "mechanism": "static-flags",
+            "booths": 37,
+            "cells": 7,
+            "skips": {
+              "static-transparent": 8,
+              "static-instanced": 37
+            },
+            "counts": {
+              "geometryObjects": 1499,
+              "textures": 59,
+              "programs": 144,
+              "originalMeshes": 6530,
+              "selectedVendorMeshes": 481,
+              "selectedStaticMeshes": 74,
+              "currentMeshes": 6530,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "top",
+            "t": 0.30097055555515834,
+            "registryEntries": 2937
+          },
+          "candidateCounts": {
+            "geometryObjects": 1499,
+            "textures": 59,
+            "programs": 144,
+            "originalMeshes": 6530,
+            "selectedVendorMeshes": 481,
+            "selectedStaticMeshes": 74,
+            "currentMeshes": 6530,
+            "adapterGroups": 0,
+            "batchMeshes": 0,
+            "submittedInstances": 0,
+            "sourceLayersZero": 0
+          },
+          "constructionMs": [],
+          "matrixAudit": {
+            "baseline": {
+              "updateMatrix": 74,
+              "worldMultiply": 74
+            },
+            "flags": {
+              "updateMatrix": 0,
+              "worldMultiply": 74
+            },
+            "parentMutation": {
+              "worldChanged": true,
+              "forcePropagatedDespiteWorldAutoUpdateFalse": true,
+              "positionDelta": 0.125,
+              "explicitRepublishFinite": true,
+              "exactRevert": true
+            },
+            "interpretation": "Pinned r160 parent force still recomputes child world matrices; flags avoid local composition only. No world-multiply skipping is claimed."
+          }
+        },
+        {
+          "mode": "top",
+          "time": "noon",
+          "mechanism": "vendor-instances",
+          "baselineMedianMs": 5.450000047683716,
+          "candidateMedianMs": 5.5,
+          "deltaMs": 0.04999995231628418,
+          "pairedMedianDeltaMs": 0.02500009536743164,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.20000004768371582
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.04999995231628418
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.10000014305114746
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.3500000238418579
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.15000009536743164,
+            "candidate-first": -0.19999998807907104
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 776,
+            "candidateMaxCalls": 713,
+            "baselineMaxTriangles": 780641,
+            "candidateMaxTriangles": 780641,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 8758,
+            "originalWorldMatrixFingerprint": "ee6f654b",
+            "cameraFingerprint": "e320bf12",
+            "registryFingerprint": "cfa31562",
+            "predictedBuckets": 128,
+            "mechanism": "vendor-instances",
+            "booths": 37,
+            "cells": 7,
+            "skips": {
+              "static-transparent": 8,
+              "static-instanced": 37
+            },
+            "counts": {
+              "geometryObjects": 1499,
+              "textures": 59,
+              "programs": 144,
+              "originalMeshes": 6530,
+              "selectedVendorMeshes": 481,
+              "selectedStaticMeshes": 74,
+              "currentMeshes": 6530,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "top",
+            "t": 0.30097055555515834,
+            "registryEntries": 2937
+          },
+          "candidateCounts": {
+            "geometryObjects": 1499,
+            "textures": 59,
+            "programs": 144,
+            "originalMeshes": 6530,
+            "selectedVendorMeshes": 481,
+            "selectedStaticMeshes": 74,
+            "currentMeshes": 6658,
+            "adapterGroups": 7,
+            "batchMeshes": 128,
+            "submittedInstances": 151,
+            "sourceLayersZero": 481
+          },
+          "constructionMs": [
+            5.400000095367432,
+            5.400000095367432
+          ],
+          "matrixAudit": null
+        },
+        {
+          "mode": "top",
+          "time": "midnight",
+          "mechanism": "static-flags",
+          "baselineMedianMs": 4.75,
+          "candidateMedianMs": 4.799999952316284,
+          "deltaMs": 0.04999995231628418,
+          "pairedMedianDeltaMs": -0.1499999761581421,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.3499997854232788
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.5499999523162842
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.4999997615814209
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.04999983310699463
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.07499998807907104,
+            "candidate-first": -0.2500000596046448
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 784,
+            "candidateMaxCalls": 784,
+            "baselineMaxTriangles": 783485,
+            "candidateMaxTriangles": 783485,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 8755,
+            "originalWorldMatrixFingerprint": "f463c6bc",
+            "cameraFingerprint": "e320bf12",
+            "registryFingerprint": "5b5c900c",
+            "predictedBuckets": 128,
+            "mechanism": "static-flags",
+            "booths": 37,
+            "cells": 7,
+            "skips": {
+              "static-transparent": 8,
+              "static-instanced": 37
+            },
+            "counts": {
+              "geometryObjects": 1499,
+              "textures": 59,
+              "programs": 144,
+              "originalMeshes": 6527,
+              "selectedVendorMeshes": 481,
+              "selectedStaticMeshes": 74,
+              "currentMeshes": 6527,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "top",
+            "t": 0.7509719444440465,
+            "registryEntries": 2937
+          },
+          "candidateCounts": {
+            "geometryObjects": 1499,
+            "textures": 59,
+            "programs": 144,
+            "originalMeshes": 6527,
+            "selectedVendorMeshes": 481,
+            "selectedStaticMeshes": 74,
+            "currentMeshes": 6527,
+            "adapterGroups": 0,
+            "batchMeshes": 0,
+            "submittedInstances": 0,
+            "sourceLayersZero": 0
+          },
+          "constructionMs": [],
+          "matrixAudit": {
+            "baseline": {
+              "updateMatrix": 74,
+              "worldMultiply": 74
+            },
+            "flags": {
+              "updateMatrix": 0,
+              "worldMultiply": 74
+            },
+            "parentMutation": {
+              "worldChanged": true,
+              "forcePropagatedDespiteWorldAutoUpdateFalse": true,
+              "positionDelta": 0.125,
+              "explicitRepublishFinite": true,
+              "exactRevert": true
+            },
+            "interpretation": "Pinned r160 parent force still recomputes child world matrices; flags avoid local composition only. No world-multiply skipping is claimed."
+          }
+        },
+        {
+          "mode": "top",
+          "time": "midnight",
+          "mechanism": "vendor-instances",
+          "baselineMedianMs": 4.900000095367432,
+          "candidateMedianMs": 4.8999998569488525,
+          "deltaMs": -2.384185791015625e-07,
+          "pairedMedianDeltaMs": -0.07499992847442627,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.04999995231628418
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.09999990463256836
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.04999995231628418
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.09999990463256836
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.0,
+            "candidate-first": -0.09999990463256836
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 784,
+            "candidateMaxCalls": 721,
+            "baselineMaxTriangles": 783485,
+            "candidateMaxTriangles": 783485,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 8755,
+            "originalWorldMatrixFingerprint": "f463c6bc",
+            "cameraFingerprint": "e320bf12",
+            "registryFingerprint": "5b5c900c",
+            "predictedBuckets": 128,
+            "mechanism": "vendor-instances",
+            "booths": 37,
+            "cells": 7,
+            "skips": {
+              "static-transparent": 8,
+              "static-instanced": 37
+            },
+            "counts": {
+              "geometryObjects": 1499,
+              "textures": 59,
+              "programs": 144,
+              "originalMeshes": 6527,
+              "selectedVendorMeshes": 481,
+              "selectedStaticMeshes": 74,
+              "currentMeshes": 6527,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "top",
+            "t": 0.7509719444440465,
+            "registryEntries": 2937
+          },
+          "candidateCounts": {
+            "geometryObjects": 1499,
+            "textures": 59,
+            "programs": 144,
+            "originalMeshes": 6527,
+            "selectedVendorMeshes": 481,
+            "selectedStaticMeshes": 74,
+            "currentMeshes": 6655,
+            "adapterGroups": 7,
+            "batchMeshes": 128,
+            "submittedInstances": 151,
+            "sourceLayersZero": 481
+          },
+          "constructionMs": [
+            5.200000047683716,
+            5.200000047683716
+          ],
+          "matrixAudit": null
+        }
+      ]
+    },
+    "low": {
+      "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261107-112252-render-probe-low-aa01f16d",
+      "rawSha256": "9d60a60dd9c5b91edb4e93f79b575499b77cbcc9856ef5da39a4663c5454530e",
+      "hardware": {
+        "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+        "visible": true,
+        "focused": true,
+        "width": 1280,
+        "height": 720,
+        "targetWidth": 1280,
+        "targetHeight": 720,
+        "childBatch": true,
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+      },
+      "elapsedMs": 44413,
+      "frames": 2304,
+      "cleanup": {
+        "checkedPids": [
+          4665,
+          4667,
+          4675,
+          4676,
+          4677,
+          4678,
+          4679,
+          4681,
+          4682,
+          4683,
+          4684,
+          4685,
+          4686,
+          4702,
+          4824,
+          4827,
+          4828,
+          4833,
+          4841,
+          4844,
+          4852,
+          4926,
+          4968
+        ],
+        "inspectionError": null,
+        "ok": true,
+        "remaining": [],
+        "terminationErrors": []
+      },
+      "restored": {
+        "restored": true,
+        "paused": false,
+        "events": []
+      },
+      "nomination": {
+        "static-flags": {
+          "qualifyingViews": 0,
+          "regressionViews": 0,
+          "advances": false
+        },
+        "vendor-instances": {
+          "qualifyingViews": 0,
+          "regressionViews": 0,
+          "advances": false
+        }
+      },
+      "rows": [
+        {
+          "mode": "third",
+          "time": "noon",
+          "mechanism": "static-flags",
+          "baselineMedianMs": 4.699999928474426,
+          "candidateMedianMs": 4.75,
+          "deltaMs": 0.05000007152557373,
+          "pairedMedianDeltaMs": 0.05000007152557373,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.05000019073486328
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.04999995231628418
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.09999990463256836
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.0
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.07500004768371582,
+            "candidate-first": 0.02499997615814209
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 1265,
+            "candidateMaxCalls": 1265,
+            "baselineMaxTriangles": 511162,
+            "candidateMaxTriangles": 511162,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 6101,
+            "originalWorldMatrixFingerprint": "e59f4616",
+            "cameraFingerprint": "4d4f12ef",
+            "registryFingerprint": "3de9b5f8",
+            "predictedBuckets": 78,
+            "mechanism": "static-flags",
+            "booths": 22,
+            "cells": 4,
+            "skips": {
+              "static-transparent": 4,
+              "static-instanced": 22
+            },
+            "counts": {
+              "geometryObjects": 876,
+              "textures": 37,
+              "programs": 71,
+              "originalMeshes": 4528,
+              "selectedVendorMeshes": 286,
+              "selectedStaticMeshes": 44,
+              "currentMeshes": 4528,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "third",
+            "t": 0.30097222222222236,
+            "registryEntries": 2268
+          },
+          "candidateCounts": {
+            "geometryObjects": 876,
+            "textures": 37,
+            "programs": 71,
+            "originalMeshes": 4528,
+            "selectedVendorMeshes": 286,
+            "selectedStaticMeshes": 44,
+            "currentMeshes": 4528,
+            "adapterGroups": 0,
+            "batchMeshes": 0,
+            "submittedInstances": 0,
+            "sourceLayersZero": 0
+          },
+          "constructionMs": [],
+          "matrixAudit": {
+            "baseline": {
+              "updateMatrix": 44,
+              "worldMultiply": 44
+            },
+            "flags": {
+              "updateMatrix": 0,
+              "worldMultiply": 44
+            },
+            "parentMutation": {
+              "worldChanged": true,
+              "forcePropagatedDespiteWorldAutoUpdateFalse": true,
+              "positionDelta": 0.125,
+              "explicitRepublishFinite": true,
+              "exactRevert": true
+            },
+            "interpretation": "Pinned r160 parent force still recomputes child world matrices; flags avoid local composition only. No world-multiply skipping is claimed."
+          }
+        },
+        {
+          "mode": "third",
+          "time": "noon",
+          "mechanism": "vendor-instances",
+          "baselineMedianMs": 4.799999952316284,
+          "candidateMedianMs": 4.600000023841858,
+          "deltaMs": -0.19999992847442627,
+          "pairedMedianDeltaMs": -0.12499994039535522,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.05000007152557373
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.0
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.19999980926513672
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.2999999523162842
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": -0.12499994039535522,
+            "candidate-first": -0.1499999761581421
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 1265,
+            "candidateMaxCalls": 1137,
+            "baselineMaxTriangles": 511162,
+            "candidateMaxTriangles": 511162,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 6101,
+            "originalWorldMatrixFingerprint": "e59f4616",
+            "cameraFingerprint": "4d4f12ef",
+            "registryFingerprint": "3de9b5f8",
+            "predictedBuckets": 78,
+            "mechanism": "vendor-instances",
+            "booths": 22,
+            "cells": 4,
+            "skips": {
+              "static-transparent": 4,
+              "static-instanced": 22
+            },
+            "counts": {
+              "geometryObjects": 876,
+              "textures": 37,
+              "programs": 71,
+              "originalMeshes": 4528,
+              "selectedVendorMeshes": 286,
+              "selectedStaticMeshes": 44,
+              "currentMeshes": 4528,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "third",
+            "t": 0.30097222222222236,
+            "registryEntries": 2268
+          },
+          "candidateCounts": {
+            "geometryObjects": 876,
+            "textures": 37,
+            "programs": 71,
+            "originalMeshes": 4528,
+            "selectedVendorMeshes": 286,
+            "selectedStaticMeshes": 44,
+            "currentMeshes": 4606,
+            "adapterGroups": 4,
+            "batchMeshes": 78,
+            "submittedInstances": 182,
+            "sourceLayersZero": 286
+          },
+          "constructionMs": [
+            2.5999999046325684,
+            2.9000000953674316
+          ],
+          "matrixAudit": null
+        },
+        {
+          "mode": "third",
+          "time": "midnight",
+          "mechanism": "static-flags",
+          "baselineMedianMs": 4.8999998569488525,
+          "candidateMedianMs": 4.799999952316284,
+          "deltaMs": -0.09999990463256836,
+          "pairedMedianDeltaMs": 0.0,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.04999995231628418
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.10000014305114746
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.04999995231628418
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.24999988079071045
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.0,
+            "candidate-first": 0.0749998688697815
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 1287,
+            "candidateMaxCalls": 1287,
+            "baselineMaxTriangles": 521274,
+            "candidateMaxTriangles": 521274,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 6104,
+            "originalWorldMatrixFingerprint": "fbe67238",
+            "cameraFingerprint": "4d4f12ef",
+            "registryFingerprint": "e6ed5a1c",
+            "predictedBuckets": 78,
+            "mechanism": "static-flags",
+            "booths": 22,
+            "cells": 4,
+            "skips": {
+              "static-transparent": 4,
+              "static-instanced": 22
+            },
+            "counts": {
+              "geometryObjects": 882,
+              "textures": 37,
+              "programs": 72,
+              "originalMeshes": 4531,
+              "selectedVendorMeshes": 286,
+              "selectedStaticMeshes": 44,
+              "currentMeshes": 4531,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "third",
+            "t": 0.7509619444443114,
+            "registryEntries": 2268
+          },
+          "candidateCounts": {
+            "geometryObjects": 882,
+            "textures": 37,
+            "programs": 72,
+            "originalMeshes": 4531,
+            "selectedVendorMeshes": 286,
+            "selectedStaticMeshes": 44,
+            "currentMeshes": 4531,
+            "adapterGroups": 0,
+            "batchMeshes": 0,
+            "submittedInstances": 0,
+            "sourceLayersZero": 0
+          },
+          "constructionMs": [],
+          "matrixAudit": {
+            "baseline": {
+              "updateMatrix": 44,
+              "worldMultiply": 44
+            },
+            "flags": {
+              "updateMatrix": 0,
+              "worldMultiply": 44
+            },
+            "parentMutation": {
+              "worldChanged": true,
+              "forcePropagatedDespiteWorldAutoUpdateFalse": true,
+              "positionDelta": 0.125,
+              "explicitRepublishFinite": true,
+              "exactRevert": true
+            },
+            "interpretation": "Pinned r160 parent force still recomputes child world matrices; flags avoid local composition only. No world-multiply skipping is claimed."
+          }
+        },
+        {
+          "mode": "third",
+          "time": "midnight",
+          "mechanism": "vendor-instances",
+          "baselineMedianMs": 4.800000071525574,
+          "candidateMedianMs": 4.700000047683716,
+          "deltaMs": -0.10000002384185791,
+          "pairedMedianDeltaMs": -0.07500004768371582,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.15000009536743164
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.35000014305114746
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.0
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.0
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": -0.07500004768371582,
+            "candidate-first": -0.17500007152557373
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 1287,
+            "candidateMaxCalls": 1162,
+            "baselineMaxTriangles": 521274,
+            "candidateMaxTriangles": 521274,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 6104,
+            "originalWorldMatrixFingerprint": "fbe67238",
+            "cameraFingerprint": "4d4f12ef",
+            "registryFingerprint": "e6ed5a1c",
+            "predictedBuckets": 78,
+            "mechanism": "vendor-instances",
+            "booths": 22,
+            "cells": 4,
+            "skips": {
+              "static-transparent": 4,
+              "static-instanced": 22
+            },
+            "counts": {
+              "geometryObjects": 882,
+              "textures": 37,
+              "programs": 72,
+              "originalMeshes": 4531,
+              "selectedVendorMeshes": 286,
+              "selectedStaticMeshes": 44,
+              "currentMeshes": 4531,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "third",
+            "t": 0.7509619444443114,
+            "registryEntries": 2268
+          },
+          "candidateCounts": {
+            "geometryObjects": 882,
+            "textures": 37,
+            "programs": 72,
+            "originalMeshes": 4531,
+            "selectedVendorMeshes": 286,
+            "selectedStaticMeshes": 44,
+            "currentMeshes": 4609,
+            "adapterGroups": 4,
+            "batchMeshes": 78,
+            "submittedInstances": 179,
+            "sourceLayersZero": 286
+          },
+          "constructionMs": [
+            2,
+            2.5
+          ],
+          "matrixAudit": null
+        },
+        {
+          "mode": "first",
+          "time": "noon",
+          "mechanism": "static-flags",
+          "baselineMedianMs": 4.0,
+          "candidateMedianMs": 3.799999952316284,
+          "deltaMs": -0.20000004768371582,
+          "pairedMedianDeltaMs": -0.12500011920928955,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.20000004768371582
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.5500001907348633
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.15000009536743164
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.10000014305114746
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.02499997615814209,
+            "candidate-first": -0.32500016689300537
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 780,
+            "candidateMaxCalls": 780,
+            "baselineMaxTriangles": 423914,
+            "candidateMaxTriangles": 423914,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 6095,
+            "originalWorldMatrixFingerprint": "9396dd99",
+            "cameraFingerprint": "b2004d1b",
+            "registryFingerprint": "59386ef9",
+            "predictedBuckets": 78,
+            "mechanism": "static-flags",
+            "booths": 22,
+            "cells": 4,
+            "skips": {
+              "static-transparent": 4,
+              "static-instanced": 22
+            },
+            "counts": {
+              "geometryObjects": 882,
+              "textures": 37,
+              "programs": 72,
+              "originalMeshes": 4522,
+              "selectedVendorMeshes": 286,
+              "selectedStaticMeshes": 44,
+              "currentMeshes": 4522,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "first",
+            "t": 0.3009722222222224,
+            "registryEntries": 2268
+          },
+          "candidateCounts": {
+            "geometryObjects": 882,
+            "textures": 37,
+            "programs": 72,
+            "originalMeshes": 4522,
+            "selectedVendorMeshes": 286,
+            "selectedStaticMeshes": 44,
+            "currentMeshes": 4522,
+            "adapterGroups": 0,
+            "batchMeshes": 0,
+            "submittedInstances": 0,
+            "sourceLayersZero": 0
+          },
+          "constructionMs": [],
+          "matrixAudit": {
+            "baseline": {
+              "updateMatrix": 44,
+              "worldMultiply": 44
+            },
+            "flags": {
+              "updateMatrix": 0,
+              "worldMultiply": 44
+            },
+            "parentMutation": {
+              "worldChanged": true,
+              "forcePropagatedDespiteWorldAutoUpdateFalse": true,
+              "positionDelta": 0.125,
+              "explicitRepublishFinite": true,
+              "exactRevert": true
+            },
+            "interpretation": "Pinned r160 parent force still recomputes child world matrices; flags avoid local composition only. No world-multiply skipping is claimed."
+          }
+        },
+        {
+          "mode": "first",
+          "time": "noon",
+          "mechanism": "vendor-instances",
+          "baselineMedianMs": 3.6000001430511475,
+          "candidateMedianMs": 3.799999952316284,
+          "deltaMs": 0.19999980926513672,
+          "pairedMedianDeltaMs": 0.19999992847442627,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.3500000238418579
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.09999990463256836
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.20000004768371582
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.19999980926513672
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.27500003576278687,
+            "candidate-first": 0.04999995231628418
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 780,
+            "candidateMaxCalls": 696,
+            "baselineMaxTriangles": 423914,
+            "candidateMaxTriangles": 423914,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 6095,
+            "originalWorldMatrixFingerprint": "9396dd99",
+            "cameraFingerprint": "b2004d1b",
+            "registryFingerprint": "59386ef9",
+            "predictedBuckets": 78,
+            "mechanism": "vendor-instances",
+            "booths": 22,
+            "cells": 4,
+            "skips": {
+              "static-transparent": 4,
+              "static-instanced": 22
+            },
+            "counts": {
+              "geometryObjects": 882,
+              "textures": 37,
+              "programs": 72,
+              "originalMeshes": 4522,
+              "selectedVendorMeshes": 286,
+              "selectedStaticMeshes": 44,
+              "currentMeshes": 4522,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "first",
+            "t": 0.3009722222222224,
+            "registryEntries": 2268
+          },
+          "candidateCounts": {
+            "geometryObjects": 882,
+            "textures": 37,
+            "programs": 72,
+            "originalMeshes": 4522,
+            "selectedVendorMeshes": 286,
+            "selectedStaticMeshes": 44,
+            "currentMeshes": 4600,
+            "adapterGroups": 4,
+            "batchMeshes": 78,
+            "submittedInstances": 130,
+            "sourceLayersZero": 286
+          },
+          "constructionMs": [
+            2,
+            2.200000047683716
+          ],
+          "matrixAudit": null
+        },
+        {
+          "mode": "first",
+          "time": "midnight",
+          "mechanism": "static-flags",
+          "baselineMedianMs": 4.0,
+          "candidateMedianMs": 4.099999904632568,
+          "deltaMs": 0.09999990463256836,
+          "pairedMedianDeltaMs": 0.07499998807907104,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.1499999761581421
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.14999985694885254
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 1.1920928955078125e-07
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.09999990463256836
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.07500004768371582,
+            "candidate-first": 0.02499997615814209
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 789,
+            "candidateMaxCalls": 789,
+            "baselineMaxTriangles": 427238,
+            "candidateMaxTriangles": 427238,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 6095,
+            "originalWorldMatrixFingerprint": "80d4ab08",
+            "cameraFingerprint": "b2004d1b",
+            "registryFingerprint": "f7d17a97",
+            "predictedBuckets": 78,
+            "mechanism": "static-flags",
+            "booths": 22,
+            "cells": 4,
+            "skips": {
+              "static-transparent": 4,
+              "static-instanced": 22
+            },
+            "counts": {
+              "geometryObjects": 882,
+              "textures": 37,
+              "programs": 72,
+              "originalMeshes": 4522,
+              "selectedVendorMeshes": 286,
+              "selectedStaticMeshes": 44,
+              "currentMeshes": 4522,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "first",
+            "t": 0.7509602777779096,
+            "registryEntries": 2268
+          },
+          "candidateCounts": {
+            "geometryObjects": 882,
+            "textures": 37,
+            "programs": 72,
+            "originalMeshes": 4522,
+            "selectedVendorMeshes": 286,
+            "selectedStaticMeshes": 44,
+            "currentMeshes": 4522,
+            "adapterGroups": 0,
+            "batchMeshes": 0,
+            "submittedInstances": 0,
+            "sourceLayersZero": 0
+          },
+          "constructionMs": [],
+          "matrixAudit": {
+            "baseline": {
+              "updateMatrix": 44,
+              "worldMultiply": 44
+            },
+            "flags": {
+              "updateMatrix": 0,
+              "worldMultiply": 44
+            },
+            "parentMutation": {
+              "worldChanged": true,
+              "forcePropagatedDespiteWorldAutoUpdateFalse": true,
+              "positionDelta": 0.125,
+              "explicitRepublishFinite": true,
+              "exactRevert": true
+            },
+            "interpretation": "Pinned r160 parent force still recomputes child world matrices; flags avoid local composition only. No world-multiply skipping is claimed."
+          }
+        },
+        {
+          "mode": "first",
+          "time": "midnight",
+          "mechanism": "vendor-instances",
+          "baselineMedianMs": 3.950000047683716,
+          "candidateMedianMs": 4.0,
+          "deltaMs": 0.04999995231628418,
+          "pairedMedianDeltaMs": 0.07499992847442627,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.19999992847442627
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.04999995231628418
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.19999992847442627
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.19999980926513672
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.0,
+            "candidate-first": 0.07499992847442627
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 789,
+            "candidateMaxCalls": 705,
+            "baselineMaxTriangles": 427238,
+            "candidateMaxTriangles": 427238,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 6095,
+            "originalWorldMatrixFingerprint": "80d4ab08",
+            "cameraFingerprint": "b2004d1b",
+            "registryFingerprint": "f7d17a97",
+            "predictedBuckets": 78,
+            "mechanism": "vendor-instances",
+            "booths": 22,
+            "cells": 4,
+            "skips": {
+              "static-transparent": 4,
+              "static-instanced": 22
+            },
+            "counts": {
+              "geometryObjects": 882,
+              "textures": 37,
+              "programs": 72,
+              "originalMeshes": 4522,
+              "selectedVendorMeshes": 286,
+              "selectedStaticMeshes": 44,
+              "currentMeshes": 4522,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "first",
+            "t": 0.7509602777779096,
+            "registryEntries": 2268
+          },
+          "candidateCounts": {
+            "geometryObjects": 882,
+            "textures": 37,
+            "programs": 72,
+            "originalMeshes": 4522,
+            "selectedVendorMeshes": 286,
+            "selectedStaticMeshes": 44,
+            "currentMeshes": 4600,
+            "adapterGroups": 4,
+            "batchMeshes": 78,
+            "submittedInstances": 130,
+            "sourceLayersZero": 286
+          },
+          "constructionMs": [
+            2.1000001430511475,
+            2.6000001430511475
+          ],
+          "matrixAudit": null
+        },
+        {
+          "mode": "top",
+          "time": "noon",
+          "mechanism": "static-flags",
+          "baselineMedianMs": 3.799999952316284,
+          "candidateMedianMs": 3.700000047683716,
+          "deltaMs": -0.09999990463256836,
+          "pairedMedianDeltaMs": -0.125,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.10000002384185791
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -1.1920928955078125e-07
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.1499999761581421
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.29999983310699463
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": -0.125,
+            "candidate-first": -0.1499999761581421
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 760,
+            "candidateMaxCalls": 760,
+            "baselineMaxTriangles": 437803,
+            "candidateMaxTriangles": 437803,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 6095,
+            "originalWorldMatrixFingerprint": "e2be3609",
+            "cameraFingerprint": "e320bf12",
+            "registryFingerprint": "e10985b2",
+            "predictedBuckets": 78,
+            "mechanism": "static-flags",
+            "booths": 22,
+            "cells": 4,
+            "skips": {
+              "static-transparent": 4,
+              "static-instanced": 22
+            },
+            "counts": {
+              "geometryObjects": 913,
+              "textures": 39,
+              "programs": 72,
+              "originalMeshes": 4522,
+              "selectedVendorMeshes": 286,
+              "selectedStaticMeshes": 44,
+              "currentMeshes": 4522,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "top",
+            "t": 0.30097250000039755,
+            "registryEntries": 2268
+          },
+          "candidateCounts": {
+            "geometryObjects": 913,
+            "textures": 39,
+            "programs": 72,
+            "originalMeshes": 4522,
+            "selectedVendorMeshes": 286,
+            "selectedStaticMeshes": 44,
+            "currentMeshes": 4522,
+            "adapterGroups": 0,
+            "batchMeshes": 0,
+            "submittedInstances": 0,
+            "sourceLayersZero": 0
+          },
+          "constructionMs": [],
+          "matrixAudit": {
+            "baseline": {
+              "updateMatrix": 44,
+              "worldMultiply": 44
+            },
+            "flags": {
+              "updateMatrix": 0,
+              "worldMultiply": 44
+            },
+            "parentMutation": {
+              "worldChanged": true,
+              "forcePropagatedDespiteWorldAutoUpdateFalse": true,
+              "positionDelta": 0.125,
+              "explicitRepublishFinite": true,
+              "exactRevert": true
+            },
+            "interpretation": "Pinned r160 parent force still recomputes child world matrices; flags avoid local composition only. No world-multiply skipping is claimed."
+          }
+        },
+        {
+          "mode": "top",
+          "time": "noon",
+          "mechanism": "vendor-instances",
+          "baselineMedianMs": 3.75,
+          "candidateMedianMs": 3.8000001907348633,
+          "deltaMs": 0.05000019073486328,
+          "pairedMedianDeltaMs": 0.10000008344650269,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.3499997854232788
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -0.10000014305114746
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.0
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.20000016689300537
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.1749998927116394,
+            "candidate-first": 0.050000011920928955
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 760,
+            "candidateMaxCalls": 697,
+            "baselineMaxTriangles": 437803,
+            "candidateMaxTriangles": 437803,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 6095,
+            "originalWorldMatrixFingerprint": "e2be3609",
+            "cameraFingerprint": "e320bf12",
+            "registryFingerprint": "e10985b2",
+            "predictedBuckets": 78,
+            "mechanism": "vendor-instances",
+            "booths": 22,
+            "cells": 4,
+            "skips": {
+              "static-transparent": 4,
+              "static-instanced": 22
+            },
+            "counts": {
+              "geometryObjects": 913,
+              "textures": 39,
+              "programs": 72,
+              "originalMeshes": 4522,
+              "selectedVendorMeshes": 286,
+              "selectedStaticMeshes": 44,
+              "currentMeshes": 4522,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "top",
+            "t": 0.30097250000039755,
+            "registryEntries": 2268
+          },
+          "candidateCounts": {
+            "geometryObjects": 913,
+            "textures": 39,
+            "programs": 72,
+            "originalMeshes": 4522,
+            "selectedVendorMeshes": 286,
+            "selectedStaticMeshes": 44,
+            "currentMeshes": 4600,
+            "adapterGroups": 4,
+            "batchMeshes": 78,
+            "submittedInstances": 91,
+            "sourceLayersZero": 286
+          },
+          "constructionMs": [
+            2.1000001430511475,
+            2.799999952316284
+          ],
+          "matrixAudit": null
+        },
+        {
+          "mode": "top",
+          "time": "midnight",
+          "mechanism": "static-flags",
+          "baselineMedianMs": 3.700000047683716,
+          "candidateMedianMs": 3.700000047683716,
+          "deltaMs": 0.0,
+          "pairedMedianDeltaMs": -5.960464477539063e-08,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.15000009536743164
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": -1.1920928955078125e-07
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": -0.1499999761581421
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.0
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 5.960464477539063e-08,
+            "candidate-first": -5.960464477539063e-08
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 773,
+            "candidateMaxCalls": 773,
+            "baselineMaxTriangles": 439951,
+            "candidateMaxTriangles": 439951,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 6095,
+            "originalWorldMatrixFingerprint": "ef6fc6f4",
+            "cameraFingerprint": "e320bf12",
+            "registryFingerprint": "730febbe",
+            "predictedBuckets": 78,
+            "mechanism": "static-flags",
+            "booths": 22,
+            "cells": 4,
+            "skips": {
+              "static-transparent": 4,
+              "static-instanced": 22
+            },
+            "counts": {
+              "geometryObjects": 913,
+              "textures": 39,
+              "programs": 72,
+              "originalMeshes": 4522,
+              "selectedVendorMeshes": 286,
+              "selectedStaticMeshes": 44,
+              "currentMeshes": 4522,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "top",
+            "t": 0.7510011111113754,
+            "registryEntries": 2268
+          },
+          "candidateCounts": {
+            "geometryObjects": 913,
+            "textures": 39,
+            "programs": 72,
+            "originalMeshes": 4522,
+            "selectedVendorMeshes": 286,
+            "selectedStaticMeshes": 44,
+            "currentMeshes": 4522,
+            "adapterGroups": 0,
+            "batchMeshes": 0,
+            "submittedInstances": 0,
+            "sourceLayersZero": 0
+          },
+          "constructionMs": [],
+          "matrixAudit": {
+            "baseline": {
+              "updateMatrix": 44,
+              "worldMultiply": 44
+            },
+            "flags": {
+              "updateMatrix": 0,
+              "worldMultiply": 44
+            },
+            "parentMutation": {
+              "worldChanged": true,
+              "forcePropagatedDespiteWorldAutoUpdateFalse": true,
+              "positionDelta": 0.125,
+              "explicitRepublishFinite": true,
+              "exactRevert": true
+            },
+            "interpretation": "Pinned r160 parent force still recomputes child world matrices; flags avoid local composition only. No world-multiply skipping is claimed."
+          }
+        },
+        {
+          "mode": "top",
+          "time": "midnight",
+          "mechanism": "vendor-instances",
+          "baselineMedianMs": 3.649999976158142,
+          "candidateMedianMs": 3.899999976158142,
+          "deltaMs": 0.25,
+          "pairedMedianDeltaMs": 0.1750001311302185,
+          "pairDeltas": [
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.25000011920928955
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.0
+            },
+            {
+              "order": "baseline-first",
+              "deltaMs": 0.10000014305114746
+            },
+            {
+              "order": "candidate-first",
+              "deltaMs": 0.4500000476837158
+            }
+          ],
+          "orderMedianDeltaMs": {
+            "baseline-first": 0.1750001311302185,
+            "candidate-first": 0.2250000238418579
+          },
+          "nominationView": false,
+          "regressionView": false,
+          "submissions": {
+            "baselineMaxCalls": 773,
+            "candidateMaxCalls": 710,
+            "baselineMaxTriangles": 439951,
+            "candidateMaxTriangles": 439951,
+            "callsRegressed": false,
+            "trianglesRegressed": false
+          },
+          "inventory": {
+            "originalNodes": 6095,
+            "originalWorldMatrixFingerprint": "ef6fc6f4",
+            "cameraFingerprint": "e320bf12",
+            "registryFingerprint": "730febbe",
+            "predictedBuckets": 78,
+            "mechanism": "vendor-instances",
+            "booths": 22,
+            "cells": 4,
+            "skips": {
+              "static-transparent": 4,
+              "static-instanced": 22
+            },
+            "counts": {
+              "geometryObjects": 913,
+              "textures": 39,
+              "programs": 72,
+              "originalMeshes": 4522,
+              "selectedVendorMeshes": 286,
+              "selectedStaticMeshes": 44,
+              "currentMeshes": 4522,
+              "adapterGroups": 0,
+              "batchMeshes": 0,
+              "submittedInstances": 0,
+              "sourceLayersZero": 0
+            },
+            "cameraMode": "top",
+            "t": 0.7510011111113754,
+            "registryEntries": 2268
+          },
+          "candidateCounts": {
+            "geometryObjects": 913,
+            "textures": 39,
+            "programs": 72,
+            "originalMeshes": 4522,
+            "selectedVendorMeshes": 286,
+            "selectedStaticMeshes": 44,
+            "currentMeshes": 4600,
+            "adapterGroups": 4,
+            "batchMeshes": 78,
+            "submittedInstances": 91,
+            "sourceLayersZero": 286
+          },
+          "constructionMs": [
+            2,
+            2.5
+          ],
+          "matrixAudit": null
+        }
+      ]
+    }
+  },
+  "decision": "No tested rendering mechanism advances under the predeclared filter"
+}

@@ -1,0 +1,107 @@
+{
+  "state": "passed",
+  "scope": "Functional verification of all explicit source modes and file hashes; these individual timing values are not a performance verdict",
+  "runs": [
+    {
+      "variant": "legacy",
+      "rounds": 120000,
+      "pointCount": 1024,
+      "results": {
+        "sampleTerrainGround": {
+          "coldMs": 637.483834,
+          "times": [
+            39.139332999999965,
+            34.80479200000002,
+            34.15700000000004
+          ],
+          "checksum": 35061.58221658939
+        },
+        "sampleTerrain": {
+          "coldMs": 1.088041999999973,
+          "times": [
+            73.3979169999999,
+            72.918541,
+            70.65216700000008
+          ],
+          "checksum": 35061.58221658939
+        }
+      },
+      "cache": {
+        "version": 2,
+        "vertices": 132,
+        "tiles": 2,
+        "owners": 111
+      },
+      "samplerSourceSha256": "927808ca10ea96a07cd5659ff2b8bda008320cf459e0a7680193a5172416544d",
+      "scope": "Node sampler operation cost; not game FPS or iPad evidence"
+    },
+    {
+      "variant": "rejected",
+      "rounds": 120000,
+      "pointCount": 1024,
+      "results": {
+        "sampleTerrainGround": {
+          "coldMs": 608.3104169999999,
+          "times": [
+            12.239083999999934,
+            11.052999999999997,
+            11.117834000000016
+          ],
+          "checksum": 35061.58221658939
+        },
+        "sampleTerrain": {
+          "coldMs": 0.8085409999999911,
+          "times": [
+            49.992624999999975,
+            48.64854200000002,
+            47.48700000000008
+          ],
+          "checksum": 35061.58221658939
+        }
+      },
+      "cache": {
+        "version": 2,
+        "vertices": 132,
+        "tiles": 2,
+        "owners": 111,
+        "cells": 110
+      },
+      "samplerSourceSha256": "e467bcb158cc7493915dac56b6c2a9b93dfda519ebc037d6969183e4583f1165",
+      "scope": "Node sampler operation cost; not game FPS or iPad evidence"
+    },
+    {
+      "variant": "current",
+      "rounds": 120000,
+      "pointCount": 1024,
+      "results": {
+        "sampleTerrainGround": {
+          "coldMs": 608.912459,
+          "times": [
+            11.844666999999959,
+            11.337624999999889,
+            11.272832999999991
+          ],
+          "checksum": 35061.58221658939
+        },
+        "sampleTerrain": {
+          "coldMs": 0.8184999999999718,
+          "times": [
+            50.492374999999925,
+            47.84612500000003,
+            46.90174999999999
+          ],
+          "checksum": 35061.58221658939
+        }
+      },
+      "cache": {
+        "version": 2,
+        "vertices": 132,
+        "tiles": 2,
+        "owners": 111,
+        "cells": 110
+      },
+      "samplerSourceSha256": "be0e73a07469667544eb08ebd016c34eecf6280edcabd3105f619379bfac253a",
+      "scope": "Node sampler operation cost; not game FPS or iPad evidence"
+    }
+  ]
+}

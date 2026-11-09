@@ -1,0 +1,23 @@
+{
+  "state": "passed",
+  "reports": [
+    {
+      "report": "high-streaming-drive-v1/calibration.json",
+      "verdict": "no detectable change",
+      "exitCode": 0,
+      "exactJsonMatch": true
+    },
+    {
+      "report": "high-streaming-drive-v1/holdout.json",
+      "verdict": "no detectable change",
+      "exitCode": 0,
+      "exactJsonMatch": true
+    },
+    {
+      "report": "high-streaming-drive-v1/comparison.json",
+      "verdict": "no detectable change",
+      "exitCode": 0,
+      "exactJsonMatch": true
+    }
+  ]
+}

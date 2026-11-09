@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import vm from 'node:vm';
+import {spawnSync} from 'node:child_process';
+import * as THREE from 'three';
+import {buildKid} from '../src/models/kid.js';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {PersonHandles} from '../src/people/personHandle.js';
+import {disposeSceneResources} from '../src/sceneResources.js';
+import {mulberry32} from '../src/rng.js';
+import {childConstructionRandom} from '../src/performanceLab/config.js';
+const source=readFileSync(new URL('../src/people/children.js',import.meta.url),'utf8');
+const begin=source.indexOf('export class KidGaggle {'),end=source.indexOf('\n  // Honk-scatter trigger',begin);
+const Kid=vm.runInNewContext(source.slice(begin,end).replace('export class','class')+
+ 'inspect(){} dispose(){} scatter(){} appendColliders(){} forEachPersonNear(){} };KidGaggle',
+ {THREE,buildKid,PeopleRuntime,PersonHandles,disposeSceneResources,Math,RangeError,AggregateError,TAU:Math.PI*2,terrainHeight:()=>0});
+function construct(retainedGaggles=null){
+ const old=Math.random,random=mulberry32(1977);let draws=0;
+ Math.random=()=>{draws++;return random();};
+ try{const kids=new Kid({constructionRandom:childConstructionRandom(2404796662),retainedGaggles});return {kids,draws,next:Math.random()};}
+ finally{Math.random=old;}
+}
+function describe(k){const parts=[];k.traverse(n=>{parts.push({type:n.type,p:n.position.toArray(),r:n.rotation.toArray(),s:n.scale.toArray(),color:n.material?.color?.getHex(),shadow:n.castShadow});});return {p:k.position.toArray(),center:k.userData.center.toArray(),heading:k.userData.heading,speed:k.userData.speed,parts};}
+if(process.argv[2]==='--fixture'){
+ const result=construct(process.argv[3]==='half'?[0,2,4,6]:null),owner=result.kids;
+ assert.equal(owner.colliders.length,owner.kids.length);assert.equal(owner.group.children.length,owner.kids.length);
+ assert.equal(owner.peopleHandles.entries.size,owner.kids.length,'removed people retain no live handles');
+ for(const kid of owner.kids)assert.equal(owner.peopleHandles.resolve(kid.userData.personHandle),kid);
+ writeFileSync(1,JSON.stringify({draws:result.draws,next:result.next,kids:owner.kids.map(describe)}));
+ process.exit(0);
+}
+// Each fixture starts with equally cold page-lifetime hair/model pools. Running
+// full then half in one process would conflate density with warm-pool state.
+function isolated(kind){const result=spawnSync(process.execPath,[process.argv[1],'--fixture',kind],{encoding:'utf8',timeout:10000});assert.equal(result.status,0,result.stderr);return JSON.parse(result.stdout);}
+const full=isolated('full'),half=isolated('half');
+assert.equal(full.draws,half.draws);assert.equal(full.next,half.next,'unrelated random consumers retain their next draw');
+const centers=[...new Set(full.kids.map(k=>JSON.stringify(k.center)))];
+const expected=full.kids.filter(k=>[0,2,4,6].includes(centers.indexOf(JSON.stringify(k.center))));
+assert(expected.length<full.kids.length);assert.deepEqual(half.kids,expected,'surviving positions, rigs, colors and movement state match');
+for(const indices of [[],[0,0],[-1],[8],[.5]])assert.throws(()=>construct(indices),RangeError);
+for(const [search,expectedCohort]of [['?perfKids=half-v1','full-v1'],['?perfCapture=1&perfScenario=drive&perfAutopilot=road-follow-v1&perfKids=half-v1','half-v1'],['?perfCapture=1&perfScenario=drive&perfAutopilot=road-follow-v1','full-v1']]){
+ globalThis.location={hostname:'192.168.1.160',search};
+ const config=await import('../src/performanceLab/config.js?test='+encodeURIComponent(search));assert.equal(config.DEVICE_CHILD_COHORT,expectedCohort);
+}
+delete globalThis.location;
+console.log(`PASS child cohort: ${full.kids.length} -> ${half.kids.length} children, exact surviving rigs/state and construction RNG, aligned colliders/live handles, capture-only gating.`);

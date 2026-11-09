@@ -64,6 +64,22 @@ with patch('sys.argv', ['playtest-perf', 'parked', '--tier', 'low', '--quality',
     assert command[command.index('--quality') + 1] == 'baseline'
     assert command[command.index('--tier') + 1] == 'low'
     assert '--lan' in command and '--no-qr' in command
+
+autopilot = parse_qs(urlsplit(module.capture_url('127.0.0.1',8770,'drive','2404796662','auto',autopilot=True,world_detail=True)).query)
+assert autopilot['perfAutopilot'] == ['road-follow-v1'] and autopilot['perfWorld'] == ['1']
+assert autopilot['x'] == ['-230.3'] and autopilot['z'] == ['-691.8'] and autopilot['heading'] == ['2.3580']
+for scenario,seed in [('parked','2404796662'),('drive','3948869160')]:
+    try:
+        module.capture_url('127.0.0.1',8770,scenario,seed,autopilot=True)
+        raise AssertionError('invalid autopilot fixture allowed')
+    except ValueError:
+        pass
+with patch('sys.argv',['playtest-perf','drive','--autopilot','--world-detail','--no-qr']), patch('os.chdir'), patch('os.execv') as execute:
+    runpy.run_path(str(root/'bin/playtest-perf'),run_name='__main__')
+    command=execute.call_args.args[1]
+    assert '--autopilot' in command and '--world-detail' in command
+    assert command[command.index('--seed')+1]=='2404796662'
+
 module.CAPTURE_TOKEN = 'test-token'
 assert not module.capture_authorized('127.0.0.1', '')
 assert module.capture_authorized('127.0.0.1', 'test-token')
@@ -143,3 +159,12 @@ if os.environ.get('ZERBLE_TEST_HTTP') == '1':
             thread.join(timeout=5)
 
 print('PASS  desktop/phone URLs and LAN token checks' + ('; LAN and desktop HTTP capture uploads' if os.environ.get('ZERBLE_TEST_HTTP') == '1' else ''))
+
+half = parse_qs(urlsplit(module.capture_url('127.0.0.1',8770,'drive','2404796662',autopilot=True,child_cohort='half-v1')).query)
+assert half['perfKids']==['half-v1']
+assert autopilot['perfKids']==['full-v1']
+try:
+    module.capture_url('127.0.0.1',8770,'drive',child_cohort='half-v1')
+    raise AssertionError('ordinary capture accepted child cohort')
+except ValueError:
+    pass

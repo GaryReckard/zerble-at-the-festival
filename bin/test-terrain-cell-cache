@@ -1,0 +1,77 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import * as current from '../src/worldgen/terrain.js';
+import * as legacy from '../verification/performance/2026-11-06-terrain-sampling/legacy-terrain.js';
+import {setSessionSeed} from '../src/rng.js';
+import {CONFIG,bumpWorldgen} from '../src/worldgen/constants.js';
+import {setLandscapeVersion,landscapeCandidateInCell} from '../src/worldgen/landscapeCandidates.js';
+
+const base=new URL('../verification/performance/2026-11-06-terrain-sampling/',import.meta.url);
+const manifest=JSON.parse(readFileSync(new URL('baseline-manifest.json',base)));
+const original=readFileSync(new URL('legacy-terrain.js',base),'utf8')
+  .replaceAll("from '../../../src/worldgen/","from './")
+  .replaceAll("from '../../../src/","from '../");
+assert.equal(createHash('sha256').update(original).digest('hex'),manifest.files['src/worldgen/terrain.js'],'oracle body must remain the exact baseline source');
+const points=[];
+// Cell edges, diagonal ties and either side, signed zero and negative flooring.
+for(const x of [-210,-10,-0,0,10,190,200])for(const z of [-200,-10,0,10,200])
+  for(const offset of [0,1e-9,-1e-9,.125,4.999999999,5,5.000000001,9.875])points.push([x+offset,z+10-offset]);
+for(let i=0;i<1400;i++)points.push([-1200+(i*37%2400)+.137, -1700+(i*71%2400)+.893]);
+let checked=0,wet=0,sloped=0;
+function compare(x,z){
+  assert.equal(current.terrainHeight(x,z),legacy.terrainHeight(x,z),`height-only differs at ${x},${z}`);
+  for(const method of ['sampleTerrainGround','sampleTerrain']){
+    const a={sentinel:123},b={sentinel:123};
+    assert.equal(current[method](x,z,a),a);assert.equal(legacy[method](x,z,b),b);
+    assert.deepEqual(a,b,`${method} differs at ${x},${z}`);
+    if(a.surfaceClass==='riverbed')wet++;if(a.grade>.05)sloped++;checked++;
+  }
+}
+for(const version of [1,2])for(const seed of [0,1977,2404796662]){
+  setLandscapeVersion(version);setSessionSeed(seed);
+  for(const sampler of [current,legacy])sampler.setTerrainEnabled(true);
+  for(const [x,z]of [[-0,-0],[0,-0],[-0,0]])compare(x,z);
+  for(const [x,z]of points)compare(x,z);
+  for(const [x,z]of [...points].reverse())compare(x,z);
+  if(version===2){
+    const candidate=landscapeCandidateInCell(-1,-1);
+    if(candidate)for(let i=0;i<120;i++)compare(candidate.bounds.minX+(candidate.bounds.maxX-candidate.bounds.minX)*i/119,candidate.bounds.minZ+(candidate.bounds.maxZ-candidate.bounds.minZ)*i/119);
+  }
+  // Seed, tuning epoch and generation changes must invalidate populated cells.
+  bumpWorldgen();assert.equal(current.terrainCacheStats().cells,0);
+  compare(-17.6,-31.2);
+  const old=CONFIG.LAKE_PROB;
+  try{CONFIG.LAKE_PROB=0;bumpWorldgen();for(const [x,z]of points.slice(0,40))compare(x,z);}
+  finally{CONFIG.LAKE_PROB=old;bumpWorldgen();}
+  for(const sampler of [current,legacy])sampler.setTerrainEnabled(false);
+  for(const [x,z]of points.slice(0,8))compare(x,z);
+  for(const sampler of [current,legacy])sampler.setTerrainEnabled(true);
+  for(const [x,z]of points.slice(0,8))compare(x,z);
+}
+assert(wet>0,'exercise actual lake or stream water');assert(sloped>0,'exercise real sloped triangle normals');
+// More cells than the bounded pool, followed by revisiting evicted cells.
+setLandscapeVersion(2);setSessionSeed(1977);
+for(let i=0;i<4200;i++)compare(-1800+(i%70)*10+.13,-1800+Math.floor(i/70)*10+.27);
+assert.equal(current.terrainCacheStats().cells,4096);
+for(const [x,z]of points.slice(0,50))compare(x,z);
+// A ground recenter must neither populate nor evict local support-plane cells.
+bumpWorldgen();assert.equal(current.terrainCacheStats().cells,0);
+for(let i=0;i<4500;i++)current.terrainHeight(-1200+(i%75)*10,-1600+Math.floor(i/75)*10);
+assert.equal(current.terrainCacheStats().cells,0,'height-only grid sampling does not populate the plane cache');
+compare(-17.6,-31.2);const retained=current.terrainCacheStats().cells;
+for(let i=0;i<4500;i++)current.terrainHeight(-1200+(i%75)*10,-1600+Math.floor(i/75)*10);
+assert.equal(current.terrainCacheStats().cells,retained);
+const reentrant={},expected=legacy.sampleTerrainGround(-882.4,-1308.6);
+Object.defineProperty(reentrant,'height',{enumerable:true,configurable:true,set(value){
+  Object.defineProperty(this,'height',{value,writable:true,enumerable:true,configurable:true});
+  for(let i=0;i<4200;i++)current.sampleTerrainGround(-1800+(i%70)*10+.29,-1800+Math.floor(i/70)*10+.17);
+}});
+current.sampleTerrainGround(-882.4,-1308.6,reentrant);
+assert.notEqual(legacy.sampleTerrainGround(-1449.71,-1219.83).grade,expected.grade,
+  'the recycled-slot fixture must have a different plane so publication corruption is observable');
+assert.deepEqual(reentrant,expected,'reentrant output publication cannot observe a recycled plane record');
+for(const method of ['sampleTerrainGround','sampleTerrain','terrainHeight'])for(const [x,z]of [[NaN,0],[0,Infinity],[-Infinity,0]])assert.throws(()=>current[method](x,z),RangeError);
+assert(current.terrainCacheStats().cells<=4096);
+console.log('PASS terrain cell cache: exact frozen-baseline heights, gradients, normals, grades, water, flags and reusable outputs across signed cell/triangle boundaries, generations, seeds, tuning/epoch changes, toggles and bounded eviction.',{checked,wet,sloped});

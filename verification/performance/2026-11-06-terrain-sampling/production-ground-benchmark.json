@@ -1,0 +1,2048 @@
+{
+  "order": [
+    "legacy",
+    "rejected",
+    "current",
+    "current",
+    "rejected",
+    "legacy",
+    "legacy",
+    "rejected",
+    "current",
+    "current",
+    "rejected",
+    "legacy"
+  ],
+  "runs": [
+    {
+      "variant": "legacy",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1227.10425,
+      "warmupMs": 399.3944999999999,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 13.86929199999986
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 13.361415999999963
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 14.028374999999869
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 13.557624999999916
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 13.734041999999818
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 13.601458999999977
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 13.476959000000079
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 13.319499999999834
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 13.315458000000035
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 13.498374999999896
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 13.679208000000017
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 13.499500000000126
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 14.054333000000042
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 13.801042000000052
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 13.847834000000148
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 13.210124999999834
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 15.10329200000001
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 14.028375000000096
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 14.033374999999978
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 13.876291000000037
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 14.00891700000011
+        }
+      ],
+      "totalMeasuredMs": 288.9047929999997,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "927808ca10ea96a07cd5659ff2b8bda008320cf459e0a7680193a5172416544d",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Mac foreground activity is uncontrolled"
+    },
+    {
+      "variant": "rejected",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1305.602167,
+      "warmupMs": 888.4612500000001,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 39.45179199999984
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 36.34970799999974
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 37.26583299999993
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 39.495750000000044
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 37.56837499999983
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 36.09491600000001
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 36.35649999999987
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 36.76258300000018
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 39.77800000000025
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 40.10520799999995
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 46.21695799999998
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 40.58308299999999
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 42.877250000000004
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 42.70183300000008
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 40.985167000000274
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 36.94037500000013
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 37.96904200000017
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 36.26020799999969
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 38.425792
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 38.60624999999982
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 38.06462499999998
+        }
+      ],
+      "totalMeasuredMs": 818.8592479999998,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 4096
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "e467bcb158cc7493915dac56b6c2a9b93dfda519ebc037d6969183e4583f1165",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Mac foreground activity is uncontrolled"
+    },
+    {
+      "variant": "current",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1273.550666,
+      "warmupMs": 372.6661250000002,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 14.00566600000002
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 13.704916999999796
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 13.743708000000197
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 14.171707999999853
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 14.112666999999874
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 13.475832999999966
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 12.992917000000034
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 12.476916999999958
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 12.447333000000071
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 11.806833000000097
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 12.545708999999988
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 12.404749999999922
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 12.406584000000066
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 12.816332999999986
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 13.104916999999887
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 14.275292000000036
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 14.082540999999992
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 13.814458999999943
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 14.802500000000009
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 14.179292000000032
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 13.41866600000003
+        }
+      ],
+      "totalMeasuredMs": 280.78954199999976,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 0
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "f361489875d2c66cd1fa089bcd73804f5abba45f5e16e053fdf4dacf36dc44d6",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Mac foreground activity is uncontrolled"
+    },
+    {
+      "variant": "current",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1918.31375,
+      "warmupMs": 343.26104199999986,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 12.030749999999898
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 11.849042000000281
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 11.95070799999985
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 11.831957999999759
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 11.859166999999616
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 11.629542000000129
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 11.984541000000263
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 11.941541000000143
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 11.428957999999966
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 11.45241599999963
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 11.47900000000027
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 11.966082999999799
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 12.528791999999612
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 12.93308399999978
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 12.769374999999854
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 12.115167000000383
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 12.274499999999989
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 12.138124999999945
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 12.18337500000007
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 12.209334000000126
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 12.335250000000087
+        }
+      ],
+      "totalMeasuredMs": 252.89070799999945,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 0
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "f361489875d2c66cd1fa089bcd73804f5abba45f5e16e053fdf4dacf36dc44d6",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Mac foreground activity is uncontrolled"
+    },
+    {
+      "variant": "rejected",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1236.166125,
+      "warmupMs": 894.5404999999998,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 36.704249999999774
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 38.13387499999999
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 35.89329199999975
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 41.39183300000013
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 35.24583399999983
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 34.43175000000019
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 35.12116700000024
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 36.5341669999998
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 36.36604200000011
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 38.73308300000008
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 39.16104099999984
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 41.56966599999987
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 38.55450000000019
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 39.44695899999988
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 41.61525000000029
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 37.45420800000011
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 37.16487499999994
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 36.44454200000018
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 38.80849999999964
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 39.128208000000086
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 37.35912499999995
+        }
+      ],
+      "totalMeasuredMs": 795.2621669999999,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 4096
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "e467bcb158cc7493915dac56b6c2a9b93dfda519ebc037d6969183e4583f1165",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Mac foreground activity is uncontrolled"
+    },
+    {
+      "variant": "legacy",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1503.5677090000001,
+      "warmupMs": 352.0463750000001,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 13.949166999999989
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 13.373874999999998
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 13.82708300000013
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 13.070249999999987
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 12.886083000000099
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 12.255957999999964
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 12.905499999999847
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 12.912833000000091
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 12.456500000000005
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 13.233833000000004
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 12.985875000000078
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 12.571165999999721
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 12.738291000000117
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 12.531749999999647
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 12.855375000000095
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 13.941166000000067
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 13.025250000000142
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 12.739750000000186
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 12.783082999999806
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 13.23416700000007
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 13.24591700000019
+        }
+      ],
+      "totalMeasuredMs": 273.52287200000023,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "927808ca10ea96a07cd5659ff2b8bda008320cf459e0a7680193a5172416544d",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Mac foreground activity is uncontrolled"
+    },
+    {
+      "variant": "legacy",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1222.6074159999998,
+      "warmupMs": 361.5017909999999,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 13.248416000000134
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 13.375917000000072
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 13.343665999999985
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 12.887542000000167
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 13.793957999999975
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 13.973833000000013
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 13.764625000000024
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 13.319875000000138
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 13.64370800000006
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 13.015374999999949
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 13.514084000000139
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 13.585959000000003
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 12.748166999999967
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 13.182832999999846
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 13.15583300000003
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 13.28820799999994
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 13.644250000000056
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 13.685207999999875
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 13.875917000000072
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 13.392749999999978
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 14.13741600000003
+        }
+      ],
+      "totalMeasuredMs": 282.57754000000045,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "927808ca10ea96a07cd5659ff2b8bda008320cf459e0a7680193a5172416544d",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Mac foreground activity is uncontrolled"
+    },
+    {
+      "variant": "rejected",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1288.562125,
+      "warmupMs": 885.6899580000002,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 38.14383399999997
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 34.90475000000015
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 37.03854199999978
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 39.109959000000345
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 37.897833999999875
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 35.78904199999988
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 35.66724999999997
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 37.78487499999983
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 35.70074999999997
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 36.94200000000001
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 47.71795800000018
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 34.43016699999998
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 34.277916000000005
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 37.11979100000008
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 35.49400000000014
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 38.940250000000106
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 37.524625000000015
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 37.94487499999968
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 36.04979200000025
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 34.40883299999996
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 35.373167000000194
+        }
+      ],
+      "totalMeasuredMs": 778.2602100000004,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 4096
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "e467bcb158cc7493915dac56b6c2a9b93dfda519ebc037d6969183e4583f1165",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Mac foreground activity is uncontrolled"
+    },
+    {
+      "variant": "current",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1238.20075,
+      "warmupMs": 346.4893340000001,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 12.456749999999829
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 12.746249999999918
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 11.934792000000016
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 11.887917000000016
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 11.933500000000095
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 11.649834000000055
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 11.911750000000211
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 12.347625000000107
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 12.458457999999837
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 12.216832999999951
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 12.209541999999828
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 12.007415999999921
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 12.357375000000047
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 12.085958000000119
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 12.52975000000015
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 12.953458999999839
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 12.3131249999999
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 12.645499999999856
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 12.691082999999935
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 13.089708999999857
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 12.386749999999893
+        }
+      ],
+      "totalMeasuredMs": 258.8133759999994,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 0
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "f361489875d2c66cd1fa089bcd73804f5abba45f5e16e053fdf4dacf36dc44d6",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Mac foreground activity is uncontrolled"
+    },
+    {
+      "variant": "current",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1203.819375,
+      "warmupMs": 337.381167,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 12.897416999999905
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 12.948916999999938
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 14.319000000000187
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 15.52883399999996
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 13.39304100000004
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 15.246041999999989
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 15.570208000000093
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 18.04404199999999
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 13.619457999999895
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 105.0592079999999
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 33.109958000000006
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 32.3090830000001
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 44.779583
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 15.468374999999924
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 12.76870800000006
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 12.747333000000026
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 12.30945799999995
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 12.945124999999962
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 12.79320800000005
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 12.158500000000004
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 13.358499999999822
+        }
+      ],
+      "totalMeasuredMs": 451.3739979999998,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 0
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "f361489875d2c66cd1fa089bcd73804f5abba45f5e16e053fdf4dacf36dc44d6",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Mac foreground activity is uncontrolled"
+    },
+    {
+      "variant": "rejected",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1284.369416,
+      "warmupMs": 905.6845420000002,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 43.62029100000018
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 37.199333000000024
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 34.94154099999969
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 35.25416700000005
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 34.82108300000027
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 33.92295899999999
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 34.124624999999924
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 41.09574999999995
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 38.93445799999972
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 38.440250000000106
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 40.69416700000011
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 39.99412500000017
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 35.3530410000003
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 38.6454590000003
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 37.653915999999754
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 41.71741699999984
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 37.45308299999988
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 37.744290999999976
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 37.27258299999994
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 36.129875000000084
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 35.577999999999975
+        }
+      ],
+      "totalMeasuredMs": 790.5904140000002,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 4096
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "e467bcb158cc7493915dac56b6c2a9b93dfda519ebc037d6969183e4583f1165",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Mac foreground activity is uncontrolled"
+    },
+    {
+      "variant": "legacy",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1283.790917,
+      "warmupMs": 362.19616599999995,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 12.950833999999986
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 12.953708000000006
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 13.550917000000027
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 14.009999999999991
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 13.662249999999858
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 13.372917000000143
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 13.743542000000161
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 13.338542000000189
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 13.032791999999972
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 13.352208000000019
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 12.937791999999945
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 13.019500000000107
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 13.711084000000028
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 13.071040999999923
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 12.815958000000137
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 13.668124999999918
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 13.209749999999985
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 13.15970900000002
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 14.5685840000001
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 13.711250000000064
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 13.609542000000147
+        }
+      ],
+      "totalMeasuredMs": 281.4500450000007,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "927808ca10ea96a07cd5659ff2b8bda008320cf459e0a7680193a5172416544d",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Mac foreground activity is uncontrolled"
+    }
+  ],
+  "summary": {
+    "legacy": {
+      "medianRouteMs": 282.0137925000006,
+      "medianColdMs": 1255.4475835,
+      "runs": 4
+    },
+    "rejected": {
+      "medianRouteMs": 792.9262905,
+      "medianColdMs": 1286.4657705,
+      "runs": 4
+    },
+    "current": {
+      "medianRouteMs": 269.80145899999957,
+      "medianColdMs": 1255.875708,
+      "runs": 4
+    }
+  },
+  "scope": "Independent Node processes; production function and real Three geometry, uncontrolled Mac foreground activity; not browser acceptance"
+}

@@ -1,0 +1,38 @@
+{
+  "scope": "Offline Node CPU attribution, not a shipping candidate or calibrated device/frame comparison. No runtime landscape clearance policy installed. Terrain/draping intentionally differ; planned descriptors match. Separate cold processes; no browser capture ran concurrently.",
+  "anchors": [
+    {
+      "anchor": [
+        -230.3,
+        -691.8
+      ],
+      "descriptorSha256": "1ac3d8b847976ba258c247116d85eaef2f1ccea04809774c55378c3752d1c618",
+      "terrainApplyMs": 1602.798459,
+      "flatApplyMs": 6.787916999999993,
+      "terrainRoadsMs": 108.88683300000002,
+      "flatRoadsMs": 3.472582999999986
+    },
+    {
+      "anchor": [
+        -378,
+        -628
+      ],
+      "descriptorSha256": "960a76b66683ebfdaed24b6c8c300ee3f863472c7a94bf4dbc9cf39395220de0",
+      "terrainApplyMs": 187.90433399999984,
+      "flatApplyMs": 3.299041999999986,
+      "terrainRoadsMs": 92.78966700000001,
+      "flatRoadsMs": 1.7123339999999416
+    },
+    {
+      "anchor": [
+        -429,
+        -585
+      ],
+      "descriptorSha256": "88de5102f7ecd32acdb3ae9d0b0e7e9d9d13cf5cf7e293a0b267217d85cfecb8",
+      "terrainApplyMs": 124.58512500000006,
+      "flatApplyMs": 2.425041999999962,
+      "terrainRoadsMs": 13.927708000000166,
+      "flatRoadsMs": 1.2617910000000165
+    }
+  ]
+}

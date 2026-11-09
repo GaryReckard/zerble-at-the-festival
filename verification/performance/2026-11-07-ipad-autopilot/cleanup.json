@@ -1,0 +1,62 @@
+{
+  "checkedUtc": "2026-11-08T04:38:56.563148+00:00",
+  "ok": true,
+  "captures": [
+    {
+      "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261107-233322-device-autopilot-904e1faf",
+      "state": "collected",
+      "identities": 21,
+      "pids": [
+        27217,
+        27219,
+        27228,
+        27229,
+        27241,
+        27242,
+        27243,
+        27244,
+        27245,
+        27251,
+        27253,
+        27254,
+        27255,
+        27268,
+        27525,
+        27527,
+        27528,
+        27534,
+        27546,
+        27547,
+        27553
+      ],
+      "absent": true
+    },
+    {
+      "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261107-233628-device-autopilot-c500fb38",
+      "state": "collected",
+      "identities": 17,
+      "pids": [
+        27938,
+        27940,
+        27949,
+        27950,
+        27957,
+        27958,
+        27959,
+        27960,
+        27961,
+        27965,
+        27966,
+        27967,
+        27968,
+        27980,
+        27986,
+        27987,
+        27989
+      ],
+      "absent": true
+    }
+  ],
+  "leaseAbsent": true,
+  "note": "New task-owned iPad LAN server is intentional and recorded separately; pre-existing browser/server sessions preserved"
+}

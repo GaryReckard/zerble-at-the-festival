@@ -1,0 +1,44 @@
+[
+  {
+    "operation": "smoke",
+    "tier": "low",
+    "exitCode": 0,
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-073115-e0b7c5fd",
+    "log": "/private/tmp/zerble-terrain-smoke-low.log"
+  },
+  {
+    "operation": "smoke",
+    "tier": "mid",
+    "exitCode": 0,
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-073126-8bcfc1d3",
+    "log": "/private/tmp/zerble-terrain-smoke-mid.log"
+  },
+  {
+    "operation": "smoke",
+    "tier": "high",
+    "exitCode": 0,
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-073136-5f798362",
+    "log": "/private/tmp/zerble-terrain-smoke-high.log"
+  },
+  {
+    "operation": "run",
+    "tier": "low",
+    "exitCode": 0,
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-073146-4b4a0c1a",
+    "log": "/private/tmp/zerble-terrain-run-low.log"
+  },
+  {
+    "operation": "run",
+    "tier": "mid",
+    "exitCode": 0,
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-073312-a69ec561",
+    "log": "/private/tmp/zerble-terrain-run-mid.log"
+  },
+  {
+    "operation": "run",
+    "tier": "high",
+    "exitCode": 0,
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-073439-880b327c",
+    "log": "/private/tmp/zerble-terrain-run-high.log"
+  }
+]

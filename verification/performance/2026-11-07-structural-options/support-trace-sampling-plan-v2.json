@@ -1,0 +1,9 @@
+{
+  "reason": "Initial bounded buffer filled during settling; preserved as settling-only evidence",
+  "oldTrace": "support-request-trace-settling-only.json",
+  "samplingStride": 128,
+  "rowLimit": 20000,
+  "phaseCounter": "Once per render frame, potential one-frame boundary skew",
+  "sourceApplicationUnchanged": true,
+  "scope": "Observation recipe revision only; not a policy or threshold change"
+}

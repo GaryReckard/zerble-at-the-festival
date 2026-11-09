@@ -1,0 +1,3697 @@
+
+> check
+> python3 bin/test-performance-lab-contract && python3 bin/test-performance-lab-analysis && python3 bin/test-performance-lab-integrity && python3 bin/test-performance-lab-capability && python3 bin/test-performance-lab-cleanup && python3 bin/test-performance-lab-experiment && python3 bin/test-performance-lab-runner && node bin/test-performance-lab-input && node bin/test-performance-lab-runtime && node bin/test-physical-passenger && node bin/test-vehicle-condition && node bin/test-player-vehicle && node bin/test-player-handling && node bin/test-driving-surface && node bin/test-player-driving-live && node bin/test-boot-recovery && node bin/test-festival-map && node bin/test-birds && node bin/test-tree-detail && node bin/test-hammock-anchors && node bin/test-star-power && node bin/test-player-stats && node bin/test-passport-integration && node bin/test-festival-terrain-layout && node bin/test-map-render-budget && node bin/test-world-terrain && node bin/test-terrain-cell-cache && node bin/test-terrain-ground-recenter && node bin/test-terrain-consumers && node bin/test-terrain-movers && node bin/test-lurleen-terrain && node bin/test-terrain-grounding && node bin/test-terrain && node bin/test-landscape-support && node bin/test-landscape-fixture && node bin/test-landscape-travel && node bin/test-landscape-driving && node bin/test-landscape-vehicles && node bin/test-landscape-people && node bin/test-people-grounding-cost && node bin/test-landscape-physics && node bin/test-landscape-district && node bin/test-landscape-forms && node bin/test-landscape-candidates && node bin/test-landscape-stream && node bin/test-landscape-water-owner && node bin/test-landscape-staging && node bin/test-landscape-population && node bin/test-landscape-admission && node bin/test-landscape-integration && node bin/test-landscape-planner && node bin/test-landscape-render && node bin/test-landscape-access && node bin/test-landscape-runtime && node bin/test-landscape-map && node bin/test-debug-actions && node bin/test-debug-commands && node bin/test-debug-teleports && node bin/test-camp-music && node bin/test-stage-audio-lifecycle && node bin/test-camp-instruments && node bin/test-camp-jam-activity && node bin/test-woodland-camping && node bin/test-campsite-optimization && node bin/test-camp-chair && node bin/test-camp-cooler && node bin/test-stage-audience && node bin/test-soundboard && node bin/test-camp-planning && node bin/test-campsite-layout && node bin/test-camp-registry && node bin/test-camp-placement && node bin/test-potty-road-clearance && node bin/test-camp-life && node bin/test-one-wheel && node bin/test-one-wheel-model && node bin/test-healing-arts && node bin/test-healing-arts-motion && node bin/test-healing-arts-sampler && node bin/test-healing-arts-ownership && node bin/test-nut-wagon && node bin/test-muted-launch && node bin/test-crowd-ownership && node bin/test-children-ownership && node bin/test-wooks-ownership && node bin/test-formations-ownership && node bin/test-hoopers-ownership && node bin/test-frisbees-ownership && node bin/test-monks-ownership && node bin/test-seat-reservations && node bin/test-boarding-ownership && node bin/test-rest-activities && node bin/test-potty-ownership && node bin/test-market-ownership && node bin/test-camp-reachability && node bin/test-place-reachability && node bin/test-camp-ownership && node bin/test-camp-support-transfer && node bin/test-camp-music-ownership && node bin/test-photographer-ownership && node bin/test-people-collisions && node bin/test-people-queries && node bin/test-smile-policy && node bin/test-place-displays && node bin/test-vehicle-people-queries && node bin/test-vehicle-cleanup && node bin/test-actor-clocks && node bin/test-people-extension && node bin/test-person-motion && node bin/test-person-family-motion && node bin/test-hula-session && node bin/test-hula-activity && node bin/test-hoop-score && node bin/test-hoop-flow-session && node bin/test-hoop-pair && node bin/test-hoop-legs && node bin/test-hoop-classic && node bin/test-hoop-chest-roll && node bin/test-hoop-workshop && node bin/test-frisbee-session && node bin/test-frisbee-activity && node bin/test-activity-claims && node bin/test-person-reactions && node bin/test-person-handles && node bin/test-people-runtime && node bin/test-people-boundaries && node bin/test-people-baseline && node bin/test-people-frame-trace && node bin/test-people-workshop && node bin/test-toolchain.mjs && node bin/test-render-sizing && node bin/test-prepare-postprocessing && node bin/test-scene-probe && node bin/test-render-subtraction && node bin/test-dancefloor-reachability && node bin/test-bubbles-visibility && node bin/test-bubble-pop && node bin/test-bubble-types && node bin/test-bubble-progress && node bin/test-bubble-challenges && node bin/test-evening-vendors && node bin/test-vendor-shopping && node bin/test-special-bubbles && node bin/test-bubble-analytics && node bin/test-upgrade-sound && node bin/test-smiles-lifecycle && node bin/test-registry-indexes && node bin/test-registry-maintenance && node bin/test-kid-bubble-query && node bin/test-kid-motion && node bin/test-kid-pooling && node bin/test-child-presentation && node bin/test-shadow-policy && node bin/test-lake-index && node bin/test-lakeside-clearing-integration && node bin/test-playtest-location && node bin/test-road-neighbors && node bin/test-road-surfaces && node bin/test-road-junctions && node bin/test-stage-road-clearance && node bin/test-food-court-road-clearance && node bin/test-sugar-shack-placement && node bin/test-perf-telemetry && node bin/test-world-timings && node bin/test-device-autopilot && node bin/test-child-cohort && node bin/test-device-capture-flow && node bin/test-chunk-deadline && python3 bin/test-perf-report && python3 bin/test-perf-server && bin/check-model-dims && bin/test-registry-grid && bin/test-forest-determinism && bin/test-adaptive-quality && bin/test-adaptive-quality-low && node bin/test-quality-telemetry && bin/test-game-juice && bin/test-crowd-photographer && node bin/test-crowd-appearance.js && node bin/test-person-hair.js && bin/test-frisbee-player && bin/test-far-field && bin/test-steering && node bin/test-touch-steering && bin/test-run-mode && bin/test-scoring && bin/test-run-state && bin/test-jug-filter && bin/test-leaderboard-worker && node bin/test-leaderboard-client && node bin/test-physics-body-sweep && node bin/test-physics-prop-people && node bin/test-physics-incidents && node bin/test-physics-adapter && node bin/test-physics-joints && node bin/test-physics-supported-loads && node bin/test-physics-seat-release && node bin/test-physics-seat-reaction && node bin/test-physics-dismount && node bin/test-physics-person-fall && node bin/test-physics-stand-recovery && node bin/test-physics-contact-suppression && node bin/test-physics-cooler && node bin/test-physics-cooler-lid && node bin/test-physics-runtime && node bin/test-physics-cart-trajectory && node bin/test-physics-terrain && node bin/test-physics-controller && node bin/test-physics-cart-proxy && node bin/test-physics-terrain-residency && node bin/test-physics-admission && node bin/test-prop-rendering && node bin/test-registry-physical && node bin/test-physics-camp-descriptors && node bin/test-physics-render-adoption && node bin/test-physics-chair-ownership && node bin/test-physics-static-residency && node bin/test-physics-live-world && node bin/test-physics-live-occupants && node bin/test-physics-live-people
+
+PASS performance-lab contract: exact quantiles, identity vs cost, missing/invalid/incomplete/software/hidden captures and stable hashes
+PASS performance-lab contract: exact quantiles, identity vs cost, missing/invalid/incomplete/software/hidden captures and stable hashes
+PASS performance-lab analysis: fresh holdouts, CPU headroom, comparable cost reductions, content loss, drift, failed runs, no reuse and deterministic unmutated outputs
+PASS performance-lab contract: exact quantiles, identity vs cost, missing/invalid/incomplete/software/hidden captures and stable hashes
+PASS lab integrity: source/build drift and acknowledged raw-payload tampering rejected, valid complete projection retained
+PASS capability gate: no browser launch permitted without exact-backend hardware/fault proofs, failed cleanup and changed backends refused; no browser launched
+PASS cleanup fault model: inspector failure cannot bypass teardown or claim success, stale groups and unverified/unrelated PIDs are never signalled
+PASS performance-lab contract: exact quantiles, identity vs cost, missing/invalid/incomplete/software/hidden captures and stable hashes
+PASS experiment controller: full 48-run ordering, independent calibration/holdout/injection and segment reports, durable failure and immediate cleanup-stop; all data synthetic, no browser launched
+PASS runner: cleanup failure revokes capability and retains the exclusive lease, a second launch is refused; no browser or OS child launched
+PASS experiment CLI reports the actual accepted bundle and releases its lease; no browser launched
+PASS CLI rejects a stale host/snapshot identity before acquiring the lease or launching any browser, even with accepted backend probes
+PASS performance-lab input: live-axis/edge/touch/camera/zoom exclusion, abort, held restoration, ordinary keyboard, exact bounded frame export and normal-controller waypoint signs
+PASS road policy: straight acceleration/boost, anticipatory braking, passed-waypoint progression, steering signs and real-polyline corridor distance
+(node:35535) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/input.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = high {
+  name: 'high',
+  pixelRatioCap: 2,
+  bloom: true,
+  bloomStrength: 0.6,
+  bloomRadius: 0.85,
+  bloomThreshold: 0.78,
+  shadows: true,
+  shadowType: 'soft',
+  crowdMax: 500,
+  chunkLoadRadius: 2,
+  chunkUnloadRadius: 3,
+  chunkBudgetMs: 5,
+  cameraFar: 1040,
+  forestTreeDensityMul: 1,
+  bubblePoolMax: 600,
+  fireworksPoolMax: 1000,
+  farField: {
+    radius: 520,
+    densityMul: 1,
+    marginalTriCap: 27000,
+    maxColdStepMs: 2,
+    forestStep: 40,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 120,
+      peak: 448,
+      vendorLegs: 448,
+      warm: 192,
+      beacon: 48,
+      forest: 256,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS lab runtime: active collection, exact frames, retry-byte stability, acknowledged completion, quality/time/input restoration, hidden/HUD invalidation and no production scheduler
+PASS declared interruption preserves partial measured evidence and acknowledges failure after restoring ownership
+(node:35536) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/performanceLab/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS physical passengers: full tilted seat transform and airborne/water boarding and exit guards.
+(node:35537) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS vehicle condition: impact severity, persistent-contact dedup, parked immunity, restoration, shallow water, sustained submersion and rational engine demand at 30/60/120Hz.
+PASS actual game terminal adapter: damage/water exactly once in both modes, Cruisin stays off Festival reporting, close restarts either mode.
+(node:35538) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/vehicleCondition.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:35539) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/physics/rapierAdapter.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS physical vehicle: suspension datum, surfaces and shallow water, continuous cliff fall, fixed-step cadence, air controls/engine, resets and controller teardown. {"asphalt":17.643205186805503,"grass":15.0628534334119,"boostedGrass":23.347249963512166,"water":14.58808306628776,"drop":{"x":-0.043390367180109024,"y":-8.56096076965332,"z":0.8895523548126221}}
+(node:35554) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/physics/rapierAdapter.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[
+  {
+    "surface": "grass",
+    "boost": false,
+    "steer": -1,
+    "grade": 0,
+    "launch": 14.486376225289566,
+    "coast": 0.3166508653910907,
+    "reverse": -6.65609976664513,
+    "stopped": 0.00031222535367304263,
+    "cruise": 15.06285343436826,
+    "pickup": 15.062853434194679,
+    "top": 15.062853432466344,
+    "yaw": -2.718752167622249,
+    "minUp": 0.999986143295838,
+    "minContacts": 4,
+    "travel": 22.178465549065493,
+    "finalSpeed": 14.369397485286584,
+    "countersteer": 1.9083516597747803
+  },
+  {
+    "surface": "grass",
+    "boost": false,
+    "steer": 1,
+    "grade": 0,
+    "launch": 14.486376225289566,
+    "coast": 0.3166508462266778,
+    "reverse": -6.656099516046874,
+    "stopped": 0.0003122247704277989,
+    "cruise": 15.06285343436826,
+    "pickup": 15.062853434194679,
+    "top": 15.062853432466344,
+    "yaw": 2.7187519292036706,
+    "minUp": 0.9999861431136502,
+    "minContacts": 4,
+    "travel": 22.178465408582245,
+    "finalSpeed": 14.369397986662868,
+    "countersteer": -1.908349871635437
+  },
+  {
+    "surface": "grass",
+    "boost": true,
+    "steer": -1,
+    "grade": 0,
+    "launch": 14.486376225289566,
+    "coast": 0.3166509317974863,
+    "reverse": -6.656099604156019,
+    "stopped": 0.00031222652633854217,
+    "cruise": 15.06285343436826,
+    "pickup": 23.336710092753435,
+    "top": 23.347249951610447,
+    "yaw": -2.7184392395118873,
+    "minUp": 0.9999861419986733,
+    "minContacts": 4,
+    "travel": 34.32820145974115,
+    "finalSpeed": 22.2724808092189,
+    "countersteer": 1.9081649780273438
+  },
+  {
+    "surface": "grass",
+    "boost": true,
+    "steer": 1,
+    "grade": 0,
+    "launch": 14.486376225289566,
+    "coast": 0.31665095224510126,
+    "reverse": -6.656099730158292,
+    "stopped": 0.00031223158615261494,
+    "cruise": 15.06285343436826,
+    "pickup": 23.336710092753435,
+    "top": 23.347249951610447,
+    "yaw": 2.718439246465763,
+    "minUp": 0.9999861420428483,
+    "minContacts": 4,
+    "travel": 34.328221740006335,
+    "finalSpeed": 22.2724810205085,
+    "countersteer": -1.9081639051437378
+  },
+  {
+    "surface": "asphalt",
+    "boost": false,
+    "steer": -1,
+    "grade": 0,
+    "launch": 16.489379124443342,
+    "coast": 0.36789057257795915,
+    "reverse": -6.8607789957107475,
+    "stopped": 0.00031222930001326073,
+    "cruise": 17.643205185693883,
+    "pickup": 17.64320518691078,
+    "top": 17.643205183264847,
+    "yaw": -2.7186397008597845,
+    "minUp": 0.9999861425688945,
+    "minContacts": 4,
+    "travel": 25.93360043767989,
+    "finalSpeed": 16.789252194687244,
+    "countersteer": 1.9082869291305542
+  },
+  {
+    "surface": "asphalt",
+    "boost": false,
+    "steer": 1,
+    "grade": 0,
+    "launch": 16.489379124443342,
+    "coast": 0.3678906943306095,
+    "reverse": -6.860778916165495,
+    "stopped": 0.0003122282336391567,
+    "cruise": 17.643205185693883,
+    "pickup": 17.64320518691078,
+    "top": 17.643205183264847,
+    "yaw": 2.7186402211586636,
+    "minUp": 0.9999861427257227,
+    "minContacts": 4,
+    "travel": 25.933602885949387,
+    "finalSpeed": 16.78925324755238,
+    "countersteer": -1.9082890748977661
+  },
+  {
+    "surface": "asphalt",
+    "boost": true,
+    "steer": -1,
+    "grade": 0,
+    "launch": 16.489379124443342,
+    "coast": 0.3678893369753791,
+    "reverse": -6.8607729413556005,
+    "stopped": 0.0003122290442240174,
+    "cruise": 17.643205185693883,
+    "pickup": 27.33156186392646,
+    "top": 27.34679945265167,
+    "yaw": -2.718267740557591,
+    "minUp": 0.9999861408795093,
+    "minContacts": 4,
+    "travel": 40.14806631713217,
+    "finalSpeed": 26.023362622259597,
+    "countersteer": 1.9080636501312256
+  },
+  {
+    "surface": "asphalt",
+    "boost": true,
+    "steer": 1,
+    "grade": 0,
+    "launch": 16.489379124443342,
+    "coast": 0.3678893098319286,
+    "reverse": -6.860773101026407,
+    "stopped": 0.00031223197238710497,
+    "cruise": 17.643205185693883,
+    "pickup": 27.33156186392646,
+    "top": 27.34679945265167,
+    "yaw": 2.718267918129762,
+    "minUp": 0.9999861409079124,
+    "minContacts": 4,
+    "travel": 40.14806669781917,
+    "finalSpeed": 26.023359796314505,
+    "countersteer": -1.9080638885498047
+  },
+  {
+    "surface": "grass",
+    "boost": false,
+    "steer": -1,
+    "grade": 0.3,
+    "launch": 11.936480172904037,
+    "coast": 0.3836777541873931,
+    "reverse": -6.656119942903189,
+    "stopped": 0.027815491041071352,
+    "cruise": 15.06285117770571,
+    "pickup": 15.062850334612149,
+    "top": 15.062846958564693,
+    "yaw": -2.6040779749552407,
+    "minUp": 0.9564693332102747,
+    "minContacts": 4,
+    "travel": 22.198471169994164,
+    "finalSpeed": 14.418474277690189,
+    "countersteer": 1.8279740810394287
+  },
+  {
+    "surface": "grass",
+    "boost": false,
+    "steer": 1,
+    "grade": 0.3,
+    "launch": 11.936480172904037,
+    "coast": 0.3836776632154733,
+    "reverse": -6.656120148020222,
+    "stopped": 0.027815463283662877,
+    "cruise": 15.06285117770571,
+    "pickup": 15.062850334612149,
+    "top": 15.062846958564693,
+    "yaw": 2.604078137377898,
+    "minUp": 0.9564693302776057,
+    "minContacts": 4,
+    "travel": 22.198472122779506,
+    "finalSpeed": 14.418475377669907,
+    "countersteer": -1.8279727697372437
+  },
+  {
+    "surface": "grass",
+    "boost": true,
+    "steer": -1,
+    "grade": 0.3,
+    "launch": 11.936480172904037,
+    "coast": 0.3836191056550707,
+    "reverse": -6.6561210311145285,
+    "stopped": 0.02780161359122188,
+    "cruise": 15.06285117770571,
+    "pickup": 23.333176954562585,
+    "top": 23.34726372098026,
+    "yaw": -2.6037847809493537,
+    "minUp": 0.9564714356813638,
+    "minContacts": 4,
+    "travel": 34.34951540921091,
+    "finalSpeed": 22.32156206886941,
+    "countersteer": 1.8277844190597534
+  },
+  {
+    "surface": "grass",
+    "boost": true,
+    "steer": 1,
+    "grade": 0.3,
+    "launch": 11.936480172904037,
+    "coast": 0.3836190418945344,
+    "reverse": -6.6561206503647075,
+    "stopped": 0.027801536822593842,
+    "cruise": 15.06285117770571,
+    "pickup": 23.333176954562585,
+    "top": 23.34726372098026,
+    "yaw": 2.603784090032179,
+    "minUp": 0.9564713813451517,
+    "minContacts": 4,
+    "travel": 34.34951276452367,
+    "finalSpeed": 22.32157080224713,
+    "countersteer": -1.8277859687805176
+  },
+  {
+    "surface": "asphalt",
+    "boost": false,
+    "steer": -1,
+    "grade": 0.3,
+    "launch": 12.899583635323939,
+    "coast": 0.42867726079404445,
+    "reverse": -6.860791596666223,
+    "stopped": 0.027876797252722782,
+    "cruise": 17.64321355617022,
+    "pickup": 17.64319707050216,
+    "top": 17.643217789009032,
+    "yaw": -2.6039735925694307,
+    "minUp": 0.9564697548751597,
+    "minContacts": 4,
+    "travel": 25.954785742622693,
+    "finalSpeed": 16.841167129496803,
+    "countersteer": 1.8279073238372803
+  },
+  {
+    "surface": "asphalt",
+    "boost": false,
+    "steer": 1,
+    "grade": 0.3,
+    "launch": 12.899583635323939,
+    "coast": 0.42867733906183336,
+    "reverse": -6.860791689128197,
+    "stopped": 0.02787682722976638,
+    "cruise": 17.64321355617022,
+    "pickup": 17.64319707050216,
+    "top": 17.643217789009032,
+    "yaw": 2.603972422083219,
+    "minUp": 0.9564698126734326,
+    "minContacts": 4,
+    "travel": 25.95478852724244,
+    "finalSpeed": 16.8411697532296,
+    "countersteer": -1.8279080390930176
+  },
+  {
+    "surface": "asphalt",
+    "boost": true,
+    "steer": -1,
+    "grade": 0.3,
+    "launch": 12.899583635323939,
+    "coast": 0.41502579434776976,
+    "reverse": -6.860761474736066,
+    "stopped": 0.027860442156633095,
+    "cruise": 17.64321355617022,
+    "pickup": 27.327503871471475,
+    "top": 27.34681859738291,
+    "yaw": -2.6036236020425947,
+    "minUp": 0.9564723797019895,
+    "minContacts": 4,
+    "travel": 40.17098120795128,
+    "finalSpeed": 26.075282533863508,
+    "countersteer": 1.8276818990707397
+  },
+  {
+    "surface": "asphalt",
+    "boost": true,
+    "steer": 1,
+    "grade": 0.3,
+    "launch": 12.899583635323939,
+    "coast": 0.41502572637445495,
+    "reverse": -6.860761931063932,
+    "stopped": 0.02786055138262543,
+    "cruise": 17.64321355617022,
+    "pickup": 27.327503871471475,
+    "top": 27.34681859738291,
+    "yaw": 2.6036235459148886,
+    "minUp": 0.9564723491911687,
+    "minContacts": 4,
+    "travel": 40.17097899418971,
+    "finalSpeed": 26.075286375483543,
+    "countersteer": -1.8276832103729248
+  },
+  {
+    "surface": "grass",
+    "boost": false,
+    "steer": -1,
+    "grade": -0.3,
+    "launch": 14.963940927855592,
+    "coast": 0.2496503770281911,
+    "reverse": -6.6561354374179675,
+    "stopped": -0.0272239737087967,
+    "cruise": 15.062843478161295,
+    "pickup": 15.06284282157613,
+    "top": 15.062845282885338,
+    "yaw": -2.6041052197416614,
+    "minUp": 0.9564145433668036,
+    "minContacts": 4,
+    "travel": 22.161693528288016,
+    "finalSpeed": 14.320304832585308,
+    "countersteer": 1.8277649879455566
+  },
+  {
+    "surface": "grass",
+    "boost": false,
+    "steer": 1,
+    "grade": -0.3,
+    "launch": 14.963940927855592,
+    "coast": 0.24965027734374007,
+    "reverse": -6.656135432349903,
+    "stopped": -0.02722400136460175,
+    "cruise": 15.062843478161295,
+    "pickup": 15.06284282157613,
+    "top": 15.062845282885338,
+    "yaw": 2.6041053945819534,
+    "minUp": 0.9564145432741012,
+    "minContacts": 4,
+    "travel": 22.1616958233337,
+    "finalSpeed": 14.320306308941737,
+    "countersteer": -1.8277666568756104
+  },
+  {
+    "surface": "grass",
+    "boost": true,
+    "steer": -1,
+    "grade": -0.3,
+    "launch": 14.963940927855592,
+    "coast": 0.24968487246830817,
+    "reverse": -6.656135820986121,
+    "stopped": -0.027209827624880417,
+    "cruise": 15.062843478161295,
+    "pickup": 23.338685397285115,
+    "top": 23.34724786989678,
+    "yaw": -2.603802735110125,
+    "minUp": 0.9564145081458582,
+    "minContacts": 4,
+    "travel": 34.30885602860991,
+    "finalSpeed": 22.22340436761694,
+    "countersteer": 1.8275986909866333
+  },
+  {
+    "surface": "grass",
+    "boost": true,
+    "steer": 1,
+    "grade": -0.3,
+    "launch": 14.963940927855592,
+    "coast": 0.24968474995062503,
+    "reverse": -6.656135409015113,
+    "stopped": -0.027209897311370343,
+    "cruise": 15.062843478161295,
+    "pickup": 23.338685397285115,
+    "top": 23.34724786989678,
+    "yaw": 2.603803083797297,
+    "minUp": 0.9564144999599538,
+    "minContacts": 4,
+    "travel": 34.3088405322958,
+    "finalSpeed": 22.223403466452535,
+    "countersteer": -1.827595591545105
+  },
+  {
+    "surface": "asphalt",
+    "boost": false,
+    "steer": -1,
+    "grade": -0.3,
+    "launch": 17.449393688262806,
+    "coast": 0.30713015958935874,
+    "reverse": -7.590527873878788,
+    "stopped": -0.02728369534833351,
+    "cruise": 18.63978971223835,
+    "pickup": 18.925719767182077,
+    "top": 19.58454975304644,
+    "yaw": -2.603974566360314,
+    "minUp": 0.9564144620519035,
+    "minContacts": 4,
+    "travel": 26.79479238083303,
+    "finalSpeed": 16.73747843870324,
+    "countersteer": 1.827708125114441
+  },
+  {
+    "surface": "asphalt",
+    "boost": false,
+    "steer": 1,
+    "grade": -0.3,
+    "launch": 17.449393688262806,
+    "coast": 0.30713019065941777,
+    "reverse": -7.590523938004013,
+    "stopped": -0.027283751071946666,
+    "cruise": 18.63978971223835,
+    "pickup": 18.925719767182077,
+    "top": 19.58454975304644,
+    "yaw": 2.6039748708407076,
+    "minUp": 0.9564144531910455,
+    "minContacts": 4,
+    "travel": 26.79479076115875,
+    "finalSpeed": 16.737474258381482,
+    "countersteer": -1.8277064561843872
+  },
+  {
+    "surface": "asphalt",
+    "boost": true,
+    "steer": -1,
+    "grade": -0.3,
+    "launch": 17.449393688262806,
+    "coast": 0.307348136466465,
+    "reverse": -7.588909600092979,
+    "stopped": -0.02726658919672864,
+    "cruise": 18.63978971223835,
+    "pickup": 27.336917520358448,
+    "top": 27.34680344711194,
+    "yaw": -2.60363585849603,
+    "minUp": 0.9564143914608036,
+    "minContacts": 4,
+    "travel": 40.12715652334532,
+    "finalSpeed": 25.971440203489664,
+    "countersteer": 1.827508568763733
+  },
+  {
+    "surface": "asphalt",
+    "boost": true,
+    "steer": 1,
+    "grade": -0.3,
+    "launch": 17.449393688262806,
+    "coast": 0.30734823221389423,
+    "reverse": -7.5889094581836165,
+    "stopped": -0.027266621933766867,
+    "cruise": 18.63978971223835,
+    "pickup": 27.336917520358448,
+    "top": 27.34680344711194,
+    "yaw": 2.60363479554653,
+    "minUp": 0.9564143912943412,
+    "minContacts": 4,
+    "travel": 40.12714945003173,
+    "finalSpeed": 25.971437448593687,
+    "countersteer": -1.8275046348571777
+  }
+]
+PASS driving surfaces: exact visible grass/dirt/asphalt footprints, unchanged placement/RNG, shared native lake render/collision bed, dry shoreline, real stream/deck separation, late bridge residency, local query bounds, legacy water and teardown.
+(node:35565) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/drivingSurface.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:35574) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS live player driving: reserved terrain/static support, paused frontier and resume, real tree damage episode, parked stability, passable shallow water, sustained deep submersion, StarPower passage/safe re-entry, and exact body/collider/controller teardown. [{"fixture":"frontier","blockedSeconds":3.3333333333333264,"travel":73.28013610839844},{"fixture":"tree","frame":81,"damage":18.73744238237586,"speed":17.550901643332942,"episodes":1},{"fixture":"water","depth":0,"travel":43.28731155395508,"immersion":0,"cause":null},{"fixture":"water","depth":0.6,"travel":34.880279541015625,"immersion":0.5796410799026489,"cause":null},{"fixture":"water","depth":1.4,"travel":9.78781509399414,"immersion":1.3640817046165465,"cause":null},{"fixture":"water","depth":2.5,"travel":-0.0018601417541503906,"immersion":2.457976818084717,"cause":"submerged"},{"fixture":"ghost","damageAfterReentry":18.993343928027723,"finalZ":-40.766075134277344}]
+PASS boot recovery: bounded retry, manual fallback, entry failures, non-network errors, slow/ready transition and preserved URL/state.
+Festival map geometry/discovery contracts pass
+(node:35577) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/festivalMap/model.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Festival map persistence/epoch/residency contracts pass
+Worker 256m: 6.32ms, 25383 bytes
+Worker 512m: 1.20ms, 29765 bytes
+Worker 1024m: 3.55ms, 53540 bytes
+Festival map worker bounds/failure contracts pass
+Festival map actual-world marker contracts pass
+Festival map actual arrow follows cart forward direction
+Festival map transition layout/backing contracts pass
+Festival map independent backdrop contract passes
+Festival map direct pin controls and Ctrl slow driving pass
+PASS birds: terrain spawn/cruise, zero-distance escape, cooldown, landing convergence, removed perches, dawn return, invalid dt, bounded motion, 15 draw batches.
+(node:35579) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/models/tree.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS tree detail: 200 builds, four pooled unit meshes, shared colors/materials, 6 forest batches, 7244 fixture triangles.
+(node:35580) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/models/hammock.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS tree hammock anchors clear both trunk radii and preserve the RNG draw count
+PASS star pickup placement samples its footprint and anchors above the local terrain slope.
+PASS passport: movement/return, six stamps, raw counters, migration, corruption/blocked storage, stage identity, relocation, resume and incremental telemetry
+(node:35582) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/playerStats.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:35583) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/analytics.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:35583) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/bubbles.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = high {
+  name: 'high',
+  pixelRatioCap: 2,
+  bloom: true,
+  bloomStrength: 0.6,
+  bloomRadius: 0.85,
+  bloomThreshold: 0.78,
+  shadows: true,
+  shadowType: 'soft',
+  crowdMax: 500,
+  chunkLoadRadius: 2,
+  chunkUnloadRadius: 3,
+  chunkBudgetMs: 5,
+  cameraFar: 1040,
+  forestTreeDensityMul: 1,
+  bubblePoolMax: 600,
+  fireworksPoolMax: 1000,
+  farField: {
+    radius: 520,
+    densityMul: 1,
+    marginalTriCap: 27000,
+    maxColdStepMs: 2,
+    forestStep: 40,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 120,
+      peak: 448,
+      vendorLegs: 448,
+      warm: 192,
+      beacon: 48,
+      forest: 256,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS passport integration: real eligibility/pause branch, repeated stages, GA privacy/failure/checkpoints, successful emissions and cleared keyboard/touch
+Festival layout: final relocated-envelope rejection, RNG bounds, wooded-pocket omission and historical seed 256 drum lint passed. { 'stage-spacing': 15, 'amenity-bundle': 2 }
+(node:35584) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/worldgen/lint.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Map rendering: macro and cold redraw planner guards, bounded roads/density, local overlays, budget boundary and enumeration backstop passed.
+Cold 19,881 ground vertices: {
+  ms: 1418.899792,
+  low: -5.022458244743055,
+  high: 10.799244115045626,
+  nonflatPercent: 26.27131432020522
+}
+Warm mesh resampling (ms): 2.047416999999996
+Four-seed sampler surveys: [
+  {
+    seed: 0,
+    min: -5.022458244743055,
+    max: 10.799244115045626,
+    nonflatPercent: 26.27131432020522,
+    coldMs: 586.5367909999995,
+    recenterMs: 2.494832999999744
+  },
+  {
+    seed: 42,
+    min: -4.5,
+    max: 12.412625903091648,
+    nonflatPercent: 28.70579950706705,
+    coldMs: 1386.5628749999996,
+    recenterMs: 2.41412500000024
+  },
+  {
+    seed: 1234,
+    min: -4.5,
+    max: 7.508918076069924,
+    nonflatPercent: 31.276092751873648,
+    coldMs: 1304.0933749999995,
+    recenterMs: 2.520375000000058
+  },
+  {
+    seed: 3948869160,
+    min: -10.41801195114201,
+    max: 7.725759048308808,
+    nonflatPercent: 37.47799406468487,
+    coldMs: 1372.404208,
+    recenterMs: 3.2697920000009617
+  }
+] { routeCount: 531, routeMaxGrade: 0.16584786498992135 }
+World terrain: triangle agreement, normals, negative coordinates, seed/query order, level dry pads/shorelines and native lake basins, unchanged X/Z queries/hash, epoch invalidation and cache bounds passed. {
+  pads: 319,
+  lakes: 5,
+  conflicts: 0,
+  maxGrade: 0.3015896658404284,
+  cache: { version: 1, vertices: 65536, tiles: 65, owners: 341, cells: 634 }
+}
+(node:35667) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS terrain cell cache: exact frozen-baseline heights, gradients, normals, grades, water, flags and reusable outputs across signed cell/triangle boundaries, generations, seeds, tuning/epoch changes, toggles and bounded eviction. { checked: 50262, wet: 1608, sloped: 11902 }
+(node:35814) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/worldgen/terrain.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS real ground resampling: exact positions/normals/colors/UVs/indices/bounds and dirty flags, real raycasts, actual scenario snapped centers, generations/seeds/toggles, and unchanged local-support cache. {
+  snapshots: 30,
+  rays: 120,
+  nonflat: 2311,
+  productionSourceSha256: 'c0afcb40ca2bd9258856b8ee2003f3399d4f40c081869924bb51f0ee140430d8'
+}
+(node:35996) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Terrain consumers: subdivided edge draping, ground and seated NPC position, chase ridge and first-person clearance passed.
+PASS production road junction: chunk mesh subtracts pavement before draping, retains dirt and never carves phantom v2 roads from legacy paths.
+(node:36008) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/roadGeometry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Terrain movers: flat and sloping production updates, parade, band, kids, wooks, hooper footprint, frisbee hands/catch/landing, monk seats, one-wheel contact and wagon anchors passed.
+(node:36009) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/personMotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS Lurleen terrain: constructor/spawn, 240 moving state/heading frames, four wheel contacts, flat-world jiggle, unchanged X/Z/speed/heading/RNG, original collider position, early-return rehome and rescue.
+(node:36010) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS terrain grounding: rotated tent contact planes, independent prop heights, idempotence, and grass world-UV invariance across recentering.
+(node:36013) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/campRegistry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Terrain: triangle agreement, normals, order independence, seams, fixture grades, slope response, downhill coast, brake/hold/reverse, 30/60/120 Hz and bounds passed.
+{"flat":18,"ascent":16.5,"descent":19.5}
+Recorded ascent/coast/descent/plateau/brake replay is stable across 30/60/120 Hz: [ -383.041309664504, -383.041309664504, -383.041309664504 ]
+Actual sandbox presentation: physics restoration and wheel continuity passed; {"rawMaxSpeedError":8.497190309295007,"interpolatedMaxSpeedError":3.0482283364108298e-12}
+Flat speed, normal/boost m/s: 18 27.9
+(node:36014) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/terrainSurface.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS landscape support: pure proposals, bidirectional approach transfers, locked wheel samples, underneath separation, closed/missing support, independent movers, immutable descriptors, finite inputs and vertical solids.
+PASS atomic support movement: identical swept footprints and bridge transitions, half the repeated sampling, blocked-state retention and unchanged stale-proposal guards.
+(node:36016) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/landscape/support.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = high {
+  name: 'high',
+  pixelRatioCap: 2,
+  bloom: true,
+  bloomStrength: 0.6,
+  bloomRadius: 0.85,
+  bloomThreshold: 0.78,
+  shadows: true,
+  shadowType: 'soft',
+  crowdMax: 500,
+  chunkLoadRadius: 2,
+  chunkUnloadRadius: 3,
+  chunkBudgetMs: 5,
+  cameraFar: 1040,
+  forestTreeDensityMul: 1,
+  bubblePoolMax: 600,
+  fireworksPoolMax: 1000,
+  farField: {
+    radius: 520,
+    densityMul: 1,
+    marginalTriCap: 27000,
+    maxColdStepMs: 2,
+    forestStep: 40,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 120,
+      peak: 448,
+      vendorLegs: 448,
+      warm: 192,
+      beacon: 48,
+      forest: 256,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS landscape fixture: exact strip meshes/budgets, lower/upper/clearing profiles, steep bank/side-road contrast, distinct layer rays, actual cart bridge/ascent/return-control proof at 30/60/120Hz. {"vertices":55781,"triangles":109200,"batches":6,"results":[{"hz":30,"z":-402.0354404715924,"contact":2.1307279851612293e-7},{"hz":60,"z":-402.0354404715924,"contact":2.1307279851612293e-7},{"hz":120,"z":-402.0354404715924,"contact":2.1307279851612293e-7}]}
+(node:36017) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/landscape/fixture.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = high {
+  name: 'high',
+  pixelRatioCap: 2,
+  bloom: true,
+  bloomStrength: 0.6,
+  bloomRadius: 0.85,
+  bloomThreshold: 0.78,
+  shadows: true,
+  shadowType: 'soft',
+  crowdMax: 500,
+  chunkLoadRadius: 2,
+  chunkUnloadRadius: 3,
+  chunkBudgetMs: 5,
+  cameraFar: 1040,
+  forestTreeDensityMul: 1,
+  bubblePoolMax: 600,
+  fireworksPoolMax: 1000,
+  farField: {
+    radius: 520,
+    densityMul: 1,
+    marginalTriCap: 27000,
+    maxColdStepMs: 2,
+    forestStep: 40,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 120,
+      peak: 448,
+      vendorLegs: 448,
+      warm: 192,
+      beacon: 48,
+      forest: 256,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS authoritative travel: full-width routes, finite alternatives/work, intermediate turn and translation sweeps, legal relocations/corrections, registry/live pooled vertical publication, spanning solids and actual cart recovery. {"valid":true,"reason":null,"distance":346,"samples":48510,"maxGrade":0.17138192419825105,"maxCrossfall":0,"endSurfaceId":"terrain"}
+(node:36020) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/landscape/support.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+flat driving regression probe {"launch":18,"boostPickup":26.999999999999915,"coast":6.662710080000027,"expectedCoast":6.662710080000001}
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS force-based landscape driving: original flat acceleration/boost/release drag, boost release/slow/sputter/reverse and real-cart sound-state agreement, downhill from rest at all tested grades, climbable moderate slopes, momentum/stall/rollback, brake hold, frame-rate equivalence, strict walker/placement policy, bounds/water/deck edges, real cart steep contacts and three-family return routes. {"report":[{"grade":0.6,"heading":3.141592653589793,"downhillMeters":8.95893345425884},{"grade":0.6,"heading":3.491592653589793,"downhillMeters":8.15950694866286},{"grade":0.6,"heading":-0.35,"downhillMeters":8.15950694866286},{"grade":1.2,"heading":3.141592653589793,"downhillMeters":9.987007785075468},{"grade":1.2,"heading":3.491592653589793,"downhillMeters":9.469868357030954},{"grade":1.2,"heading":-0.35,"downhillMeters":9.469868357030954},{"grade":2,"heading":3.141592653589793,"downhillMeters":8.12276633186138},{"grade":2,"heading":3.491592653589793,"downhillMeters":7.911920298689188},{"grade":2,"heading":-0.35,"downhillMeters":7.911920298689188},{"grade":4,"heading":3.141592653589793,"downhillMeters":4.778097842271379},{"grade":4,"heading":3.491592653589793,"downhillMeters":4.740938422126098},{"grade":4,"heading":-0.35,"downhillMeters":4.740938422126098},{"grade":12,"heading":3.141592653589793,"downhillMeters":1.68057234452304},{"grade":12,"heading":3.491592653589793,"downhillMeters":1.679029422991225},{"grade":12,"heading":-0.35,"downhillMeters":1.679029422991225}],"runUpMeters":48.848459294341524,"slowRunUpMeters":9.692762973822278,"maxPlaneContact":2.4424906541753444e-15,"routes":[{"id":"paired-meadows","seconds":40.233333333333334,"maxContact":1.4210854715202004e-14},{"id":"paired-meadows","seconds":43.75,"maxContact":1.4210854715202004e-14},{"id":"long-ridge","seconds":46.8,"maxContact":0.00756861244185103},{"id":"long-ridge","seconds":50.28333333333333,"maxContact":2.4868995751603507e-14},{"id":"three-shelves","seconds":50.4,"maxContact":2.4868995751603507e-14},{"id":"three-shelves","seconds":53.65,"maxContact":2.4868995751603507e-14}]}
+(node:36023) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/landscape/geometry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS landscape vehicles: actual Nut Wagon and one-wheel controllers cross/return on selected bridge support at 30/60/120Hz, real wagon suspension, Lurleen bridge following/local side-road intent, vertical solids and owner teardown. [{"vehicle":"wagon","hz":30,"maxContact":2.6645352591003757e-15},{"vehicle":"one-wheel","hz":30},{"vehicle":"wagon","hz":60,"maxContact":2.220446049250313e-16},{"vehicle":"one-wheel","hz":60},{"vehicle":"wagon","hz":120,"maxContact":2.220446049250313e-16},{"vehicle":"one-wheel","hz":120},{"vehicle":"wagon-hill","hillContact":1.687538997430238e-14,"rise":3.8593166666667327},{"vehicle":"lurleen-meadows","seconds":27.65},{"vehicle":"lurleen-reported-ridge","hz":30,"rise":12.077821439244858,"maxContact":0.1915281913287913},{"vehicle":"lurleen-reported-ridge","hz":60,"rise":12.89059602406639,"maxContact":0.1738504232605731},{"vehicle":"lurleen-reported-ridge","hz":120,"rise":12.721465029045454,"maxContact":0.20571783317322934}]
+(node:36038) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS landscape people: real pooled Crowd floor selection, unreachable seat/bed/table/hammock refusal, live vertical contacts, swept support/work bounds, finite formation alternatives, actual children/wooks/parade/band support and teardown, cross-floor child eligibility and raised bird air clearance.
+(node:36063) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS atomic people grounding: exact legacy movement/turning/bridge/footprint/sweep-limit/stale-world/missing-deck/hidden-placement/relocation publications, with half the terrain sampling for successful immediate moves.
+(node:36064) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/landscape/support.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:36065) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS landscape physics: real cooler support above/below resident bridge, exact native bed, independent sleeping-owner leases, shared geometry, bounded incremental preparation, huge-velocity refusal, missing-owner and capacity rollback, nearby-origin precision at ±10 million, generation invalidation and exact engine teardown.
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS real mountain district: production camps, seated/animated drum crew/fire, grounded seats/colliders, unique owner publication, counted support pins, idempotent teardown and injected partial-build/obstruction rollback. [{"allocationMs":42.26570799999999,"largestBuildMs":9.828333000000015,"stages":[{"kind":"camp:host","ms":9.471666999999997},{"kind":"camp:host","ms":1.9772079999999903},{"kind":"camp:host","ms":1.4762920000000008},{"kind":"camp:satellite","ms":2.267624999999981},{"kind":"camp:satellite","ms":1.6490839999999878},{"kind":"camp:satellite","ms":0.8207920000000115},{"kind":"camp:satellite","ms":0.9082500000000095},{"kind":"camp:satellite","ms":0.5301249999999982},{"kind":"camp:satellite","ms":0.751041000000015},{"kind":"camp:satellite","ms":0.710000000000008},{"kind":"camp:satellite","ms":0.6992089999999962},{"kind":"camp:host","ms":1.0930830000000071},{"kind":"camp:host","ms":0.7686659999999961},{"kind":"camp:satellite","ms":0.9948750000000075},{"kind":"camp:satellite","ms":0.6787909999999897},{"kind":"camp:satellite","ms":1.0588750000000005},{"kind":"camp:satellite","ms":0.6897920000000113},{"kind":"camp:satellite","ms":0.37133300000002123},{"kind":"drum-and-crew","ms":9.828333000000015},{"kind":"meadow-fire","ms":0.5377090000000067},{"kind":"woodland","ms":3.1273750000000007},{"kind":"publication","ms":1.7181249999999864}]},{"allocationMs":22.221666999999968,"largestBuildMs":1.7262499999999932,"stages":[{"kind":"camp:host","ms":1.469583},{"kind":"camp:host","ms":1.719208000000009},{"kind":"camp:host","ms":1.1657920000000104},{"kind":"camp:satellite","ms":1.618750000000034},{"kind":"camp:satellite","ms":0.8181250000000091},{"kind":"camp:satellite","ms":0.6779580000000465},{"kind":"camp:satellite","ms":1.051416999999958},{"kind":"camp:satellite","ms":0.6448329999999487},{"kind":"camp:satellite","ms":0.9830420000000117},{"kind":"camp:satellite","ms":0.6423330000000078},{"kind":"camp:satellite","ms":0.9181659999999852},{"kind":"camp:host","ms":1.256167000000005},{"kind":"camp:host","ms":0.9906250000000227},{"kind":"camp:satellite","ms":1.3192920000000186},{"kind":"camp:satellite","ms":0.7773329999999987},{"kind":"camp:satellite","ms":0.6701659999999947},{"kind":"camp:satellite","ms":0.547916999999984},{"kind":"camp:satellite","ms":0.27304199999997536},{"kind":"drum-and-crew","ms":1.7262499999999932},{"kind":"meadow-fire","ms":0.26304199999998445},{"kind":"woodland","ms":1.7104170000000067},{"kind":"publication","ms":0.8865830000000301}]},{"allocationMs":14.654166999999973,"largestBuildMs":1.4881669999999758,"stages":[{"kind":"camp:host","ms":1.0770829999999592},{"kind":"camp:host","ms":1.1342500000000086},{"kind":"camp:host","ms":1.08220799999998},{"kind":"camp:satellite","ms":0.5726250000000164},{"kind":"camp:satellite","ms":0.36562500000002274},{"kind":"camp:satellite","ms":0.6256250000000136},{"kind":"camp:satellite","ms":0.43229199999996126},{"kind":"camp:satellite","ms":0.36620800000002873},{"kind":"camp:satellite","ms":0.5236249999999814},{"kind":"camp:satellite","ms":0.320541999999989},{"kind":"camp:satellite","ms":0.5345420000000445},{"kind":"camp:host","ms":0.7457500000000437},{"kind":"camp:host","ms":0.5557499999999891},{"kind":"camp:satellite","ms":0.5086670000000026},{"kind":"camp:satellite","ms":0.46999999999997044},{"kind":"camp:satellite","ms":0.8872500000000514},{"kind":"camp:satellite","ms":0.4848749999999882},{"kind":"camp:satellite","ms":0.28162500000001955},{"kind":"drum-and-crew","ms":1.4881669999999758},{"kind":"meadow-fire","ms":0.25225000000000364},{"kind":"woodland","ms":1.1249160000000415},{"kind":"publication","ms":0.7687080000000037}]},{"allocationMs":13.680750000000046,"largestBuildMs":1.4852499999999509,"stages":[{"kind":"camp:host","ms":0.80012499999998},{"kind":"camp:host","ms":0.792541999999969},{"kind":"camp:host","ms":0.7607090000000198},{"kind":"camp:satellite","ms":0.47041600000000017},{"kind":"camp:satellite","ms":0.34558299999997644},{"kind":"camp:satellite","ms":0.4131250000000364},{"kind":"camp:satellite","ms":0.36429099999998016},{"kind":"camp:satellite","ms":0.3369170000000281},{"kind":"camp:satellite","ms":0.4969159999999988},{"kind":"camp:satellite","ms":0.34804200000002083},{"kind":"camp:satellite","ms":0.8320410000000038},{"kind":"camp:host","ms":0.718166999999994},{"kind":"camp:host","ms":0.5532499999999914},{"kind":"camp:satellite","ms":0.5850419999999872},{"kind":"camp:satellite","ms":0.478917000000024},{"kind":"camp:satellite","ms":0.4722080000000233},{"kind":"camp:satellite","ms":0.49175000000002456},{"kind":"camp:satellite","ms":0.27275000000003047},{"kind":"drum-and-crew","ms":1.4744159999999624},{"kind":"meadow-fire","ms":0.19908299999997325},{"kind":"woodland","ms":1.4852499999999509},{"kind":"publication","ms":0.9208340000000135}]}]
+(node:36066) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/landscape/fixture.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS landscape families: exact anisotropic/native triangle geometry, bounded eviction, 15 structural variants, final native-grid route/bank admission and real-cart ordinary-control out-and-back for all three forms. {"reports":[{"seed":1977,"id":"paired-meadows","shelves":2,"mainMeters":693,"maxMainGrade":0.1327846364883402,"maxMainCrossfall":0.05172413793103452,"trailMeters":64.74170360724438,"maxTrailGrade":0.2007191379611031,"planningMs":41.329916},{"seed":1977,"id":"long-ridge","shelves":2,"mainMeters":774.05551275464,"maxMainGrade":0.14861111111111125,"maxMainCrossfall":0.05172413793103452,"trailMeters":64.74170360724438,"maxTrailGrade":0.20071913796110297,"planningMs":41.439833},{"seed":1977,"id":"three-shelves","shelves":3,"mainMeters":813.7768723046356,"maxMainGrade":0.11618655692729773,"maxMainCrossfall":0.05172413793103452,"trailMeters":64.74170360724438,"maxTrailGrade":0.20071913796110297,"planningMs":40.15375},{"seed":1,"id":"paired-meadows","shelves":2,"mainMeters":663,"maxMainGrade":0.14938271604938272,"maxMainCrossfall":0.05319148936170208,"trailMeters":81.80666791623183,"maxTrailGrade":0.20641329790326227,"planningMs":33.82779199999999},{"seed":1,"id":"long-ridge","shelves":2,"mainMeters":744.05551275464,"maxMainGrade":0.16099537037037043,"maxMainCrossfall":0.05319148936170208,"trailMeters":81.80666791623183,"maxTrailGrade":0.20641329790326227,"planningMs":36.97045800000001},{"seed":1,"id":"three-shelves","shelves":3,"mainMeters":793.7768723046356,"maxMainGrade":0.1327846364883402,"maxMainCrossfall":0.05172413793103452,"trailMeters":64.74170360724438,"maxTrailGrade":0.20071913796110297,"planningMs":38.22970800000002},{"seed":42,"id":"paired-meadows","shelves":2,"mainMeters":653,"maxMainGrade":0.14938271604938272,"maxMainCrossfall":0.052631578947368494,"trailMeters":73.1486066098599,"maxTrailGrade":0.2042405263463856,"planningMs":32.203332999999986},{"seed":42,"id":"long-ridge","shelves":2,"mainMeters":734.05551275464,"maxMainGrade":0.16099537037037043,"maxMainCrossfall":0.052631578947368494,"trailMeters":73.1486066098599,"maxTrailGrade":0.2042405263463856,"planningMs":35.898292000000026},{"seed":42,"id":"three-shelves","shelves":3,"mainMeters":793.7768723046356,"maxMainGrade":0.1327846364883402,"maxMainCrossfall":0.053030303030303115,"trailMeters":68.43238821442347,"maxTrailGrade":0.2078653526036036,"planningMs":38.31487500000003},{"seed":2026,"id":"paired-meadows","shelves":2,"mainMeters":663,"maxMainGrade":0.13818843878015485,"maxMainCrossfall":0.052631578947368494,"trailMeters":73.1486066098599,"maxTrailGrade":0.2042405263463856,"planningMs":32.87374999999997},{"seed":2026,"id":"long-ridge","shelves":2,"mainMeters":744.05551275464,"maxMainGrade":0.14108367626886179,"maxMainCrossfall":0.052631578947368494,"trailMeters":73.1486066098599,"maxTrailGrade":0.2042405263463856,"planningMs":36.59583399999997},{"seed":2026,"id":"three-shelves","shelves":3,"mainMeters":803.7768723046356,"maxMainGrade":0.12384259259259274,"maxMainCrossfall":0.05319148936170208,"trailMeters":81.80666791623183,"maxTrailGrade":0.20641329790326227,"planningMs":39.05937499999999},{"seed":4294967295,"id":"paired-meadows","shelves":2,"mainMeters":663,"maxMainGrade":0.1266727355484754,"maxMainCrossfall":0.05357142857142847,"trailMeters":76.97616110645782,"maxTrailGrade":0.20788767860257124,"planningMs":32.61091700000003},{"seed":4294967295,"id":"long-ridge","shelves":2,"mainMeters":744.05551275464,"maxMainGrade":0.1362268518518519,"maxMainCrossfall":0.05357142857142847,"trailMeters":76.97616110645782,"maxTrailGrade":0.20788767860257107,"planningMs":36.82495899999998},{"seed":4294967295,"id":"three-shelves","shelves":3,"mainMeters":823.7768723046356,"maxMainGrade":0.11982222222222205,"maxMainCrossfall":0.05172413793103452,"trailMeters":64.74170360724438,"maxTrailGrade":0.20071913796110297,"planningMs":39.86479099999997}],"driving":[{"id":"paired-meadows","direction":"outbound","seconds":44.36666666666667,"maxContact":6.026903776046311e-8},{"id":"paired-meadows","direction":"return","seconds":47.516666666666666,"maxContact":1.0346201406719047e-7},{"id":"long-ridge","direction":"outbound","seconds":53.15,"maxContact":6.099352134469882e-8},{"id":"long-ridge","direction":"return","seconds":55.68333333333333,"maxContact":1.0385572224436146e-7},{"id":"three-shelves","direction":"outbound","seconds":58.85,"maxContact":6.027019239240872e-8},{"id":"three-shelves","direction":"return","seconds":60.96666666666667,"maxContact":1.0346153089813015e-7}]}
+(node:36072) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/landscape/geometry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS bounded landscape candidates: isolated version gate, independently salted varied forms/ports, complete negative-coordinate and tiny-edge queries, strict nonoverlap, cache/order/seed invariance, native-world-grid rotated route validation and center-only negative control. [{"seed":1977,"candidates":10,"mountainTops":6,"forms":["paired-meadows","three-shelves","long-ridge"]},{"seed":42,"candidates":9,"mountainTops":7,"forms":["paired-meadows","long-ridge","three-shelves"]},{"seed":2026,"candidates":6,"mountainTops":6,"forms":["three-shelves","long-ridge"]}]
+(node:36074) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS finite streams: bounded downhill source/receiver ownership, independent receiver level, actual cut native-grid banks, clipped water/query triangle agreement, exactly level whole-cart bridge approaches, real pedestrian support transfers, off-deck water refusal and finite geometry limits. [{"family":"paired-meadows","stations":30,"waterTriangles":356,"source":-0.5,"receiver":-0.6740000000000002,"minimumDepth":0.0015897567821885339},{"family":"long-ridge","stations":35,"waterTriangles":400,"source":-0.5,"receiver":-0.7040000000000002,"minimumDepth":0.0012296466736749778},{"family":"three-shelves","stations":32,"waterTriangles":362,"source":-0.5,"receiver":-0.6860000000000002,"minimumDepth":0.0012803777337537792}]
+(node:36077) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/landscape/forms.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:36079) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS complete water owner: actual bridge/stream geometry, vertical rail publication, counted occupied pins, duplicate refusal, four exact cleanup cycles, partial registration rollback, copied bounded fixed triangle meshes and real cooler physics above/below the same deck with complete engine teardown.
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+(node:36083) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS staged production construction: current admission required, bounded steps/deadline, no partial scene/collider/light/audio publication, five cancellation depths, world-change cleanup, exact live seat/collider references, completed owner teardown and injected build rejection. {"done":true,"cpuMs":22.12054399999829,"largestStepMs":4.898042000000032,"largestPhase":"drummer","steps":569,"phase":"ready"}
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS varied population: independently planned compact/sparse pitches, bounded arrangements, native-world-grid grounding, rotated campsite/drum entrances, optional fires/crews, production builder publication and complete rejection/disposal cleanup. [{"id":"landscape:2:1977:-2,-2","form":"paired-meadows","turns":3,"camps":18,"rejected":[]},{"id":"landscape:2:1977:-1,-1","form":"long-ridge","turns":0,"camps":36,"rejected":[]},{"id":"landscape:2:1977:1,-1","form":"paired-meadows","turns":0,"camps":19,"rejected":[]},{"id":"landscape:2:1977:-1,0","form":"three-shelves","turns":2,"camps":42,"rejected":[]},{"id":"landscape:2:1977:1,0","form":"paired-meadows","turns":3,"camps":21,"rejected":[]},{"id":"landscape:2:1977:0,1","form":"three-shelves","turns":0,"camps":43,"rejected":[]}]
+(node:36084) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS cooperative district admission: complete native-grid occupancy/routes/turns, cheap bounded impossibility, finite protected-connection alternatives, order invariance, exact plan/surface receipts and seed-change/cancel invalidation. [{"id":"landscape:2:1977:-2,-2","form":"paired-meadows","camps":18,"connection":"external:vertical:1:east-west-first","slices":178,"largestStepMs":3.5275409999999994},{"id":"landscape:2:1977:-1,-1","form":"long-ridge","camps":36,"connection":"external:vertical:1:east-west-first","slices":208,"largestStepMs":2.0994999999999777},{"id":"landscape:2:1977:1,-1","form":"paired-meadows","camps":19,"connection":"external:vertical:1:east-west-first","slices":183,"largestStepMs":0.8548339999999826},{"id":"landscape:2:1977:-1,0","form":"three-shelves","camps":42,"connection":"external:vertical:1:east-west-first","slices":240,"largestStepMs":0.9757090000000517},{"id":"landscape:2:1977:1,0","form":"paired-meadows","camps":21,"connection":"external:vertical:1:east-west-first","slices":183,"largestStepMs":0.7082080000000133},{"id":"landscape:2:1977:0,1","form":"three-shelves","camps":43,"connection":"external:vertical:1:east-west-first","slices":231,"largestStepMs":0.9416249999999309}]
+(node:36085) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS landscape world integration: real arterial/venue/woodland/lake context, full spur ownership/discovery, final native relief, legacy-placement exclusion, real order/cache/epoch/terrain-disable controls, protected-occupancy negative control and exact version-1 restoration.
+(node:36090) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/worldgen/index.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:36097) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS landscape worker task/channel: real pure-world planning, bounded/unique queue, current plan/surface adoption and real model build, seed-change stale rejection, worker rotation, timeout distinction, disposal and exact owned-worker termination. {"contextMs":731.9455829999999,"workerMs":959.9627499999999,"camps":36}
+PASS landscape worker render buffers: actual canonical admitted paths, native-triangle road draping, deck cutouts, bounded transferable water/road data and complete unoccupied water systems after district rejection. {"roadTriangles":3465,"waterTriangles":400,"bytes":139140,"workerMs":968.625291}
+(node:36098) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/landscape/renderBuffers.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS landscape access index: finite external-spur discovery, explicit pending readiness, conservative reservations before chunk placement, canonical admitted roads, sparse-lawn versus wilderness/actor policies, cached immutable paths and version-1 inertness.
+(node:36102) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+(node:36110) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS landscape runtime: worker-first chunk readiness, real staged owner publication, resident-only bridge support, counted occupied retention, bounded unload/revisit with canonical reuse, registry/resource/worker teardown and pending preparation cancellation. {"requests":3,"terminated":2,"slices":19,"metrics":{"disposed":true,"owners":0,"districts":0,"building":0,"borrowed":0,"failures":[],"planner":{"disposed":true,"cached":0,"ready":0,"rejected":0,"pending":0,"queued":0,"active":null,"error":null,"worker":false},"waterCpuMs":1.8908340000000408,"largestWaterMs":0.9561670000000504,"buildCpuMs":61.824120000001585,"largestBuildStepMs":6.152332999999999,"largestBuildPhase":"drummer","largestWaterPhase":"validation"}}
+{"size":256,"bytes":32490,"workerMs":984.227334,"roads":136,"lakes":4}
+{"size":512,"bytes":39495,"workerMs":1.0829169999999522,"roads":160,"lakes":8}
+{"size":1024,"bytes":65396,"workerMs":452.43566599999986,"roads":273,"lakes":15}
+PASS landscape map: canonical admitted access, finite stream/receiver shapes, bounded tile payloads, explicit worker identity and independent generation-1 restoration.
+(node:36139) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/festivalMap/model.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS actual game command adapter: coherent pause/step queue, time/heading/juice, safe crowd states, scene-render counts, camera transforms, claims inspection and session mute.
+(node:36154) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/debugCommands.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 21-command grammar: real argument dispatch, bounds/arity before mutation, readiness, failure feedback, prototype rejection and contextual nested completion.
+(node:36155) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/debugCommands.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS debug teleports: per-category cycling, wrap, singleton/missing destinations, drive-away and seed reset, arrival transforms and safe command parsing.
+PASS command input isolation: editable focus clears existing held/edge controls and subsequent text never enters gameplay input.
+PASS contextual autocomplete: command and argument discovery, prefix/case filtering, exact matches, coordinate isolation and caret-token replacement.
+PASS overlay and landmark teleports retain selected-support admission, refuse before position mutation and preserve existing ordinary teleport behavior.
+(node:36156) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/debugCommands.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS Camp music: five coherent deterministic parts, bounded four-player ensembles/32 voices, skipped overdue beats, suspended context safety and complete/idempotent teardown.
+PASS Sound bridge: pre-gesture deferral/cancellation, listener-driven adoption, local spatial range and shared music bus, complete teardown.
+PASS stage audio lifecycle: bounded pre-gesture cancellation, existing unlock/adoption delay, cancellation during drain, buffered positions and complete handle release.
+PASS Camp instruments: five distinct pooled bodies, bounded material draws, no per-copy geometry/material allocation, no shadow casters, upright bass and independent fiddle bow. Browser checks establish raster appearance.
+PASS 60 actual crowd instrument attachments: five kinds, three actor scales, carrying/ready/playing/return poses, grounded bass and fiddle at chin.
+PASS Fireside activity: complete fetch/carry/seat/play/return lifecycle, shared household beds, unique 2–4 player parts, claims/model/audio cleanup, interruptions/unloads, time/distance gates and collision-safe bounded walking.
+PASS woodland planning: 63 districts / 392 pitches, five seeds, woods/road/water bounds, shared hosts, access and query/seed invariance.
+PASS production integration: live-v2 ordering, canonical ownership, no orphan satellites, isolated RNG and resident ownership.
+(node:36161) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 300 door clipping comparisons: exact vertices/order, thin strips, reversed winding, boundaries and scales.
+PASS 200 camp claim comparisons; distant scene slot-coordinate reads 548 -> 0.
+PASS 240 camp chairs: four distinct styles, one RNG draw, pooled geometry/materials, batching compatibility, seat metadata and no shadow casters.
+Scope: complete builder with rendering primitives stubbed; browser verification establishes actual silhouettes and shading.
+PASS 100 real crowd chair-contact transforms: four styles, both loveseat seats, NPC scales and animation phases.
+(node:36172) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/personMotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS camp coolers: 40 native Three builds, grounded collision bounds, two raycast-verified cup recesses, deterministic finishes, shared resources, 4 draws / 1832 triangles, no shadow casters.
+PASS actual kitchen integration: cooler present at the reserved location with the requested finish.
+PASS cooler articulation: fixed body trim, bounded hinge, open cavity and raycast-verified world cup sockets under rotation and scale.
+PASS adopted cooler articulation: named parts, source disposal, one-slot updates, isolated neighbor, transformed cup-floor raycasts, invalid input atomicity and stale binding rejection.
+(node:36173) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/propRendering.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS stage audience: 100 seeded row layouts, preserved RNG counts, separated 1–5 chair groups, seat metadata, occasional chair dwell, cross-legged reservation/finish/interruption/unload/person cleanup, stale-write rejection and appearance.
+PASS production blanket: four independent stage-facing slots, four concurrent original people, exclusive contention, vacancy reuse, unload cleanup and unchanged palette RNG.
+(node:36174) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS soundboard: production desk orientation, attached controls, engineer platform/heading, place-owned attendance, unchanged RNG count and specific collision toast/sound routing.
+(node:36175) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/festivalShapes.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS camp recipes and 6000 neighborhoods: bounded compact reservations, shelter spacing, deterministic fans, shared facilities and collision retry candidates.
+Scope: the pure planner reserves shared empty space; production canPlaceCampsite verifies actual prop and approach clearance before registration.
+(node:36176) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/campPlanning.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 1800 deterministic campsite layouts across all archetypes and roles: family fabric bounds, footprint, furniture, privacy and torch clearance.
+Scope: shipped assembler, tent and chair builders with rendering writes stubbed; browser verification covers GPU appearance and integration.
+PASS construction counts: 360 camps build only retained tents/screens/canopies; omitted canopies construct no discarded chairs.
+PASS chair batching: shared resources, metadata anchors, all transforms retained and instance upload flagged.
+PASS fire schedule: cold daytime charcoal, evening flames and extinguished late-night fire.
+PASS lantern/tent lighting: noon cold, evening internally lit fabric and motion, late-night tents dark.
+PASS privacy texture ownership: distinct 64x64 canvas sources before the first render.
+PASS 100 physical camp neighborhoods: 7-7 camps, shared empty ground with solid/door/chair approach clearance.
+PASS tent doors: triangular split flaps, curved left-hinge D zippers, bowed dome mapping and exact faceted-shell clipping.
+PASS actual door glow: daytime cloth retained, thirteen cached silhouette poses, fixed buffer updates and late-night extinction.
+PASS 11 woodland groups against actual camp geometry and earlier neighbor trunks: 61/67 pitches.
+PASS seed1977 woodland: dry host at distance164.973 survives lake bounding radius162.926 only after exact water checks; shoreline solids still reject.
+PASS actual clearing infill: 156 sleeping tents around24 retained social centers, bounded18m placement, no redundant chairs or solid/door/chair conflicts.
+PASS rejected infill releases private resources, preserves shared pools and bounds allocation retries.
+(node:36177) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/propRendering.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS campsite transforms, granular collisions, seat/bed metadata, and owner lifetimes
+PASS camp hearth metadata follows actual rotated/scaled fire position
+PASS loveseat slots share the furniture collider while retaining independent reservations
+PASS compact placement rejects furniture/door conflicts and preserves external reservations without mutation
+PASS forest placement distinguishes containing owner reservations, foreign forests and physical tree solids
+PASS chair approaches select a clear full route, omit unreachable claims and protect older routes from later camps
+PASS checked-water opt-in preserves unchecked/preview lake protection, shoreline solids and unrelated reservations
+PASS production preflight: seventeen dry checks authorize opt-in; previews stay unchecked and wet center/rim stop before construction.
+(node:36180) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/campRegistry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 6000 production village layouts: 5-7 sites, planner bounds and shared frontages (physical clearance tested by test-campsite-layout)
+PASS blocked host suppresses dependent satellite pitches
+Observed compact neighborhoods: 4704/6000
+PASS 500 real forest plans (5937 pitches): host filtering, deterministic groups, runtime rejection and center-chunk ownership
+(node:36181) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS seeded welfare envelopes and every built potty footprint clear arterial and landscape driving paths.
+(node:36182) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+camp lifecycle: exclusive chair claims, sleep, wake, unload, abandonment and local collision passed
+camp boundaries: obstructed exits and photographer/character rig hiding passed
+PASS forced camp departure waits for physical exit clearance
+(node:36184) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/personMotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS One-wheel motion: 30/60/120fps equivalence, corners/endpoints, pedestrian/cart/crossing yields, safe resumption, blocked/water recovery and gathering stops
+PASS One-wheel lifecycle: full-footprint water, live collider position, distant despawn, shared pools, owned LED disposal and idempotent teardown
+PASS One-wheel integration: smooth braking, BFCache lifecycle, pre-collision index sync and five-seed road encounter determinism
+PASS One-wheel collisions: normal people-hit classification and rider recovery pause
+PASS sandbox selection preserves session mute, tier and seed flags
+(node:36186) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/people/sceneResources.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS One-wheel model: distance-based wheel rotation, time partitioning, stopped/reverse motion, bounded lean, settling and independent day/night LED updates.
+Scope: shipped updater with rendering writes stubbed; browser verification covers geometry, shared-resource ownership and appearance.
+PASS Healing Arts: 53/573 hubs across five seeds, full-footprint clearance, spacing, determinism, night audio and unload
+PASS Healing Arts: staggered real-NPC handoff, incoming assignment, appearance, bounded population, dawn and unload
+PASS Healing Arts: interrupted arrivals, flee preservation and rig-aware walking separation
+(node:36191) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS Healing Arts motion: 30 seeded configurations × 400 times × 20 dancers
+{
+  "samples": 12000,
+  "maximumCenterRadius": 7.200000299377396,
+  "minimumPersonCenterDistance": 0.9808773994445801,
+  "minimumPoleCenterDistance": 0.7971994618919416
+}
+PASS managed yoga homes, hidden render parts/glowsticks, dance glowsticks, and continuous four-second arrival
+Scope: source-level motion verification with rendering writes stubbed; no GPU or visual validation.
+(node:36257) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/personMotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS Healing Arts sampler: 1600 exact frozen-oracle samples, private cache, prior-sample cadence, near/night transitions and display-skipped equivalence.
+(node:36261) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/people/healingArtsMotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS Healing Arts public ownership: 100 exact legacy yoga/dusk frames, ordinary dancer bindings, prior-sample near/night cadence, singular identities, repeated unload and stale claims.
+PASS Healing Arts protocol-only dependency, reservation rollback, person-first removal, slot reuse, stale release, owner replacement, unload/revisit, pose ownership and ordered exit/resume.
+PASS Healing Arts dance cart interruption, safe fresh claim and appearance continuity.
+(node:36262) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/healingArtsActivity.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Nut Wagon: route interpolation, dense obstacle splitting, short/blocked rejection, 10× trip chance passed
+Nut Wagon: full rotated footprint covers front platform, hatch and shoreline corners
+(node:36265) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/nutWagonRoute.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS muted launches, ordinary launches and explicit session overrides
+(node:36266) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/sound.js?case=%3Fmute%3D1 is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS production Crowd ownership: claims-before-hide, repeated borrower/pool release safety, reentrant batch removal, live peers and party/rider exemptions.
+(node:36267) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: unchanged child algorithm frame 0
++ actual - expected
+... Skipped lines
+
+  [
+    {
+      data: {
+        center: {
+          x: 52.795698412345864,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 0,
+        happiness: 0,
+        heading: 5.090494852983393,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 0,
+        happiness: 0,
+        heading: 0.6767751091655225,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 0,
+        happiness: 0,
+        heading: 3.5173864163484128,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 0,
+        happiness: 0,
+        heading: 3.767195862645991,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 0,
+        happiness: 0,
+        heading: 1.4427522348445099,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 0,
+        happiness: 0,
+        heading: 0.35122710965319526,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 1,
+        happiness: 0,
+        heading: 2.2333445839720714,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 1,
+        happiness: 0,
+        heading: 2.823730634023667,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 1,
+        happiness: 0,
+        heading: 1.7836132459652356,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 1,
+        happiness: 0,
+        heading: 3.970629339986885,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 1,
+        happiness: 0,
+        heading: 4.330663109684249,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 1,
+        happiness: 0,
+        heading: 0.4603378671256329,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 2,
+        happiness: 0,
+        heading: 4.223893860853616,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 2,
+        happiness: 0,
+        heading: 4.1873762759324835,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 2,
+        happiness: 0,
+        heading: 6.099122998142749,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 2,
+        happiness: 0,
+        heading: 5.5612532172502736,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 2,
+        happiness: 0,
+        heading: 2.3809020632705087,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 2,
+        happiness: 0,
+        heading: 1.0804096585760852,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 2,
+        happiness: 0,
+        heading: 1.8506915172559093,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 3,
+        happiness: 0,
+        heading: 3.323577472662263,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 3,
+        happiness: 0,
+        heading: 4.086570014318489,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 3,
+        happiness: 0,
+        heading: 4.266113006604787,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 3,
+        happiness: 0,
+        heading: 3.9211656293390798,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 3,
+        happiness: 0,
+        heading: 1.1506836510042286,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 3,
+        happiness: 0,
+        heading: 1.76008587473293,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 4,
+        happiness: 0,
+        heading: 2.7059660899834266,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 4,
+        happiness: 0,
+        heading: 0.9470803069305604,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 4,
+        happiness: 0,
+        heading: 0.5716465478303954,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 4,
+        happiness: 0,
+        heading: 2.4567187728836424,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 4,
+        happiness: 0,
+        heading: 3.22427296228795,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 4,
+        happiness: 0,
+        heading: 6.052249432230583,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 4,
+        happiness: 0,
+        heading: 5.540235089920905,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 4,
+        happiness: 0,
+        heading: 0.24770519956154136,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 5,
+        happiness: 0,
+        heading: 1.68407437904046,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 5,
+        happiness: 0,
+        heading: 2.4079114150612813,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 5,
+        happiness: 0,
+        heading: 4.764285637905926,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 5,
+        happiness: 0,
+        heading: 0.07051428988892587,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 5,
+        happiness: 0,
+        heading: 2.831779518594874,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 5,
+        happiness: 0,
+        heading: 1.9679002577561302,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 5,
+        happiness: 0,
+        heading: 4.282924387186267,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 6,
+        happiness: 0,
+        heading: 1.2179632183596913,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 6,
+        happiness: 0,
+        heading: 3.013887456852895,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 6,
+        happiness: 0,
+        heading: 5.527790828481752,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 6,
+        happiness: 0,
+        heading: 0.9050372248331484,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 6,
+        happiness: 0,
+        heading: 0.08757328252158507,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 6,
+        happiness: 0,
+        heading: 1.01922506436929,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 7,
+        happiness: 0,
+        heading: 3.222583081246193,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 7,
+        happiness: 0,
+        heading: 2.9178015652098286,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 7,
+        happiness: 0,
+        heading: 3.7644004602634045,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 7,
+        happiness: 0,
+        heading: 5.313238800694317,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 7,
+        happiness: 0,
+        heading: 1.1088892942386537,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 7,
+        happiness: 0,
+        heading: 5.002856788060504,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+...
+        fleeUrgency: 1,
++       gaggleIndex: 7,
+        happiness: 0,
+        heading: 1.283541902066523,
+        lastSmilePos: null,
+        scatterTimer: 0,
+        smileTimeCooldown: 0,
+
+    at file:///Users/garyreckard/Sites/zerble-at-the-festival/bin/test-children-ownership:52:9
+    at ModuleJob.run (node:internal/modules/esm/module_job:377:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:691:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: [
+    {
+      position: [ 53.73400806675836, 18.582968893782912, 1.452567410991834 ],
+      data: {
+        gaggleIndex: 0,
+        center: { x: 52.795698412345864, y: 0, z: 0.11578157115480013 },
+        heading: 5.090494852983393,
+        displayedYaw: 5.090494852983393,
+        turnTimer: 1.5576466478407383,
+        speed: 3.5086330506019294,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 54.74564174703354, 18.722622427958743, -4.012658777386979 ],
+      data: {
+        gaggleIndex: 0,
+        center: { x: 52.795698412345864, y: 0, z: 0.11578157115480013 },
+        heading: 0.6767751091655225,
+        displayedYaw: 0.6767751091655225,
+        turnTimer: 1.4019080421887338,
+        speed: 4.706060147844255,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 51.873720581426014, 18.546169022921298, 0.5021297260741646 ],
+      data: {
+        gaggleIndex: 0,
+        center: { x: 52.795698412345864, y: 0, z: 0.11578157115480013 },
+        heading: 3.5173864163484128,
+        displayedYaw: 3.5173864163484128,
+        turnTimer: 0.02147680316120386,
+        speed: 4.397917848546058,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 57.604222781496176, 18.770119204388482, -2.0996260471799513 ],
+      data: {
+        gaggleIndex: 0,
+        center: { x: 52.795698412345864, y: 0, z: 0.11578157115480013 },
+        heading: 3.767195862645991,
+        displayedYaw: 3.767195862645991,
+        turnTimer: 1.7503260032273829,
+        speed: 3.112658005207777,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 53.384640961576714, 18.648456462286614, -2.3458616719656926 ],
+      data: {
+        gaggleIndex: 0,
+        center: { x: 52.795698412345864, y: 0, z: 0.11578157115480013 },
+        heading: 1.4427522348445099,
+        displayedYaw: 1.4427522348445099,
+        turnTimer: 0.7109854396432638,
+        speed: 4.761058149393648,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 58.247177263587986, 18.80732311853291, -2.9953900312636264 ],
+      data: {
+        gaggleIndex: 0,
+        center: { x: 52.795698412345864, y: 0, z: 0.11578157115480013 },
+        heading: 0.35122710965319526,
+        displayedYaw: 0.35122710965319526,
+        turnTimer: 0.7546436156146228,
+        speed: 4.886416875757277,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 37.815459117222275, 17.041155880863084, 54.66539463267926 ],
+      data: {
+        gaggleIndex: 1,
+        center: { x: 38.6272143171036, y: 0, z: 52.06212964324565 },
+        heading: 2.2333445839720714,
+        displayedYaw: 2.2333445839720714,
+        turnTimer: 0.021152290794998405,
+        speed: 4.2389714904129505,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 42.27019884203019, 17.214757371607146, 52.66742968268787 ],
+      data: {
+        gaggleIndex: 1,
+        center: { x: 38.6272143171036, y: 0, z: 52.06212964324565 },
+        heading: 2.823730634023667,
+        displayedYaw: 2.823730634023667,
+        turnTimer: 1.0742370437830686,
+        speed: 4.137438958045095,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 36.625973190027395, 16.94320384518213, 57.77876752593461 ],
+      data: {
+        gaggleIndex: 1,
+        center: { x: 38.6272143171036, y: 0, z: 52.06212964324565 },
+        heading: 1.7836132459652356,
+        displayedYaw: 1.7836132459652356,
+        turnTimer: 0.7241308133117854,
+        speed: 3.564163745380938,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 40.63500992767351, 17.18047847306051, 51.92859123848475 ],
+      data: {
+        gaggleIndex: 1,
+        center: { x: 38.6272143171036, y: 0, z: 52.06212964324565 },
+        heading: 3.970629339986885,
+        displayedYaw: 3.970629339986885,
+        turnTimer: 1.8786402268335223,
+        speed: 3.3457060144282877,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 39.11879792637458, 17.119652896551976, 52.69555206196301 ],
+      data: {
+        gaggleIndex: 1,
+        center: { x: 38.6272143171036, y: 0, z: 52.06212964324565 },
+        heading: 4.330663109684249,
+        displayedYaw: 4.330663109684249,
+        turnTimer: 0.2857878630049527,
+        speed: 4.7648042645305395,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 41.467438012929016, 17.141983572898834, 55.1019783744519 ],
+      data: {
+        gaggleIndex: 1,
+        center: { x: 38.6272143171036, y: 0, z: 52.06212964324565 },
+        heading: 0.4603378671256329,
+        displayedYaw: 0.4603378671256329,
+        turnTimer: 1.427002516388893,
+        speed: 3.0857281680218875,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -17.13211420272239, 15.193225078827785, 64.64057475452705 ],
+      data: {
+        gaggleIndex: 2,
+        center: { x: -18.870904387609908, y: 0, z: 61.880257411709024 },
+        heading: 4.223893860853616,
+        displayedYaw: 4.223893860853616,
+        turnTimer: 0.2261059580370784,
+        speed: 4.741937613580376,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -19.126016206074688, 15.151958115126009, 63.713069934587566 ],
+      data: {
+        gaggleIndex: 2,
+        center: { x: -18.870904387609908, y: 0, z: 61.880257411709024 },
+        heading: 4.1873762759324835,
+        displayedYaw: 4.1873762759324835,
+        turnTimer: 1.9401429791934788,
+        speed: 4.214577971026301,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -16.196400705214618, 15.275321576581645, 61.939320113095896 ],
+      data: {
+        gaggleIndex: 2,
+        center: { x: -18.870904387609908, y: 0, z: 61.880257411709024 },
+        heading: 6.099122998142749,
+        displayedYaw: 6.099122998142749,
+        turnTimer: 1.8121949478983879,
+        speed: 3.517786509823054,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -19.5134091336388, 15.174145429012263, 62.02261484892871 ],
+      data: {
+        gaggleIndex: 2,
+        center: { x: -18.870904387609908, y: 0, z: 61.880257411709024 },
+        heading: 5.5612532172502736,
+        displayedYaw: 5.5612532172502736,
+        turnTimer: 1.704149520304054,
+        speed: 3.2024200512096286,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -16.722186783851658, 15.273295748952531, 61.25193237659591 ],
+      data: {
+        gaggleIndex: 2,
+        center: { x: -18.870904387609908, y: 0, z: 61.880257411709024 },
+        heading: 2.3809020632705087,
+        displayedYaw: 2.3809020632705087,
+        turnTimer: 1.1032695339992642,
+        speed: 3.44321607099846,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -20.67662320616171, 15.127030868819505, 62.63352174978222 ],
+      data: {
+        gaggleIndex: 2,
+        center: { x: -18.870904387609908, y: 0, z: 61.880257411709024 },
+        heading: 1.0804096585760852,
+        displayedYaw: 1.0804096585760852,
+        turnTimer: 1.0178547197021544,
+        speed: 4.349448174238205,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -20.685838327477786, 15.034172714329706, 67.26260679229804 ],
+      data: {
+        gaggleIndex: 2,
+        center: { x: -18.870904387609908, y: 0, z: 61.880257411709024 },
+        heading: 1.8506915172559093,
+        displayedYaw: 1.8506915172559093,
+        turnTimer: 1.1241226855665445,
+        speed: 4.035328598227352,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -54.81534128673825, 14.499337071964195, 42.81013447168279 ],
+      data: {
+        gaggleIndex: 3,
+        center: { x: -53.14377597249977, y: 0, z: 39.17217743526707 },
+        heading: 3.323577472662263,
+        displayedYaw: 3.323577472662263,
+        turnTimer: 1.3056734146550297,
+        speed: 3.7626646091230214,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -56.389278920756794, 14.463908873723023, 42.220637932713714 ],
+      data: {
+        gaggleIndex: 3,
+        center: { x: -53.14377597249977, y: 0, z: 39.17217743526707 },
+        heading: 4.086570014318489,
+        displayedYaw: 4.086570014318489,
+        turnTimer: 1.2783815630711615,
+        speed: 3.7934069707989693,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -58.74200582190882, 14.491870414249998, 37.29347055463684 ],
+      data: {
+        gaggleIndex: 3,
+        center: { x: -53.14377597249977, y: 0, z: 39.17217743526707 },
+        heading: 4.266113006604787,
+        displayedYaw: 4.266113006604787,
+        turnTimer: 1.3972017604857683,
+        speed: 4.9825085191987455,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -53.645253425854705, 14.529329039136474, 43.06566790439419 ],
+      data: {
+        gaggleIndex: 3,
+        center: { x: -53.14377597249977, y: 0, z: 39.17217743526707 },
+        heading: 3.9211656293390798,
+        displayedYaw: 3.9211656293390798,
+        turnTimer: 0.2852172034792602,
+        speed: 4.887757261283696,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -52.6350948464531, 14.532668248633465, 44.41394529864711 ],
+      data: {
+        gaggleIndex: 3,
+        center: { x: -53.14377597249977, y: 0, z: 39.17217743526707 },
+        heading: 1.1506836510042286,
+        displayedYaw: 1.1506836510042286,
+        turnTimer: 0.621999036334455,
+        speed: 4.668090554419905,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -55.565559532410106, 14.456990114748445, 43.80215496396263 ],
+      data: {
+        gaggleIndex: 3,
+        center: { x: -53.14377597249977, y: 0, z: 39.17217743526707 },
+        heading: 1.76008587473293,
+        displayedYaw: 1.76008587473293,
+        turnTimer: 1.1049628716893494,
+        speed: 4.046134660020471,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -30.883353879504035, 16.18958278413066, -5.804170025788928 ],
+      data: {
+        gaggleIndex: 4,
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 2.7059660899834266,
+        displayedYaw: 2.7059660899834266,
+        turnTimer: 1.3249203416518867,
+        speed: 4.753824052400887,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -34.803651141773265, 15.983397671644997, -1.375360294909813 ],
+      data: {
+        gaggleIndex: 4,
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 0.9470803069305604,
+        displayedYaw: 0.9470803069305604,
+        turnTimer: 0.4923846608027816,
+        speed: 4.29965869570151,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -33.255401886018554, 16.032921657238568, -1.5291856909561223 ],
+      data: {
+        gaggleIndex: 4,
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 0.5716465478303954,
+        displayedYaw: 0.5716465478303954,
+        turnTimer: 0.6354969677515327,
+        speed: 4.312382565811276,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -36.405740405420325, 15.905973760007273, 0.09270139150590265 ],
+      data: {
+        gaggleIndex: 4,
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 2.4567187728836424,
+        displayedYaw: 2.4567187728836424,
+        turnTimer: 1.4316615991294384,
+        speed: 4.24542687414214,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -34.248619657318294, 16.05378486620957, -4.062172796455854 ],
+      data: {
+        gaggleIndex: 4,
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 3.22427296228795,
+        displayedYaw: 3.22427296228795,
+        turnTimer: 0.323924610670656,
+        speed: 4.334712519310415,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -33.51787804822429, 16.04759415771898, -2.6565249582854524 ],
+      data: {
+        gaggleIndex: 4,
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 6.052249432230583,
+        displayedYaw: 6.052249432230583,
+        turnTimer: 0.5674948448315262,
+        speed: 3.0787291419692338,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -32.4859793914696, 16.06167492375076, -1.8127152747424748 ],
+      data: {
+        gaggleIndex: 4,
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 5.540235089920905,
+        displayedYaw: 5.540235089920905,
+        turnTimer: 1.5696309537626802,
+        speed: 3.68544777110219,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -31.05383365254406, 16.155531061855843, -4.357303571608365 ],
+      data: {
+        gaggleIndex: 4,
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 0.24770519956154136,
+        displayedYaw: 0.24770519956154136,
+        turnTimer: 1.247913832589984,
+        speed: 3.494327788706869,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -26.989391909592822, 17.123934235405454, -46.68079963466194 ],
+      data: {
+        gaggleIndex: 5,
+        center: { x: -27.501066383712843, y: 0, z: -45.62251609031917 },
+        heading: 1.68407437904046,
+        displayedYaw: 1.68407437904046,
+        turnTimer: 1.5721345672383904,
+        speed: 3.0126684275455773,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -26.964023116119883, 17.20906707195568, -50.89938827196381 ],
+      data: {
+        gaggleIndex: 5,
+        center: { x: -27.501066383712843, y: 0, z: -45.62251609031917 },
+        heading: 2.4079114150612813,
+        displayedYaw: 2.4079114150612813,
+        turnTimer: 1.5967824862338602,
+        speed: 4.090034361928701,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -25.192337645407, 17.166708332386847, -46.12392308745292 ],
+      data: {
+        gaggleIndex: 5,
+        center: { x: -27.501066383712843, y: 0, z: -45.62251609031917 },
+        heading: 4.764285637905926,
+        displayedYaw: 4.764285637905926,
+        turnTimer: 0.5753897752612829,
+        speed: 4.38780273264274,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -29.382425302976838, 17.017918817329956, -44.969578820963015 ],
+      data: {
+        gaggleIndex: 5,
+        center: { x: -27.501066383712843, y: 0, z: -45.62251609031917 },
+        heading: 0.07051428988892587,
+        displayedYaw: 0.07051428988892587,
+        turnTimer: 1.3442285175435245,
+        speed: 3.6953000808134675,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -29.239890735675974, 16.997379905876084, -43.72883139731825 ],
+      data: {
+        gaggleIndex: 5,
+        center: { x: -27.501066383712843, y: 0, z: -45.62251609031917 },
+        heading: 2.831779518594874,
+        displayedYaw: 2.831779518594874,
+        turnTimer: 1.6530886588618159,
+        speed: 3.122027909848839,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -28.548890161548826, 17.06275520934319, -45.961095709482855 ],
+      data: {
+        gaggleIndex: 5,
+        center: { x: -27.501066383712843, y: 0, z: -45.62251609031917 },
+        heading: 1.9679002577561302,
+        displayedYaw: 1.9679002577561302,
+        turnTimer: 0.3894023199565709,
+        speed: 3.618761656805873,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -29.9323739763017, 17.079543741782278, -48.875748053566404 ],
+      data: {
+        gaggleIndex: 5,
+        center: { x: -27.501066383712843, y: 0, z: -45.62251609031917 },
+        heading: 4.282924387186267,
+        displayedYaw: 4.282924387186267,
+        turnTimer: 0.6510528966784477,
+        speed: 3.5449796388857067,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 17.61134761012443, 18.55245115772117, -51.20553647087182 ],
+      data: {
+        gaggleIndex: 6,
+        center: { x: 13.954958760237572, y: 0, z: -52.26235907803384 },
+        heading: 1.2179632183596913,
+        displayedYaw: 1.2179632183596913,
+        turnTimer: 1.6756437493488192,
+        speed: 4.634020789060742,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 14.26343544902319, 18.48958122873863, -53.08390826339678 ],
+      data: {
+        gaggleIndex: 6,
+        center: { x: 13.954958760237572, y: 0, z: -52.26235907803384 },
+        heading: 3.013887456852895,
+        displayedYaw: 3.013887456852895,
+        turnTimer: 0.7694506620056927,
+        speed: 3.585310971364379,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 15.236188714793206, 18.550717188684327, -54.68157636202658 ],
+      data: {
+        gaggleIndex: 6,
+        center: { x: 13.954958760237572, y: 0, z: -52.26235907803384 },
+        heading: 5.527790828481752,
+        displayedYaw: 5.527790828481752,
+        turnTimer: 0.1673168957233429,
+        speed: 4.877989843022078,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 16.761726818030265, 18.540797952035216, -51.89730737471556 ],
+      data: {
+        gaggleIndex: 6,
+        center: { x: 13.954958760237572, y: 0, z: -52.26235907803384 },
+        heading: 0.9050372248331484,
+        displayedYaw: 0.9050372248331484,
+        turnTimer: 0.6059331729076802,
+        speed: 4.636770102195442,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 15.456008507174959, 18.60347052718609, -56.98951359854206 ],
+      data: {
+        gaggleIndex: 6,
+        center: { x: 13.954958760237572, y: 0, z: -52.26235907803384 },
+        heading: 0.08757328252158507,
+        displayedYaw: 0.08757328252158507,
+        turnTimer: 1.791552180238068,
+        speed: 3.1149467159993947,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 11.357204643662781, 18.449694235529797, -55.44890481099569 ],
+      data: {
+        gaggleIndex: 6,
+        center: { x: 13.954958760237572, y: 0, z: -52.26235907803384 },
+        heading: 1.01922506436929,
+        displayedYaw: 1.01922506436929,
+        turnTimer: 1.2928655513562262,
+        speed: 4.754007168114185,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 60.93946742630191, 19.74349991120352, -45.765794420723275 ],
+      data: {
+        gaggleIndex: 7,
+        center: { x: 56.18753222483225, y: 0, z: -43.781849399194314 },
+        heading: 3.222583081246193,
+        displayedYaw: 3.222583081246193,
+        turnTimer: 0.9662028460763394,
+        speed: 4.514501164667308,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 60.65937238653918, 19.77036018917659, -47.52895087902062 ],
+      data: {
+        gaggleIndex: 7,
+        center: { x: 56.18753222483225, y: 0, z: -43.781849399194314 },
+        heading: 2.9178015652098286,
+        displayedYaw: 2.9178015652098286,
+        turnTimer: 1.123795481212437,
+        speed: 3.3955010776408017,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 62.015467288221316, 19.794653950111414, -46.70949657323869 ],
+      data: {
+        gaggleIndex: 7,
+        center: { x: 56.18753222483225, y: 0, z: -43.781849399194314 },
+        heading: 3.7644004602634045,
+        displayedYaw: 3.7644004602634045,
+        turnTimer: 0.6489662968553602,
+        speed: 4.3474091142416,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 56.93153213284583, 19.56726858662766, -42.966131132114235 ],
+      data: {
+        gaggleIndex: 7,
+        center: { x: 56.18753222483225, y: 0, z: -43.781849399194314 },
+        heading: 5.313238800694317,
+        displayedYaw: 5.313238800694317,
+        turnTimer: 1.0444585893303155,
+        speed: 3.1555409892462194,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 56.03227217124078, 19.527962747265246, -42.34972910640118 ],
+      data: {
+        gaggleIndex: 7,
+        center: { x: 56.18753222483225, y: 0, z: -43.781849399194314 },
+        heading: 1.1088892942386537,
+        displayedYaw: 1.1088892942386537,
+        turnTimer: 0.5188748690299689,
+        speed: 3.9135080548003316,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 60.1726362145348, 19.641842474120992, -41.833169384247405 ],
+      data: {
+        gaggleIndex: 7,
+        center: { x: 56.18753222483225, y: 0, z: -43.781849399194314 },
+        heading: 5.002856788060504,
+        displayedYaw: 5.002856788060504,
+        turnTimer: 1.8642621522769331,
+        speed: 4.681154707912356,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 56.78961714763081, 19.684494624952503, -49.040305526178926 ],
+      data: {
+        gaggleIndex: 7,
+        center: { x: 56.18753222483225, y: 0, z: -43.781849399194314 },
+        heading: 1.283541902066523,
+        displayedYaw: 1.283541902066523,
+        turnTimer: 1.5420030889101326,
+        speed: 4.4137040842324495,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    }
+  ],
+  expected: [
+    {
+      position: [ 53.73400806675836, 18.582968893782912, 1.452567410991834 ],
+      data: {
+        center: { x: 52.795698412345864, y: 0, z: 0.11578157115480013 },
+        heading: 5.090494852983393,
+        displayedYaw: 5.090494852983393,
+        turnTimer: 1.5576466478407383,
+        speed: 3.5086330506019294,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 54.74564174703354, 18.722622427958743, -4.012658777386979 ],
+      data: {
+        center: { x: 52.795698412345864, y: 0, z: 0.11578157115480013 },
+        heading: 0.6767751091655225,
+        displayedYaw: 0.6767751091655225,
+        turnTimer: 1.4019080421887338,
+        speed: 4.706060147844255,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 51.873720581426014, 18.546169022921298, 0.5021297260741646 ],
+      data: {
+        center: { x: 52.795698412345864, y: 0, z: 0.11578157115480013 },
+        heading: 3.5173864163484128,
+        displayedYaw: 3.5173864163484128,
+        turnTimer: 0.02147680316120386,
+        speed: 4.397917848546058,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 57.604222781496176, 18.770119204388482, -2.0996260471799513 ],
+      data: {
+        center: { x: 52.795698412345864, y: 0, z: 0.11578157115480013 },
+        heading: 3.767195862645991,
+        displayedYaw: 3.767195862645991,
+        turnTimer: 1.7503260032273829,
+        speed: 3.112658005207777,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 53.384640961576714, 18.648456462286614, -2.3458616719656926 ],
+      data: {
+        center: { x: 52.795698412345864, y: 0, z: 0.11578157115480013 },
+        heading: 1.4427522348445099,
+        displayedYaw: 1.4427522348445099,
+        turnTimer: 0.7109854396432638,
+        speed: 4.761058149393648,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 58.247177263587986, 18.80732311853291, -2.9953900312636264 ],
+      data: {
+        center: { x: 52.795698412345864, y: 0, z: 0.11578157115480013 },
+        heading: 0.35122710965319526,
+        displayedYaw: 0.35122710965319526,
+        turnTimer: 0.7546436156146228,
+        speed: 4.886416875757277,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 37.815459117222275, 17.041155880863084, 54.66539463267926 ],
+      data: {
+        center: { x: 38.6272143171036, y: 0, z: 52.06212964324565 },
+        heading: 2.2333445839720714,
+        displayedYaw: 2.2333445839720714,
+        turnTimer: 0.021152290794998405,
+        speed: 4.2389714904129505,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 42.27019884203019, 17.214757371607146, 52.66742968268787 ],
+      data: {
+        center: { x: 38.6272143171036, y: 0, z: 52.06212964324565 },
+        heading: 2.823730634023667,
+        displayedYaw: 2.823730634023667,
+        turnTimer: 1.0742370437830686,
+        speed: 4.137438958045095,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 36.625973190027395, 16.94320384518213, 57.77876752593461 ],
+      data: {
+        center: { x: 38.6272143171036, y: 0, z: 52.06212964324565 },
+        heading: 1.7836132459652356,
+        displayedYaw: 1.7836132459652356,
+        turnTimer: 0.7241308133117854,
+        speed: 3.564163745380938,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 40.63500992767351, 17.18047847306051, 51.92859123848475 ],
+      data: {
+        center: { x: 38.6272143171036, y: 0, z: 52.06212964324565 },
+        heading: 3.970629339986885,
+        displayedYaw: 3.970629339986885,
+        turnTimer: 1.8786402268335223,
+        speed: 3.3457060144282877,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 39.11879792637458, 17.119652896551976, 52.69555206196301 ],
+      data: {
+        center: { x: 38.6272143171036, y: 0, z: 52.06212964324565 },
+        heading: 4.330663109684249,
+        displayedYaw: 4.330663109684249,
+        turnTimer: 0.2857878630049527,
+        speed: 4.7648042645305395,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 41.467438012929016, 17.141983572898834, 55.1019783744519 ],
+      data: {
+        center: { x: 38.6272143171036, y: 0, z: 52.06212964324565 },
+        heading: 0.4603378671256329,
+        displayedYaw: 0.4603378671256329,
+        turnTimer: 1.427002516388893,
+        speed: 3.0857281680218875,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -17.13211420272239, 15.193225078827785, 64.64057475452705 ],
+      data: {
+        center: { x: -18.870904387609908, y: 0, z: 61.880257411709024 },
+        heading: 4.223893860853616,
+        displayedYaw: 4.223893860853616,
+        turnTimer: 0.2261059580370784,
+        speed: 4.741937613580376,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -19.126016206074688, 15.151958115126009, 63.713069934587566 ],
+      data: {
+        center: { x: -18.870904387609908, y: 0, z: 61.880257411709024 },
+        heading: 4.1873762759324835,
+        displayedYaw: 4.1873762759324835,
+        turnTimer: 1.9401429791934788,
+        speed: 4.214577971026301,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -16.196400705214618, 15.275321576581645, 61.939320113095896 ],
+      data: {
+        center: { x: -18.870904387609908, y: 0, z: 61.880257411709024 },
+        heading: 6.099122998142749,
+        displayedYaw: 6.099122998142749,
+        turnTimer: 1.8121949478983879,
+        speed: 3.517786509823054,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -19.5134091336388, 15.174145429012263, 62.02261484892871 ],
+      data: {
+        center: { x: -18.870904387609908, y: 0, z: 61.880257411709024 },
+        heading: 5.5612532172502736,
+        displayedYaw: 5.5612532172502736,
+        turnTimer: 1.704149520304054,
+        speed: 3.2024200512096286,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -16.722186783851658, 15.273295748952531, 61.25193237659591 ],
+      data: {
+        center: { x: -18.870904387609908, y: 0, z: 61.880257411709024 },
+        heading: 2.3809020632705087,
+        displayedYaw: 2.3809020632705087,
+        turnTimer: 1.1032695339992642,
+        speed: 3.44321607099846,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -20.67662320616171, 15.127030868819505, 62.63352174978222 ],
+      data: {
+        center: { x: -18.870904387609908, y: 0, z: 61.880257411709024 },
+        heading: 1.0804096585760852,
+        displayedYaw: 1.0804096585760852,
+        turnTimer: 1.0178547197021544,
+        speed: 4.349448174238205,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -20.685838327477786, 15.034172714329706, 67.26260679229804 ],
+      data: {
+        center: { x: -18.870904387609908, y: 0, z: 61.880257411709024 },
+        heading: 1.8506915172559093,
+        displayedYaw: 1.8506915172559093,
+        turnTimer: 1.1241226855665445,
+        speed: 4.035328598227352,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -54.81534128673825, 14.499337071964195, 42.81013447168279 ],
+      data: {
+        center: { x: -53.14377597249977, y: 0, z: 39.17217743526707 },
+        heading: 3.323577472662263,
+        displayedYaw: 3.323577472662263,
+        turnTimer: 1.3056734146550297,
+        speed: 3.7626646091230214,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -56.389278920756794, 14.463908873723023, 42.220637932713714 ],
+      data: {
+        center: { x: -53.14377597249977, y: 0, z: 39.17217743526707 },
+        heading: 4.086570014318489,
+        displayedYaw: 4.086570014318489,
+        turnTimer: 1.2783815630711615,
+        speed: 3.7934069707989693,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -58.74200582190882, 14.491870414249998, 37.29347055463684 ],
+      data: {
+        center: { x: -53.14377597249977, y: 0, z: 39.17217743526707 },
+        heading: 4.266113006604787,
+        displayedYaw: 4.266113006604787,
+        turnTimer: 1.3972017604857683,
+        speed: 4.9825085191987455,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -53.645253425854705, 14.529329039136474, 43.06566790439419 ],
+      data: {
+        center: { x: -53.14377597249977, y: 0, z: 39.17217743526707 },
+        heading: 3.9211656293390798,
+        displayedYaw: 3.9211656293390798,
+        turnTimer: 0.2852172034792602,
+        speed: 4.887757261283696,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -52.6350948464531, 14.532668248633465, 44.41394529864711 ],
+      data: {
+        center: { x: -53.14377597249977, y: 0, z: 39.17217743526707 },
+        heading: 1.1506836510042286,
+        displayedYaw: 1.1506836510042286,
+        turnTimer: 0.621999036334455,
+        speed: 4.668090554419905,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -55.565559532410106, 14.456990114748445, 43.80215496396263 ],
+      data: {
+        center: { x: -53.14377597249977, y: 0, z: 39.17217743526707 },
+        heading: 1.76008587473293,
+        displayedYaw: 1.76008587473293,
+        turnTimer: 1.1049628716893494,
+        speed: 4.046134660020471,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -30.883353879504035, 16.18958278413066, -5.804170025788928 ],
+      data: {
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 2.7059660899834266,
+        displayedYaw: 2.7059660899834266,
+        turnTimer: 1.3249203416518867,
+        speed: 4.753824052400887,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -34.803651141773265, 15.983397671644997, -1.375360294909813 ],
+      data: {
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 0.9470803069305604,
+        displayedYaw: 0.9470803069305604,
+        turnTimer: 0.4923846608027816,
+        speed: 4.29965869570151,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -33.255401886018554, 16.032921657238568, -1.5291856909561223 ],
+      data: {
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 0.5716465478303954,
+        displayedYaw: 0.5716465478303954,
+        turnTimer: 0.6354969677515327,
+        speed: 4.312382565811276,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -36.405740405420325, 15.905973760007273, 0.09270139150590265 ],
+      data: {
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 2.4567187728836424,
+        displayedYaw: 2.4567187728836424,
+        turnTimer: 1.4316615991294384,
+        speed: 4.24542687414214,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -34.248619657318294, 16.05378486620957, -4.062172796455854 ],
+      data: {
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 3.22427296228795,
+        displayedYaw: 3.22427296228795,
+        turnTimer: 0.323924610670656,
+        speed: 4.334712519310415,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -33.51787804822429, 16.04759415771898, -2.6565249582854524 ],
+      data: {
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 6.052249432230583,
+        displayedYaw: 6.052249432230583,
+        turnTimer: 0.5674948448315262,
+        speed: 3.0787291419692338,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -32.4859793914696, 16.06167492375076, -1.8127152747424748 ],
+      data: {
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 5.540235089920905,
+        displayedYaw: 5.540235089920905,
+        turnTimer: 1.5696309537626802,
+        speed: 3.68544777110219,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -31.05383365254406, 16.155531061855843, -4.357303571608365 ],
+      data: {
+        center: { x: -31.47839027007225, y: 0, z: -2.1675577332423477 },
+        heading: 0.24770519956154136,
+        displayedYaw: 0.24770519956154136,
+        turnTimer: 1.247913832589984,
+        speed: 3.494327788706869,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -26.989391909592822, 17.123934235405454, -46.68079963466194 ],
+      data: {
+        center: { x: -27.501066383712843, y: 0, z: -45.62251609031917 },
+        heading: 1.68407437904046,
+        displayedYaw: 1.68407437904046,
+        turnTimer: 1.5721345672383904,
+        speed: 3.0126684275455773,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -26.964023116119883, 17.20906707195568, -50.89938827196381 ],
+      data: {
+        center: { x: -27.501066383712843, y: 0, z: -45.62251609031917 },
+        heading: 2.4079114150612813,
+        displayedYaw: 2.4079114150612813,
+        turnTimer: 1.5967824862338602,
+        speed: 4.090034361928701,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -25.192337645407, 17.166708332386847, -46.12392308745292 ],
+      data: {
+        center: { x: -27.501066383712843, y: 0, z: -45.62251609031917 },
+        heading: 4.764285637905926,
+        displayedYaw: 4.764285637905926,
+        turnTimer: 0.5753897752612829,
+        speed: 4.38780273264274,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -29.382425302976838, 17.017918817329956, -44.969578820963015 ],
+      data: {
+        center: { x: -27.501066383712843, y: 0, z: -45.62251609031917 },
+        heading: 0.07051428988892587,
+        displayedYaw: 0.07051428988892587,
+        turnTimer: 1.3442285175435245,
+        speed: 3.6953000808134675,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -29.239890735675974, 16.997379905876084, -43.72883139731825 ],
+      data: {
+        center: { x: -27.501066383712843, y: 0, z: -45.62251609031917 },
+        heading: 2.831779518594874,
+        displayedYaw: 2.831779518594874,
+        turnTimer: 1.6530886588618159,
+        speed: 3.122027909848839,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -28.548890161548826, 17.06275520934319, -45.961095709482855 ],
+      data: {
+        center: { x: -27.501066383712843, y: 0, z: -45.62251609031917 },
+        heading: 1.9679002577561302,
+        displayedYaw: 1.9679002577561302,
+        turnTimer: 0.3894023199565709,
+        speed: 3.618761656805873,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ -29.9323739763017, 17.079543741782278, -48.875748053566404 ],
+      data: {
+        center: { x: -27.501066383712843, y: 0, z: -45.62251609031917 },
+        heading: 4.282924387186267,
+        displayedYaw: 4.282924387186267,
+        turnTimer: 0.6510528966784477,
+        speed: 3.5449796388857067,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 17.61134761012443, 18.55245115772117, -51.20553647087182 ],
+      data: {
+        center: { x: 13.954958760237572, y: 0, z: -52.26235907803384 },
+        heading: 1.2179632183596913,
+        displayedYaw: 1.2179632183596913,
+        turnTimer: 1.6756437493488192,
+        speed: 4.634020789060742,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 14.26343544902319, 18.48958122873863, -53.08390826339678 ],
+      data: {
+        center: { x: 13.954958760237572, y: 0, z: -52.26235907803384 },
+        heading: 3.013887456852895,
+        displayedYaw: 3.013887456852895,
+        turnTimer: 0.7694506620056927,
+        speed: 3.585310971364379,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 15.236188714793206, 18.550717188684327, -54.68157636202658 ],
+      data: {
+        center: { x: 13.954958760237572, y: 0, z: -52.26235907803384 },
+        heading: 5.527790828481752,
+        displayedYaw: 5.527790828481752,
+        turnTimer: 0.1673168957233429,
+        speed: 4.877989843022078,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 16.761726818030265, 18.540797952035216, -51.89730737471556 ],
+      data: {
+        center: { x: 13.954958760237572, y: 0, z: -52.26235907803384 },
+        heading: 0.9050372248331484,
+        displayedYaw: 0.9050372248331484,
+        turnTimer: 0.6059331729076802,
+        speed: 4.636770102195442,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 15.456008507174959, 18.60347052718609, -56.98951359854206 ],
+      data: {
+        center: { x: 13.954958760237572, y: 0, z: -52.26235907803384 },
+        heading: 0.08757328252158507,
+        displayedYaw: 0.08757328252158507,
+        turnTimer: 1.791552180238068,
+        speed: 3.1149467159993947,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 11.357204643662781, 18.449694235529797, -55.44890481099569 ],
+      data: {
+        center: { x: 13.954958760237572, y: 0, z: -52.26235907803384 },
+        heading: 1.01922506436929,
+        displayedYaw: 1.01922506436929,
+        turnTimer: 1.2928655513562262,
+        speed: 4.754007168114185,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 60.93946742630191, 19.74349991120352, -45.765794420723275 ],
+      data: {
+        center: { x: 56.18753222483225, y: 0, z: -43.781849399194314 },
+        heading: 3.222583081246193,
+        displayedYaw: 3.222583081246193,
+        turnTimer: 0.9662028460763394,
+        speed: 4.514501164667308,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 60.65937238653918, 19.77036018917659, -47.52895087902062 ],
+      data: {
+        center: { x: 56.18753222483225, y: 0, z: -43.781849399194314 },
+        heading: 2.9178015652098286,
+        displayedYaw: 2.9178015652098286,
+        turnTimer: 1.123795481212437,
+        speed: 3.3955010776408017,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 62.015467288221316, 19.794653950111414, -46.70949657323869 ],
+      data: {
+        center: { x: 56.18753222483225, y: 0, z: -43.781849399194314 },
+        heading: 3.7644004602634045,
+        displayedYaw: 3.7644004602634045,
+        turnTimer: 0.6489662968553602,
+        speed: 4.3474091142416,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 56.93153213284583, 19.56726858662766, -42.966131132114235 ],
+      data: {
+        center: { x: 56.18753222483225, y: 0, z: -43.781849399194314 },
+        heading: 5.313238800694317,
+        displayedYaw: 5.313238800694317,
+        turnTimer: 1.0444585893303155,
+        speed: 3.1555409892462194,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 56.03227217124078, 19.527962747265246, -42.34972910640118 ],
+      data: {
+        center: { x: 56.18753222483225, y: 0, z: -43.781849399194314 },
+        heading: 1.1088892942386537,
+        displayedYaw: 1.1088892942386537,
+        turnTimer: 0.5188748690299689,
+        speed: 3.9135080548003316,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 60.1726362145348, 19.641842474120992, -41.833169384247405 ],
+      data: {
+        center: { x: 56.18753222483225, y: 0, z: -43.781849399194314 },
+        heading: 5.002856788060504,
+        displayedYaw: 5.002856788060504,
+        turnTimer: 1.8642621522769331,
+        speed: 4.681154707912356,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    },
+    {
+      position: [ 56.78961714763081, 19.684494624952503, -49.040305526178926 ],
+      data: {
+        center: { x: 56.18753222483225, y: 0, z: -43.781849399194314 },
+        heading: 1.283541902066523,
+        displayedYaw: 1.283541902066523,
+        turnTimer: 1.5420030889101326,
+        speed: 4.4137040842324495,
+        chaseTarget: null,
+        scatterTimer: 0,
+        fleeUrgency: 1,
+        happiness: 0,
+        lastSmilePos: null,
+        smileTimeCooldown: 0
+      }
+    }
+  ],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.10.0

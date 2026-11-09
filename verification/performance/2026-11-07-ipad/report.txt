@@ -1,0 +1,42 @@
+Report: /Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/device-mw7bahrf-4ij7ob.json
+Captured: 2026-11-08T04:10:29.597Z | result: complete | schema: zerble-device-perf-v2
+Device: MacIntel / Safari / Apple GPU | tier: low (detected low) | seed: 3948869160 | scenario: drive
+Samples: 154 | active duration: 156.1s | felt lag marks: 1 | errors: 0
+Quality policy: auto | requested: auto | locked from first frame: False | comparison locked: False
+CHECK: quality changed across comparison phases: ["('no-bloom', 2)", "('pixel-50', 4)", "('pixel-75', 3)"].
+CHECK: pixel ratio changed across comparison phases: ['(0.6,)', '(0.9,)', '(1.1,)'].
+CHECK: physical render dimensions changed across comparison phases: ['(1012, 693, 1012.5, 693.75)', '(1181, 809, 1181.25, 809.375)', '(675, 462, 675, 462.5)'].
+
+Phase            n  FPS med  wall p95  wall p99  worst wall  worst work  worst world  worst render  >50ms  draws med
+settle           20     22.0        59        64      1494.0      1448.0       1172.0         353.0     80      515.0
+  CHECK: quality or pixel ratio changed in this phase: ['baseline', 'no-bloom', 'pixel-87'] / ['1.1', '1.3'].
+parked           25       34        50        60        70.0        42.0          1.0           7.0     40        514
+  CHECK: quality or pixel ratio changed in this phase: ['no-bloom', 'pixel-50', 'pixel-75'] / ['0.6', '0.9', '1.1'].
+drive            89       29        56        64       495.0       472.0        451.0         199.0    212        710
+  Travel: about 1558m; moving in 85/89 sampled seconds.
+parked-after     20     40.0      47.0      55.0       124.0       104.0          1.0           7.0     32      469.0
+
+Worst frames (showing 8 of 240; 179 older events dropped):
+  drive        wall 400ms, work 25ms (previous work 375ms) (world 1, render 7) at 617,313 | chunks 45 | programs 70
+  drive        wall 379ms, work 26ms (previous work 360ms) (world 1, render 8) at 381,325 | chunks 33 | programs 71
+  drive        wall 31ms, work 375ms (previous work 22ms) (world 357, render 5) at 616,312 | chunks 45 | programs 70
+  drive        wall 43ms, work 360ms (previous work 29ms) (world 338, render 8) at 381,326 | chunks 33 | programs 71
+  drive        wall 348ms, work 24ms (previous work 323ms) (world 1, render 5) at 1094,504 | chunks 69 | programs 73
+  drive        wall 323ms, work 23ms (previous work 301ms) (world 1, render 7) at 444,366 | chunks 39 | programs 73
+  drive        wall 27ms, work 323ms (previous work 18ms) (world 307, render 5) at 1093,504 | chunks 69 | programs 73
+  drive        wall 33ms, work 301ms (previous work 21ms) (world 282, render 7) at 443,365 | chunks 39 | programs 73
+
+Chunk-stage totals (largest first):
+  props                          66 calls  total   199.0ms  max   20.0ms
+  trees                          66 calls  total   185.0ms  max    5.0ms
+  prop:vendor_row                 8 calls  total    86.0ms  max   17.0ms
+  woodland                       66 calls  total    59.0ms  max    7.0ms
+  campsites                      66 calls  total    53.0ms  max   16.0ms
+  roads                          66 calls  total    48.0ms  max    2.0ms
+  prop:food_court                 5 calls  total    37.0ms  max   19.0ms
+  crowd                          66 calls  total    33.0ms  max    1.0ms
+  prop:tent_stage                 3 calls  total    30.0ms  max   13.0ms
+  prop:side_stage                 3 calls  total    20.0ms  max   10.0ms
+
+Felt-lag taps:
+  6s settle at 0,65: no >50ms frame within 3s

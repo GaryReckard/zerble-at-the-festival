@@ -1,0 +1,5 @@
+{
+  "original": "src/worldgen/terrain.js",
+  "sha256": "7eeeb1131823ee1cd3dcee082441d1eb7f5f98f9962e417d0eb5e8f9e6f4d6f0",
+  "relocation": "Only relative import paths change; body is the frozen baseline"
+}

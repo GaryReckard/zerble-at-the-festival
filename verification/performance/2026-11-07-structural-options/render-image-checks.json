@@ -1,0 +1,125 @@
+{
+  "scope": "Byte identity only, not a perceptual or pixel equivalence oracle. Pillow unavailable; no numeric pixel-diff claim.",
+  "pairs": [
+    {
+      "tier": "high",
+      "mode": "third",
+      "time": "noon",
+      "byteIdentical": false,
+      "sha256": [
+        "fac2690ee0793fc9df0535ee644c08df4411bda7ecbfb43e28310301b51fbab7",
+        "338618cf42dc60b78fa72ae862a90278708805b88fad8ba901ce6e1bca761599"
+      ]
+    },
+    {
+      "tier": "high",
+      "mode": "third",
+      "time": "midnight",
+      "byteIdentical": true,
+      "sha256": [
+        "7536e44020a1a2870a83483222fe52cbcb67eff1e940fdcd8aa82219beb1c706",
+        "7536e44020a1a2870a83483222fe52cbcb67eff1e940fdcd8aa82219beb1c706"
+      ]
+    },
+    {
+      "tier": "high",
+      "mode": "first",
+      "time": "noon",
+      "byteIdentical": false,
+      "sha256": [
+        "4c2386edce57ee3097ea1fc44677dfdee05a2e06ada0e0ec8eb77235c08937f1",
+        "ebd855fe58996e0fb8004e22dd55781a5e37767754171708f9ea6cd5dd63e0e0"
+      ]
+    },
+    {
+      "tier": "high",
+      "mode": "first",
+      "time": "midnight",
+      "byteIdentical": true,
+      "sha256": [
+        "b72ede07373a9802b29a49fabd04ac3e92f12ab980c1fdfc6f312ccdc839409d",
+        "b72ede07373a9802b29a49fabd04ac3e92f12ab980c1fdfc6f312ccdc839409d"
+      ]
+    },
+    {
+      "tier": "high",
+      "mode": "top",
+      "time": "noon",
+      "byteIdentical": false,
+      "sha256": [
+        "55fa4d4dba2cf6d824e68b86fcb217beecceaa5123fd5851de46a64e73a45291",
+        "0752b9b81fbdfe87f6ad02ab234f86ce0b65eb10c5f1e5a98f121a092be2b0b1"
+      ]
+    },
+    {
+      "tier": "high",
+      "mode": "top",
+      "time": "midnight",
+      "byteIdentical": true,
+      "sha256": [
+        "641cffe517318084da14bf6ad409c87d2baf0c2613203e22f28213b454e9b919",
+        "641cffe517318084da14bf6ad409c87d2baf0c2613203e22f28213b454e9b919"
+      ]
+    },
+    {
+      "tier": "low",
+      "mode": "third",
+      "time": "noon",
+      "byteIdentical": false,
+      "sha256": [
+        "fb3624ddb22113d5ea83cea0d2850d8d2ca2bd59a750cf93e952e7e026e484cd",
+        "bc007eafe9b94054d54a647b45d5a0e63e71c3e386d8cbde9d1b1a98e0d2b39c"
+      ]
+    },
+    {
+      "tier": "low",
+      "mode": "third",
+      "time": "midnight",
+      "byteIdentical": true,
+      "sha256": [
+        "e098101aaff78f96cb13b8e6629addcd5def23b8652a1f2feba20da369613d96",
+        "e098101aaff78f96cb13b8e6629addcd5def23b8652a1f2feba20da369613d96"
+      ]
+    },
+    {
+      "tier": "low",
+      "mode": "first",
+      "time": "noon",
+      "byteIdentical": false,
+      "sha256": [
+        "f7e28ebd3cd8eb44b3867666eaa6fd61db0fe7ae580159409176a11e12306bac",
+        "5b1a670f1af64c0ec4e01f1fa33eb8ddd6a5f31a88979cdb43750b763eb2abed"
+      ]
+    },
+    {
+      "tier": "low",
+      "mode": "first",
+      "time": "midnight",
+      "byteIdentical": true,
+      "sha256": [
+        "f3f2a81600abff5bf4fbc188ff16ef1dfb63fa06fd7456d901850ec4d867c1ad",
+        "f3f2a81600abff5bf4fbc188ff16ef1dfb63fa06fd7456d901850ec4d867c1ad"
+      ]
+    },
+    {
+      "tier": "low",
+      "mode": "top",
+      "time": "noon",
+      "byteIdentical": false,
+      "sha256": [
+        "13d0022787c39b210ab487dca8726fa1695dba6682e1afb2c0a0b8ddeda3d9db",
+        "cd30b7d7ba328d643da0718d28d652c5aa7deb5449256b3a7d0fa2695f44ca11"
+      ]
+    },
+    {
+      "tier": "low",
+      "mode": "top",
+      "time": "midnight",
+      "byteIdentical": true,
+      "sha256": [
+        "f4baa8597dec4d8e1449b95e6ecb86a16f35e3ea2610b1aefe23ba601904ea32",
+        "f4baa8597dec4d8e1449b95e6ecb86a16f35e3ea2610b1aefe23ba601904ea32"
+      ]
+    }
+  ]
+}

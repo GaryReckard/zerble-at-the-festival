@@ -1,0 +1,4 @@
+
+DevTools listening on ws://127.0.0.1:62251/devtools/browser/651c6fa4-4f5f-47b2-843a-3ed01ef85fc8
+Trying to load the allocator multiple times. This is *not* supported.
+[50783:40282605:1106/175547.533576:ERROR:components/policy/core/browser/policy_conversions_client.cc:332] DeveloperToolsDisabled has an error of type: Ignored because it was overridden by DeveloperToolsAvailability.

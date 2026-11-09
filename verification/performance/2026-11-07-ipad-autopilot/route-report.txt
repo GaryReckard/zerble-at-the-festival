@@ -1,0 +1,41 @@
+Report: verification/performance/2026-11-07-ipad-autopilot/route-capture.json
+Captured: 2026-11-08T04:35:18.683Z | result: complete | schema: zerble-device-perf-v2
+Device: MacIntel / Chrome / ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version) | tier: low (detected high) | seed: 2404796662 | scenario: drive
+Samples: 112 | active duration: 111s | felt lag marks: 0 | errors: 0
+Quality policy: auto | requested: auto | locked from first frame: False | comparison locked: False
+Autopilot: device-road-follow-v1 | completed | checkpoints 4/4 | distance 641.3m | max corridor 5.5m
+
+Phase            n  FPS med  wall p95  wall p99  worst wall  worst work  worst world  worst render  >50ms  draws med
+settle           21       61      17.3      17.6       476.1       475.4        459.2          16.3      5       1097
+parked           26     61.0      17.2      17.6        22.5         9.4          0.7           4.5      0     1104.0
+drive            45       60      17.1      17.7       153.1       152.3        143.5          19.7      9       1059
+  Travel: about 622m; moving in 45/45 sampled seconds.
+parked-after     20     61.0      16.9      17.6        17.8        10.4          0.5           5.1      0     1112.0
+
+Worst frames (showing 8 of 26; 0 older events dropped):
+  settle       wall 476.1ms, work 8.8ms (previous work 475.4ms) (world 0.5, render 2.5) at -230,-692 | chunks 9 | programs 57
+  settle       wall 16.5ms, work 475.4ms (previous work 13.8ms) (world 459.2, render 11) at -230,-692 | chunks 9 | programs 57
+  drive        wall 153.1ms, work 11.5ms (previous work 152.3ms) (world 0.4, render 3.8) at -363,-629 | chunks 18 | programs 71
+  drive        wall 16.6ms, work 152.3ms (previous work 10.9ms) (world 143.5, render 3.6) at -362,-629 | chunks 18 | programs 71
+  drive        wall 122.4ms, work 11.4ms (previous work 121.7ms) (world 0.2, render 3.9) at -424,-598 | chunks 21 | programs 72
+  drive        wall 15ms, work 121.7ms (previous work 12.2ms) (world 111.9, render 4.4) at -423,-598 | chunks 21 | programs 72
+  settle       wall 120.7ms, work 61.8ms (previous work 2.5ms) (world 4.6, render 16.3) at -230,-692 | chunks 9 | programs 53
+  settle       wall 70.3ms, work 9.8ms (previous work 68.6ms) (world 0.5, render 4.1) at -230,-692 | chunks 9 | programs 67
+
+Chunk-stage totals (largest first):
+  props                          25 calls  total    70.0ms  max   24.5ms
+  prop:vendor_row                 6 calls  total    31.1ms  max    9.2ms
+  trees                          25 calls  total    28.5ms  max    2.3ms
+  prop:food_court                 2 calls  total    16.3ms  max   14.5ms
+  campsites                      25 calls  total    15.5ms  max    4.4ms
+  prop:healing_arts               1 calls  total     9.9ms  max    9.9ms
+  roads                          25 calls  total     9.0ms  max    1.2ms
+  woodland                       25 calls  total     7.7ms  max    0.6ms
+  prop:side_stage                 1 calls  total     6.4ms  max    6.4ms
+  crowd                          25 calls  total     5.0ms  max    0.5ms
+
+Largest retained world-update frames (top-level parts; ground detail is nested):
+  settle world 459.2ms at -230,-692: farField=458.6ms, landscape=0.5ms, physical=0.1ms
+  drive world 143.5ms at -362,-629: farField=143.2ms, physical=0.2ms, lakes=0.1ms
+  drive world 111.9ms at -423,-598: farField=111.6ms, landscape=0.1ms, physical=0.1ms, vendors=0.1ms
+  drive world 53.7ms at -241,-681: farField=53.4ms, landscape=0.1ms, physical=0.1ms, vendors=0.1ms

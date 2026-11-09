@@ -1,0 +1,10 @@
+PASS real ground resampling: exact positions/normals/colors/UVs/indices/bounds and dirty flags, real raycasts, actual scenario snapped centers, generations/seeds/toggles, and unchanged local-support cache. {
+  snapshots: 30,
+  rays: 120,
+  nonflat: 2311,
+  productionSourceSha256: 'ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f'
+}
+(node:17851) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

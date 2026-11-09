@@ -1,0 +1,22 @@
+--- accepted-worker.mjs
++++ profile-worker.mjs
+@@ -49,13 +49,18 @@
+  }else{
+   await until('window.__performanceLab?.ready');
+   await evaluate(`window.__performanceLab.start(${JSON.stringify(config.run)})`);
+-  let last=null;
++  let last=null,profileStarted=false;
+   while(true){
+    const status=await evaluate('window.__performanceLab.status()');
+    if(status.state!==last){last=status.state;process.stdout.write(JSON.stringify(status)+'\n');}
++   if(status.state==='measuring'&&!profileStarted){
++    await send('Profiler.enable');await send('Profiler.setSamplingInterval',{interval:1000});await send('Profiler.start');
++    await writeFile(path.join(directory,'profile-start.json'),JSON.stringify({status,pageNow:await evaluate('performance.now()'),scope:'Instrumented attribution only; not a comparison input'}));profileStarted=true;
++   }
+    if(status.state==='completed'||status.state==='failed')break;
+    await delay(1000);
+   }
++  if(profileStarted){const {profile}=await send('Profiler.stop');await send('Profiler.disable');await writeFile(path.join(directory,'sampled-cpu.json'),JSON.stringify(profile));}
+   if(errors.length)throw Error(errors.join('\n'));
+   await until('window.__performanceLab.status().saved',15);
+   const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});

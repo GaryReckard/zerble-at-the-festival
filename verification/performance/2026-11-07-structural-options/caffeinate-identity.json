@@ -1,0 +1,7 @@
+{
+  "pid": 78705,
+  "ppid": 78703,
+  "pgid": 78703,
+  "started": "Sat Nov 7 10:23:26 2026",
+  "command": "/usr/bin/caffeinate -di -t 7200"
+}

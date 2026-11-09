@@ -122,10 +122,20 @@ def local_ipv4_addresses():
     return sorted(a for a in addresses if not ipaddress.ip_address(a).is_loopback)
 
 
-def capture_url(address, port, scenario=None, seed='3948869160', tier='auto', token=None, quality='auto'):
+def capture_url(address, port, scenario=None, seed='3948869160', tier='auto', token=None, quality='auto', autopilot=False, world_detail=False, child_cohort='full-v1'):
     if quality not in ('auto', 'baseline', 'sustained') or (quality != 'auto' and (tier != 'low' or not scenario)):
         raise ValueError('experimental quality requires a guided Low-tier capture')
+    if child_cohort not in ('full-v1','half-v1') or (child_cohort!='full-v1' and not autopilot):
+        raise ValueError('child cohort requires the fixed device autopilot')
     params = {'perfCapture': '1'}
+    if autopilot:
+        params['perfKids'] = child_cohort
+    if autopilot:
+        if scenario != 'drive' or str(seed) != '2404796662':
+            raise ValueError('autopilot requires drive and fixed seed 2404796662')
+        params.update(perfAutopilot='road-follow-v1', x='-230.3', z='-691.8', heading='2.3580', tod='0.3')
+    if world_detail:
+        params['perfWorld'] = '1'
     if token:
         params['captureToken'] = token
     if scenario:
@@ -158,12 +168,19 @@ if __name__ == '__main__':
     parser.add_argument('--lan', action='store_true', help='listen on the LAN and require a generated token for remote capture writes')
     parser.add_argument('--playtest', choices=('drive', 'trip', 'parked'), help='print a fixed-seed guided playtest URL')
     parser.add_argument('--seed', default='3948869160', help='world seed for the guided playtest')
+    parser.add_argument('--autopilot', action='store_true')
+    parser.add_argument('--child-cohort', choices=('full-v1','half-v1'), default='full-v1')
+    parser.add_argument('--world-detail', action='store_true')
     parser.add_argument('--tier', choices=('auto', 'low', 'mid', 'high'), default='auto')
     parser.add_argument('--quality', choices=('auto', 'baseline', 'sustained'), default='auto')
     parser.add_argument('--no-qr', action='store_true', help='print the URL without opening a QR code')
     parser.add_argument('--desktop-open', action='store_true', help='open a loopback playtest in the named browser')
     parser.add_argument('--browser', help='desktop browser app name (default: macOS default browser)')
     args = parser.parse_args()
+    if args.child_cohort!='full-v1' and not args.autopilot:
+        parser.error('--child-cohort half-v1 requires --autopilot')
+    if args.autopilot and (args.playtest != 'drive' or args.seed != '2404796662'):
+        parser.error('--autopilot requires drive and fixed seed 2404796662')
     if args.quality != 'auto' and (args.tier != 'low' or not args.playtest):
         parser.error('--quality baseline/sustained requires --playtest and --tier low')
     if args.desktop_open and (args.lan or not args.playtest):
@@ -190,7 +207,7 @@ if __name__ == '__main__':
             addresses.sort(key=lambda address: (not address.startswith('192.168.'), not address.startswith('10.'), address))
             print('phone/iPad playtest URLs:', flush=True)
             for address in addresses:
-                print(f'  {capture_url(address, port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN, args.quality)}', flush=True)
+                print(f'  {capture_url(address, port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN, args.quality, args.autopilot, args.world_detail, args.child_cohort)}', flush=True)
             if args.playtest and not args.no_qr:
                 qr_path = CAPTURE_DIR / 'playtest-qr.png'
                 CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
@@ -200,17 +217,17 @@ if __name__ == '__main__':
                     subprocess.run(['/usr/bin/clang', '-fobjc-arc', '-framework', 'AppKit', '-framework', 'CoreImage',
                                     str(qr_script), '-o', str(qr_tool)],
                                    check=True, timeout=60, capture_output=True, text=True)
-                    subprocess.run([str(qr_tool), capture_url(addresses[0], port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN, args.quality), str(qr_path)],
+                    subprocess.run([str(qr_tool), capture_url(addresses[0], port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN, args.quality, args.autopilot, args.world_detail, args.child_cohort), str(qr_path)],
                                    check=True, timeout=60, capture_output=True, text=True)
                     subprocess.Popen(['/usr/bin/open', str(qr_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                     print(f'QR code opened: {qr_path} (scan with the phone camera)', flush=True)
                 except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
                     print(f'QR code unavailable ({error}); copy the printed URL instead.', file=sys.stderr, flush=True)
         else:
-            print(f'LAN mode is active. Open {capture_url("<this-mac-ip>", port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN, args.quality)}', flush=True)
+            print(f'LAN mode is active. Open {capture_url("<this-mac-ip>", port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN, args.quality, args.autopilot, args.world_detail, args.child_cohort)}', flush=True)
         print('LAN capture writes require the token embedded in those URLs.', flush=True)
     elif args.playtest:
-        url = capture_url('127.0.0.1', port, args.playtest, args.seed, args.tier, quality=args.quality)
+        url = capture_url('127.0.0.1', port, args.playtest, args.seed, args.tier, quality=args.quality, autopilot=args.autopilot, world_detail=args.world_detail, child_cohort=args.child_cohort)
         print(f'desktop playtest URL: {url}', flush=True)
         if args.desktop_open:
             open_command = ['/usr/bin/open']

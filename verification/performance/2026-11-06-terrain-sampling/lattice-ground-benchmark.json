@@ -1,0 +1,1378 @@
+{
+  "order": [
+    "pooled",
+    "lattice",
+    "lattice",
+    "pooled",
+    "pooled",
+    "lattice",
+    "lattice",
+    "pooled"
+  ],
+  "rows": [
+    {
+      "variant": "pooled",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1244.42775,
+      "warmupMs": 351.96179200000006,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 12.804959000000053
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 12.597125000000005
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 12.894917000000078
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 12.928292000000056
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 12.542040999999926
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 12.313041999999996
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 12.216957999999977
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 12.52433400000018
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 12.375707999999804
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 12.212125000000015
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 12.480124999999816
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 12.35674999999992
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 12.306667000000061
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 13.015249999999924
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 13.14691700000003
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 12.812457999999879
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 13.070040999999947
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 12.82879099999991
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 13.272457999999915
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 13.173708000000033
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 13.148332999999866
+        }
+      ],
+      "totalMeasuredMs": 267.0209989999994,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 0
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "683b105b61e0d6db02b2b55447eb93bfdb0bab222bea638252294b8ed6bc862f",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Reserved Mac, separate Node processes; no simultaneous browser capture",
+      "orderIndex": 0
+    },
+    {
+      "variant": "lattice",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1202.6535000000001,
+      "warmupMs": 206.1400410000001,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 5.648541999999907
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 5.294292000000041
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 5.442916000000196
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 5.88145899999995
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 5.638832999999977
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 5.5662499999998545
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 5.502917000000025
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 5.557291999999961
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 5.617333000000144
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 5.693250000000035
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 5.726417000000083
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 5.415249999999787
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 5.3491670000000795
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 5.4565000000000055
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 5.263124999999945
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 5.389625000000024
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 5.742792000000009
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 5.477000000000089
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 5.5505829999999605
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 5.711749999999938
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 5.546666999999843
+        }
+      ],
+      "totalMeasuredMs": 116.47195999999985,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25601,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 0
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "fd71c0f31c70214d3df57a1f847bb53771156f853a7bbabaf2daeca770281008",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Reserved Mac, separate Node processes; no simultaneous browser capture",
+      "orderIndex": 1
+    },
+    {
+      "variant": "lattice",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1203.101917,
+      "warmupMs": 196.28125,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 5.519292000000178
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 5.533249999999953
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 5.3303339999999935
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 5.39454099999989
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 5.523459000000003
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 5.402458000000024
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 5.525542000000087
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 5.326749999999947
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 5.20900000000006
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 5.307166000000052
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 5.345749999999953
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 5.277042000000165
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 5.2748330000001715
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 5.23762499999998
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 5.229458000000022
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 5.46833300000003
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 5.572165999999925
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 5.501083000000108
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 5.40949999999998
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 5.511540999999852
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 5.3722080000000005
+        }
+      ],
+      "totalMeasuredMs": 113.27133100000037,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25601,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 0
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "fd71c0f31c70214d3df57a1f847bb53771156f853a7bbabaf2daeca770281008",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Reserved Mac, separate Node processes; no simultaneous browser capture",
+      "orderIndex": 2
+    },
+    {
+      "variant": "pooled",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1210.277416,
+      "warmupMs": 347.700333,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 12.647707999999966
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 12.811207999999851
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 12.31266699999992
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 12.904790999999932
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 12.41795900000011
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 12.488207999999986
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 12.547458000000006
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 12.689583999999968
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 12.305875000000015
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 12.571083999999928
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 12.325874999999996
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 12.228916000000027
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 12.171875
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 12.25649999999996
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 12.592750000000024
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 12.570584000000053
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 12.560500000000047
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 12.980291999999963
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 12.613583999999946
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 12.93420900000001
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 12.784042
+        }
+      ],
+      "totalMeasuredMs": 263.7156689999997,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 0
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "683b105b61e0d6db02b2b55447eb93bfdb0bab222bea638252294b8ed6bc862f",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Reserved Mac, separate Node processes; no simultaneous browser capture",
+      "orderIndex": 3
+    },
+    {
+      "variant": "pooled",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1206.575708,
+      "warmupMs": 330.52920900000004,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 12.434917000000041
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 12.424374999999827
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 12.010291000000052
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 12.169250000000147
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 12.206290999999965
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 11.924582999999984
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 11.932207999999946
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 11.673708000000033
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 11.897750000000087
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 11.463666999999987
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 11.998333000000002
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 11.849042000000054
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 11.93441699999994
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 12.089083999999957
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 12.23091599999998
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 11.886875000000146
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 12.23091700000009
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 12.100624999999809
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 12.03104200000007
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 12.116833000000042
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 12.826041999999916
+        }
+      ],
+      "totalMeasuredMs": 253.43116600000008,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 0
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "683b105b61e0d6db02b2b55447eb93bfdb0bab222bea638252294b8ed6bc862f",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Reserved Mac, separate Node processes; no simultaneous browser capture",
+      "orderIndex": 4
+    },
+    {
+      "variant": "lattice",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1199.620459,
+      "warmupMs": 196.06241699999987,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 5.382292000000007
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 5.4812500000000455
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 5.44074999999998
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 5.387541999999939
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 5.441500000000133
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 5.34695899999997
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 5.331666999999925
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 5.459415999999919
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 5.331875000000082
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 5.317624999999907
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 5.48866699999985
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 5.258000000000038
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 5.239250000000084
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 5.317624999999907
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 5.370000000000118
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 5.304499999999962
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 5.451542000000018
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 5.376207999999906
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 5.373207999999977
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 5.481167000000141
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 5.46654199999989
+        }
+      ],
+      "totalMeasuredMs": 113.0475849999998,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25601,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 0
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "fd71c0f31c70214d3df57a1f847bb53771156f853a7bbabaf2daeca770281008",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Reserved Mac, separate Node processes; no simultaneous browser capture",
+      "orderIndex": 5
+    },
+    {
+      "variant": "lattice",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1215.120792,
+      "warmupMs": 203.11962500000004,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 5.682374999999865
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 5.639582999999902
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 5.5108329999998205
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 5.517375000000129
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 5.413624999999911
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 5.474416000000019
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 5.583250000000135
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 5.474165999999968
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 5.4272920000000795
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 5.292666999999938
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 5.296000000000049
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 5.234417000000121
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 5.54466699999989
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 5.444834000000128
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 5.486750000000029
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 5.573041999999987
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 5.378999999999905
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 5.453958000000057
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 5.4877500000000055
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 5.457208000000037
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 5.398792000000185
+        }
+      ],
+      "totalMeasuredMs": 114.77200000000016,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25601,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 0
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "fd71c0f31c70214d3df57a1f847bb53771156f853a7bbabaf2daeca770281008",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Reserved Mac, separate Node processes; no simultaneous browser capture",
+      "orderIndex": 6
+    },
+    {
+      "variant": "pooled",
+      "vertices": 19881,
+      "centerCount": 21,
+      "coldMs": 1202.717917,
+      "warmupMs": 335.17562499999985,
+      "rows": [
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 12.315207999999984
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 12.384959000000208
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 11.968041999999969
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 12.489499999999907
+        },
+        {
+          "center": [
+            -360,
+            -640
+          ],
+          "ms": 12.369040999999925
+        },
+        {
+          "center": [
+            -400,
+            -640
+          ],
+          "ms": 12.122000000000071
+        },
+        {
+          "center": [
+            -400,
+            -600
+          ],
+          "ms": 12.069083999999975
+        },
+        {
+          "center": [
+            -440,
+            -600
+          ],
+          "ms": 12.183958999999959
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 12.078917000000047
+        },
+        {
+          "center": [
+            -480,
+            -560
+          ],
+          "ms": 12.160415999999941
+        },
+        {
+          "center": [
+            -440,
+            -560
+          ],
+          "ms": 11.905582999999979
+        },
+        {
+          "center": [
+            -440,
+            -520
+          ],
+          "ms": 11.842624999999998
+        },
+        {
+          "center": [
+            -400,
+            -520
+          ],
+          "ms": 12.083708000000115
+        },
+        {
+          "center": [
+            -400,
+            -560
+          ],
+          "ms": 12.051249999999982
+        },
+        {
+          "center": [
+            -360,
+            -560
+          ],
+          "ms": 12.39650000000006
+        },
+        {
+          "center": [
+            -360,
+            -600
+          ],
+          "ms": 12.042250000000195
+        },
+        {
+          "center": [
+            -320,
+            -600
+          ],
+          "ms": 12.153333000000202
+        },
+        {
+          "center": [
+            -320,
+            -640
+          ],
+          "ms": 12.3146670000001
+        },
+        {
+          "center": [
+            -280,
+            -640
+          ],
+          "ms": 12.356041000000005
+        },
+        {
+          "center": [
+            -280,
+            -680
+          ],
+          "ms": 12.536249999999882
+        },
+        {
+          "center": [
+            -240,
+            -680
+          ],
+          "ms": 12.56533300000001
+        }
+      ],
+      "totalMeasuredMs": 256.3886660000005,
+      "finalGeometrySha256": "409a9bdb23c23a029e46340acf29303bc9331968c6f019ae76deae6acf6e0c77",
+      "cache": {
+        "version": 2,
+        "vertices": 25924,
+        "tiles": 68,
+        "owners": 275,
+        "cells": 0
+      },
+      "productionSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+      "samplerFileSha256": "683b105b61e0d6db02b2b55447eb93bfdb0bab222bea638252294b8ed6bc862f",
+      "scope": "Node production resampling/color/normal/bounds CPU work on real Three geometry; no renderer, browser, GPU or FPS measurement; Reserved Mac, separate Node processes; no simultaneous browser capture",
+      "orderIndex": 7
+    }
+  ],
+  "medians": {
+    "pooled": {
+      "totalMeasuredMs": 260.0521675000001,
+      "coldMs": 1208.426562
+    },
+    "lattice": {
+      "totalMeasuredMs": 114.02166550000027,
+      "coldMs": 1202.8777085000002
+    }
+  },
+  "allGeometryHashesEqual": true,
+  "scope": "Separate Node processes with real production ground resampling; reserved Mac, no browser/full tests overlapped; not FPS"
+}

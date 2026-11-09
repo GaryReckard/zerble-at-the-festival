@@ -1,0 +1,11 @@
+{
+  "app": "48d72d20f0b430d598a88ad8da7b33af4a9bb89b511ebb5908f95bcb4bb72128",
+  "snapshotBuild": "f3c5469234ef9ef226eef6546109c50ea6089472dd9a600f7542ab7cdf68a595",
+  "port": 8770,
+  "servedIndexSha256": {
+    "127.0.0.1": "7ba2146b3a65f1c8bc286539c45fc3228da15ab26823f4a93f797fcb069006f1",
+    "192.168.1.160": "7ba2146b3a65f1c8bc286539c45fc3228da15ab26823f4a93f797fcb069006f1"
+  },
+  "servedBuild": "b9aae1a03e94b6566d3adde34881af578bb2df1dbb016a5770f4eb215466c339",
+  "notes": "Root production build from exactly the snapshot source; source-map absolute paths can change build digest. Both cohorts share this build; URLs/tokens remain private."
+}

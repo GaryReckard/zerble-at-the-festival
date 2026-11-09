@@ -1,0 +1,66 @@
+{
+  "ok": true,
+  "expectedInterruption": false,
+  "hardware": {
+    "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+    "focused": true,
+    "visible": true,
+    "labAbsent": true
+  },
+  "childCohort": "half-v1",
+  "children": 23,
+  "adults": 154,
+  "autopilot": {
+    "checkpointCount": 4,
+    "checkpoints": [
+      {
+        "seconds": 6.683400000095367,
+        "segment": 0,
+        "x": -322.06109619140625,
+        "z": -657.8007202148438
+      },
+      {
+        "seconds": 19.383400000095367,
+        "segment": 1,
+        "x": -457.6485290527344,
+        "z": -546.8311767578125
+      },
+      {
+        "seconds": 29.215800000190736,
+        "segment": 2,
+        "x": -365.7869567871094,
+        "z": -548.552490234375
+      },
+      {
+        "seconds": 44.7665,
+        "segment": 3,
+        "x": -233.14840698242188,
+        "z": -689.033203125
+      }
+    ],
+    "complete": true,
+    "control": {
+      "boost": false,
+      "brake": true,
+      "distance": 4.1634252692882425,
+      "steer": 0,
+      "throttle": 0
+    },
+    "frames": 2660,
+    "maxCorridorMetres": 5.516056182437992,
+    "reason": null,
+    "routePolicy": "road-follow-v2",
+    "seed": 2404796662,
+    "segment": 4,
+    "start": {
+      "heading": 2.358,
+      "x": -230.3,
+      "z": -691.8
+    },
+    "state": "completed",
+    "travelMetres": 641.20803047479,
+    "version": "device-road-follow-v1"
+  },
+  "worldWorstFrames": 4,
+  "errors": []
+}

@@ -1,0 +1,72 @@
+[
+  {
+    "operation": "smoke",
+    "tier": "low",
+    "scenario": null,
+    "exitCode": 0,
+    "log": "/Users/garyreckard/Sites/zerble-at-the-festival/verification/performance/2026-11-06-terrain-sampling/qualification-lattice/20261106-234824-134e64c8/smoke-low.log",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-184824-0aad9c68",
+    "cleanup": true,
+    "attempt": "/Users/garyreckard/Sites/zerble-at-the-festival/verification/performance/2026-11-06-terrain-sampling/qualification-lattice/20261106-234824-134e64c8"
+  },
+  {
+    "operation": "smoke",
+    "tier": "mid",
+    "scenario": null,
+    "exitCode": 0,
+    "log": "/Users/garyreckard/Sites/zerble-at-the-festival/verification/performance/2026-11-06-terrain-sampling/qualification-lattice/20261106-234824-134e64c8/smoke-mid.log",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-184834-b04d8777",
+    "cleanup": true,
+    "attempt": "/Users/garyreckard/Sites/zerble-at-the-festival/verification/performance/2026-11-06-terrain-sampling/qualification-lattice/20261106-234824-134e64c8"
+  },
+  {
+    "operation": "smoke",
+    "tier": "high",
+    "scenario": null,
+    "exitCode": 0,
+    "log": "/Users/garyreckard/Sites/zerble-at-the-festival/verification/performance/2026-11-06-terrain-sampling/qualification-lattice/20261106-234824-134e64c8/smoke-high.log",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-184844-c97bce19",
+    "cleanup": true,
+    "attempt": "/Users/garyreckard/Sites/zerble-at-the-festival/verification/performance/2026-11-06-terrain-sampling/qualification-lattice/20261106-234824-134e64c8"
+  },
+  {
+    "operation": "run",
+    "tier": "low",
+    "scenario": "streaming-drive-v1",
+    "exitCode": 0,
+    "log": "/Users/garyreckard/Sites/zerble-at-the-festival/verification/performance/2026-11-06-terrain-sampling/qualification-lattice/20261106-234824-134e64c8/run-low.log",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-184854-fe1c5c2a",
+    "cleanup": true,
+    "attempt": "/Users/garyreckard/Sites/zerble-at-the-festival/verification/performance/2026-11-06-terrain-sampling/qualification-lattice/20261106-234824-134e64c8"
+  },
+  {
+    "operation": "run",
+    "tier": "mid",
+    "scenario": "streaming-drive-v1",
+    "exitCode": 0,
+    "log": "/Users/garyreckard/Sites/zerble-at-the-festival/verification/performance/2026-11-06-terrain-sampling/qualification-lattice/20261106-234824-134e64c8/run-mid.log",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-185021-687f4f2d",
+    "cleanup": true,
+    "attempt": "/Users/garyreckard/Sites/zerble-at-the-festival/verification/performance/2026-11-06-terrain-sampling/qualification-lattice/20261106-234824-134e64c8"
+  },
+  {
+    "operation": "run",
+    "tier": "high",
+    "scenario": "streaming-drive-v1",
+    "exitCode": 0,
+    "log": "/Users/garyreckard/Sites/zerble-at-the-festival/verification/performance/2026-11-06-terrain-sampling/qualification-lattice/20261106-234824-134e64c8/run-high.log",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-185147-cbb3b84a",
+    "cleanup": true,
+    "attempt": "/Users/garyreckard/Sites/zerble-at-the-festival/verification/performance/2026-11-06-terrain-sampling/qualification-lattice/20261106-234824-134e64c8"
+  },
+  {
+    "operation": "run",
+    "tier": "high",
+    "scenario": "dense-festival-v1",
+    "exitCode": 0,
+    "log": "/Users/garyreckard/Sites/zerble-at-the-festival/verification/performance/2026-11-06-terrain-sampling/qualification-lattice/20261106-234824-134e64c8/run-high-parked.log",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261106-185314-fc34aadc",
+    "cleanup": true,
+    "attempt": "/Users/garyreckard/Sites/zerble-at-the-festival/verification/performance/2026-11-06-terrain-sampling/qualification-lattice/20261106-234824-134e64c8"
+  }
+]

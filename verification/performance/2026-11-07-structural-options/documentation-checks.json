@@ -1,0 +1,37 @@
+{
+  "state": "passed",
+  "checkedUtc": "2026-11-07T16:35:01.526560+00:00",
+  "checks": {
+    "localMarkdownLinks": {
+      "count": 177,
+      "missing": []
+    },
+    "realDeliberationArtifacts": {
+      "rounds": 2,
+      "filesPerRound": 5,
+      "pendingSkeletons": false
+    },
+    "diagnosticSyntax": "Python AST and Node --check passed",
+    "readmeSync": "\u001b[0;32m\u2713 [structural-performance-redesign] README status is fresh.\u001b[0m",
+    "investigationTasks": {
+      "done": 16,
+      "pending": 0,
+      "conditionalProductionPlan": "Not activated: no selected rewrite"
+    },
+    "baselineInputs": {
+      "count": 303,
+      "mismatches": []
+    },
+    "trackedDiffWhitespace": "passed",
+    "newTextWhitespace": {
+      "trailingWhitespace": []
+    },
+    "keeperCleanup": true,
+    "captureCleanup": {
+      "captures": 7,
+      "identities": 148,
+      "allOwnedIdentitiesGone": true,
+      "leaseAbsent": true
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "command": "python3 verification/performance/2026-11-07-structural-options/analyze-render-probe.py",
+  "beforeSha256": "05a9887a734b7ccd83ffdfebbb6f41d8b989cffbb7ec9bf151c452c096e06688",
+  "afterSha256": "05a9887a734b7ccd83ffdfebbb6f41d8b989cffbb7ec9bf151c452c096e06688",
+  "byteIdentical": true,
+  "scope": "Fixed rendering roster summary regeneration only; not a general statistics acceptance test"
+}

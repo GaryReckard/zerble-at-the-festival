@@ -1,0 +1,17 @@
+{
+  "scope": "One exact terrain-cell cache; no quality, population, physics-cadence or collision changes",
+  "quietWindow": "Gary heading out for an hour or so, November 6",
+  "competingGameTabs": "Inventory found none running; old IAB tab was unreachable and left unchanged",
+  "conditions": [
+    "high:dense-festival-v1",
+    "high:streaming-drive-v1"
+  ],
+  "calibration": 4,
+  "holdout": 8,
+  "pairedComparison": 8,
+  "totalRuns": 40,
+  "policy": "unchanged conservative-paired-v1",
+  "failurePolicy": "Stop on first invalid/regressed/failed condition, preserve attempt; no threshold widening or dropped runs",
+  "additionalVerification": "Exact frozen-source sampler regression, full project check/build, normal and diagnostic Low/Mid/High starts and routes; Node operation experiment and before/after live CPU attribution",
+  "limits": "Fixed desktop conditions; no Auto/iPad or subjective driving claim"
+}

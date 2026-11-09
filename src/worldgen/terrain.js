@@ -19,7 +19,9 @@ const TILE = 200, SHOULDER = 90, SALT = 0x54455252;
 // accepts sleeping pitches within 18 m with a 7 m footprint. Grade the full
 // occupied ring, rather than flattening only the water and the host's centre.
 const LAKE_CAMP_REACH = 6 + 18 + 18 + 7;
-const vertexCache = new Map(), tileCache = new Map(), ownerCache = new Map();
+const vertexCache = new Map(), tileCache = new Map(), ownerCache = new Map(), cellCache = new Map();
+const cellRecords=[];
+let cellCursor=0;
 let enabled = false, gateKey = '', planning = false;
 export function terrainEnabled() { return enabled; }
 export function terrainGenerationKey(){return `${getSessionSeed()}:${worldgenEpoch()}:${landscapeVersion()}:${enabled}`;}
@@ -28,7 +30,8 @@ export function setTerrainEnabled(value) { enabled = !!value; return enabled; }
 function gate() {
   const key = `${getSessionSeed()}:${worldgenEpoch()}:${TERRAIN_VERSION}`;
   if (key !== gateKey) {
-    gateKey = key; vertexCache.clear(); tileCache.clear(); ownerCache.clear();
+    gateKey = key; vertexCache.clear(); tileCache.clear(); ownerCache.clear(); cellCache.clear();
+    cellRecords.length=0;cellCursor=0;
   }
 }
 function boundedSet(cache, key, value, limit) {
@@ -163,21 +166,54 @@ export function terrainVertexHeight(x,z) {
   }
   return boundedSet(vertexCache,key,height,65536);
 }
+function terrainCell(ix,iz) {
+  gate();
+  const key=`${ix},${iz}`,cached=cellCache.get(key);
+  if(cached)return cached;
+  const a=terrainVertexHeight(ix,iz),b=terrainVertexHeight(ix+TERRAIN_STEP,iz);
+  const c=terrainVertexHeight(ix,iz+TERRAIN_STEP),d=terrainVertexHeight(ix+TERRAIN_STEP,iz+TERRAIN_STEP);
+  // Repeated footprint/suspension samples share these exact triangle planes.
+  // Retain vertices so height interpolation keeps its original arithmetic order.
+  // A ring stores eviction order explicitly and reuses records during travel.
+  // Compute a triangle's normals only when it is first requested.
+  let cell=cellRecords[cellCursor];
+  if(cell)cellCache.delete(cell.key);
+  else {cell={lower:{},upper:{}};cellRecords.push(cell);}
+  cellCursor=(cellCursor+1)%4096;
+  cell.key=key;cell.a=a;cell.b=b;cell.c=c;cell.d=d;
+  cell.lowerReady=false;cell.upperReady=false;cellCache.set(key,cell);
+  return cell;
+}
+function terrainPlane(out,dx,dz) {
+  const length=Math.hypot(dx,1,dz);
+  out.dx=dx;out.dz=dz;out.nx=-dx/length;out.ny=1/length;out.nz=-dz/length;out.grade=Math.hypot(dx,dz);
+  return out;
+}
+function triangleHeight(u,v,a,b,c,d) {
+  return u+v<=1?a+u*(b-a)+v*(c-a):d+(1-v)*(b-d)+(1-u)*(c-d);
+}
 export function sampleTerrainGround(x,z,out={}) {
   if(!Number.isFinite(x)||!Number.isFinite(z))throw new RangeError('Terrain coordinates must be finite');
-  let height=0,dx=0,dz=0;
+  let height=0,plane=null;
   if(enabled && !planning) {
     const ix=Math.floor(x/TERRAIN_STEP)*TERRAIN_STEP,iz=Math.floor(z/TERRAIN_STEP)*TERRAIN_STEP;
     const u=(x-ix)/TERRAIN_STEP,v=(z-iz)/TERRAIN_STEP;
-    const a=terrainVertexHeight(ix,iz),b=terrainVertexHeight(ix+TERRAIN_STEP,iz);
-    const c=terrainVertexHeight(ix,iz+TERRAIN_STEP),d=terrainVertexHeight(ix+TERRAIN_STEP,iz+TERRAIN_STEP);
+    const cell=terrainCell(ix,iz),{a,b,c,d}=cell;
     // PlaneGeometry rotated -PI/2 joins (x+step,z) to (x,z+step).
-    if(u+v<=1){dx=(b-a)/TERRAIN_STEP;dz=(c-a)/TERRAIN_STEP;height=a+u*(b-a)+v*(c-a);}
-    else {dx=(d-c)/TERRAIN_STEP;dz=(d-b)/TERRAIN_STEP;height=d+(1-v)*(b-d)+(1-u)*(c-d);}
+    height=triangleHeight(u,v,a,b,c,d);
+    if(u+v<=1){
+      if(!cell.lowerReady){terrainPlane(cell.lower,(b-a)/TERRAIN_STEP,(c-a)/TERRAIN_STEP);cell.lowerReady=true;}
+      plane=cell.lower;
+    }else{
+      if(!cell.upperReady){terrainPlane(cell.upper,(d-c)/TERRAIN_STEP,(d-b)/TERRAIN_STEP);cell.upperReady=true;}
+      plane=cell.upper;
+    }
   }
-  const length=Math.hypot(dx,1,dz);
-  out.height=height;out.dx=dx;out.dz=dz;out.nx=-dx/length;out.ny=1/length;out.nz=-dz/length;
-  out.grade=Math.hypot(dx,dz);out.blockedReason=out.grade>.45?'grade':null;out.traversable=!out.blockedReason;out.surfaceClass='grass';
+  // Copy pooled values before touching caller-owned output. An output setter
+  // may itself sample terrain and recycle the record during this publication.
+  const dx=plane?.dx??0,dz=plane?.dz??0,nx=plane?.nx??-0,ny=plane?.ny??1,nz=plane?.nz??-0,grade=plane?.grade??0;
+  out.height=height;out.dx=dx;out.dz=dz;out.nx=nx;out.ny=ny;out.nz=nz;
+  out.grade=grade;out.blockedReason=out.grade>.45?'grade':null;out.traversable=!out.blockedReason;out.surfaceClass='grass';
   return out;
 }
 export function sampleTerrain(x,z,out={}) {
@@ -188,13 +224,25 @@ export function sampleTerrain(x,z,out={}) {
   if(enabled&&!planning&&landscapeVersion()===2){landscapeWaterAt(x,z,waterProbe);if(waterProbe.coverage>=0&&waterProbe.height>height+.001){out.traversable=false;out.blockedReason='water';out.surfaceClass='riverbed';}}
   return out;
 }
-const heightSample={};
-export function terrainHeight(x,z) { return sampleTerrainGround(x,z,heightSample).height; }
+export function terrainHeight(x,z) {
+  if(!Number.isFinite(x)||!Number.isFinite(z))throw new RangeError('Terrain coordinates must be finite');
+  if(!enabled||planning)return 0;
+  // Ground-mesh recenters query 19,881 vertices. They need no normals and must
+  // not evict the local cells used by suspension and pedestrian footprints.
+  const ix=Math.floor(x/TERRAIN_STEP)*TERRAIN_STEP,iz=Math.floor(z/TERRAIN_STEP)*TERRAIN_STEP;
+  // The visible ground uses this exact lattice. Its height needs one vertex,
+  // not four corners. Negative zero retains the original interpolation path.
+  const a=terrainVertexHeight(ix,iz);
+  if(x===ix&&z===iz&&!Object.is(a,-0))return a;
+  const b=terrainVertexHeight(ix+TERRAIN_STEP,iz);
+  const c=terrainVertexHeight(ix,iz+TERRAIN_STEP),d=terrainVertexHeight(ix+TERRAIN_STEP,iz+TERRAIN_STEP);
+  return triangleHeight((x-ix)/TERRAIN_STEP,(z-iz)/TERRAIN_STEP,a,b,c,d);
+}
 // Shared initial datum. Accept a descriptor or coordinates so water consumers
 // need no point lookup and overlapping bounding disks stay exactly coplanar.
 export function lakeSurfaceHeight(_lakeOrX,_z) { return 0; }
 export function terrainCacheStats() {
-  gate();return {version:landscapeVersion()===2?2:TERRAIN_VERSION,vertices:vertexCache.size,tiles:tileCache.size,owners:ownerCache.size};
+  gate();return {version:landscapeVersion()===2?2:TERRAIN_VERSION,vertices:vertexCache.size,tiles:tileCache.size,owners:ownerCache.size,cells:cellCache.size};
 }
 
 // Split surfaces on the same lattice and diagonal used by terrainHeight.

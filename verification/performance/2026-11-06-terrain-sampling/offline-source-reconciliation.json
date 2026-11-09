@@ -1,0 +1,12 @@
+{
+  "state": "passed",
+  "measuredSamplerApp": "e7c8176625920b6f5e693b14b62c0d10b9653d0f7da31265ef7ca71a4fde8e12",
+  "preparedSamplerApp": "1dc95348d133420b5466d7a11a2c4fcc11e182d620297cec6110792bc836ceea",
+  "runtimeBodyUnchangedSinceExperiments": true,
+  "runtimeSourceDifference": "Two comment lines only; test wiring also adds production-ground regression",
+  "currentFrozenInputsChecked": 303,
+  "allCurrentInputsMatch": true,
+  "productionWorldSourceSha256": "ba3c7bb4aa8501c6ca7fabd0fe233fdc5ccd293f96aafbe0f2bf6f67f99d3f6f",
+  "all12GroundExperimentsUsedSameProductionSource": true,
+  "browserAcceptance": "Not performed for revised source; explicitly deferred by Gary"
+}

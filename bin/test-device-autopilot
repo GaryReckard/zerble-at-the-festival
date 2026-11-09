@@ -1,0 +1,36 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {createDeviceAutopilot,DEVICE_ROUTE} from '../src/deviceAutopilot.js';
+import {roadGuidance} from '../src/performanceLab/scenarios.js';
+function fixture(position=DEVICE_ROUTE.start){
+  let now=0,released=0,stopped=0,owned=null,abort;
+  const cart={position:{...position},heading:DEVICE_ROUTE.start.heading,speed:0,condition:{cause:null}};
+  const pilot=createDeviceAutopilot({cart,now:()=>now,acquire:(value,callback)=>{owned=value;abort=callback;return()=>{released++;owned=null;};},stopCart:()=>stopped++});
+  return {pilot,cart,setNow:v=>now=v,get released(){return released;},get stopped(){return stopped;},get owned(){return owned;},abort:()=>abort()};
+}
+let f=fixture();f.pilot.update('settle');assert.equal(f.owned.throttle,0);assert(f.owned.brake);
+f.pilot.update('drive');
+const original=roadGuidance(f.cart.position,f.cart.heading,DEVICE_ROUTE.scenario.paths[0],0,0);
+assert.equal(f.owned.throttle,original.control.throttle);assert.equal(f.owned.steer,original.control.steer);
+// Walk every real route edge as observed positions to verify ordered waypoint
+// advancement and corridor checks, rather than jumping across unseen segments.
+let elapsed=0;
+for(const path of DEVICE_ROUTE.scenario.paths){
+  for(let i=1;i<path.length;i++){
+    const a=path[i-1],b=path[i],steps=Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1]));
+    for(let j=0;j<=steps;j++){
+      f.cart.position.x=a[0]+(b[0]-a[0])*j/steps;f.cart.position.z=a[1]+(b[1]-a[1])*j/steps;
+      f.cart.heading=Math.atan2(a[0]-b[0],a[1]-b[1]);f.cart.speed=12;
+      elapsed+=20;f.setNow(elapsed);f.pilot.update('drive');
+    }
+  }
+}
+assert(f.pilot.complete);assert.equal(f.pilot.snapshot().checkpointCount,4);assert.equal(f.owned.throttle,0);
+assert(f.pilot.snapshot().travelMetres>500);const retained=f.pilot.snapshot();retained.checkpoints.length=0;assert.equal(f.pilot.snapshot().checkpointCount,4);
+f.pilot.stop();f.pilot.stop();assert.equal(f.released,1,'release is idempotent');assert.equal(f.owned,null);
+f=fixture();f.pilot.update('drive');f.cart.position.x+=200;f.pilot.update('drive');assert.equal(f.pilot.reason,'route-corridor');assert.equal(f.owned.throttle,0);f.pilot.stop();
+f=fixture();f.pilot.update('drive');f.setNow(91000);f.pilot.update('drive');assert.equal(f.pilot.reason,'route-timeout');f.pilot.stop();
+f=fixture();f.cart.condition.cause='wrecked';f.pilot.update('drive');assert.equal(f.pilot.reason,'vehicle-wrecked');f.pilot.stop();
+f=fixture();f.abort();f.pilot.update('drive');assert.equal(f.pilot.reason,'emergency-stop');assert.equal(f.owned.throttle,0);f.pilot.stop();
+f=fixture({x:0,z:0});assert.equal(f.pilot.reason,'wrong-start-position');assert.equal(f.owned,null);f.pilot.stop();
+console.log('PASS device route: actual guidance, complete ordered route, bounded corridor/time, wreck/emergency failure, normal control publication and ownership release');
