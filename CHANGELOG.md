@@ -2,6 +2,14 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-11-11
+
+### Performance
+- **The far horizon no longer rebuilds in one call when the player crosses a cell.** The November 8 iPad route attributed its largest driving stall (424 ms) to far-field work, and a Node profile showed why: every 80 m crossing re-sampled terrain for about 2,400 candidates before the pool caps kept roughly 1,000, rebuilt and re-draped every road (usually twice), and planned cold terrain tiles more than 800 m out, all inside one unbudgeted `_applySnapshot`. Heights are now resolved only for kept instances, finished road geometry is reused from a bounded per-polyline memo, cold terrain tiles warm one plan at a time, and the rewrite is prepared under the existing streaming budget before a single atomic write. Published instances and road buffers are byte-identical across 120 fingerprinted horizons (two seeds, three tiers, terrain on and off, one-call and sliced). In the offline probe the worst single call while driving fell from 61–176 ms to 3–33 ms and revisited ground from 33–98 ms to 3–4 ms; no browser, GPU or iPad gain is established yet. [Evidence](verification/performance/2026-11-11-far-field-publication/README.md).
+
+### Changed
+- **Guided captures report horizon publication.** `ffApply` is the longest single publication slice and `ffApplyFrames` the frames the latest one took, beside the existing `ffCold` planning counter, which never covered this work. `__dbg.horizon()` adds `publishing`.
+
 ## 2026-11-08
 
 ### Added

@@ -577,6 +577,7 @@ assert(ff.planner instanceof SnapshotPlanner, 'an enabled FarField must construc
 assert(JSON.stringify(ff.stats) === JSON.stringify({
   active: 0, overflow: 0, rebuilds: 0, superseded: 0,
   roadVertsUsed: 0, roadsClipped: 0, maxColdStepMs: 0, handoffs: 0,
+  maxApplyStepMs: 0, applyFrames: 0, applySuperseded: 0, roadMemoHits: 0, roadMemoMisses: 0,
   demandByPool: {}, overflowByPool: {},
 }), 'an enabled FarField must start with a zeroed stats object');
 for (const name of POOL_NAMES) {
@@ -1061,4 +1062,97 @@ process.stdout.write(
  const before=JSON.stringify([Array.from(posAttr.array),Array.from(idxAttr.array),geo.drawRange.count]);probe._writeRoads(roads);
  assert(JSON.stringify([Array.from(posAttr.array),Array.from(idxAttr.array),geo.drawRange.count])===before,'bounded reservation retry is deterministic');
  probe.dispose();console.log('PASS junction capacity: deterministic bounded rewrite retains hard limits when paved candidates overflow.');
+}
+
+// Bounded publication (2026-11-11). A physical-iPad route measured 424 ms for
+// one horizon rewrite. Heights are now resolved only for kept instances, road
+// geometry is reused between snapshots, and the rewrite is prepared across
+// frames before one atomic write. None of that may change what is published.
+{
+ const {setTerrainEnabled,terrainCacheStats}=await import('../src/worldgen/terrain.js');
+ const {FAR_FIELD_TIERS}=await import('../src/perf.js');
+ const {buildFarRoad,planFarInstances,groundFarInstance}=await import('../src/farField.js');
+ setSeed(2404796662);setTerrainEnabled(true);
+ const tier=FAR_FIELD_TIERS.low,POOLS=Object.keys(tier.caps).filter(n=>!n.startsWith('road'));
+ const published=ff=>{const r=ff._road,v=ff.stats.roadVertsUsed,n=r.geo.drawRange.count;return JSON.stringify([
+  POOLS.map(name=>ff._active[name].map(p=>[p.x,p.y,p.z,p.yaw,p.sx,p.sy,p.sz,p.color,p.ownerCx,p.ownerCz])),
+  POOLS.map(name=>[ff._pools[name].mesh.count,Array.from(ff._pools[name].fade.array)]),
+  Array.from(r.posAttr.array.slice(0,v*3)),Array.from(r.colorAttr.array.slice(0,v*3)),Array.from(r.idxAttr.array.slice(0,n)),
+  ff.stats.active,ff.stats.overflow,ff.stats.demandByPool,ff.stats.overflowByPool,ff.stats.roadsClipped]);};
+ const route=[[-230.3,-691.8],[-287.3,-634.8],[-344.3,-577.8],[-401.3,-520.8]];
+
+ // Deferred heights: discarded candidates never reach the terrain, and every
+ // kept instance has exactly the height the eager expansion gives it.
+ const whole=new FarField({enabled:true,tier});
+ whole.update(...route[0],{budgetMs:60000});
+ const lazyTiles=terrainCacheStats().tiles,records=whole.planner.committed.records;
+ const planned=planFarInstances(records,tier.densityMul);
+ assert(POOLS.every(name=>planned[name].every(p=>p.y===0&&Number.isFinite(p.gx)&&Number.isFinite(p.gz))),'planning places instances without sampling terrain');
+ const eager=expandFarInstances(records,tier.densityMul);
+ assert(terrainCacheStats().tiles>lazyTiles,'the fixture must contain discarded candidates on terrain the kept set never needs');
+ for(const name of POOLS){
+  const heights=new Map(eager[name].map(p=>[[p.x,p.z,p.yaw,p.sx,p.sy,p.sz].join(),p.y]));
+  for(const p of whole._active[name])assert(Object.is(heights.get([p.x,p.z,p.yaw,p.sx,p.sy,p.sz].join()),p.y),`deferred ${name} height equals the eager height`);
+ }
+ assert(Object.is(groundFarInstance({gx:0,gz:0,ya:1.5,yb:.25}).y,groundFarInstance({gx:0,gz:0}).y+1.5+.25),'offsets are summed left to right');
+ const wholeAt=[published(whole)];
+ for(const anchor of route.slice(1)){whole.update(...anchor,{budgetMs:60000});wholeAt.push(published(whole));}
+ assert(whole.stats.rebuilds===route.length&&whole.stats.roadMemoHits>0,'adjacent snapshots reuse prepared road geometry');
+
+ // Reuse must be invisible: an instance with a warm memo publishes exactly
+ // what a new instance with an empty one does at the same cell.
+ for(const [i,anchor] of route.entries()){
+  const fresh=new FarField({enabled:true,tier});fresh.update(...anchor,{budgetMs:60000});
+  assert(fresh.stats.roadMemoHits<whole.stats.roadMemoHits&&published(fresh)===wholeAt[i],`reused road geometry is identical to a fresh build at step ${i}`);
+  fresh.dispose();
+ }
+
+ // Sliced: a budget too small for more than one unit per call. The previous
+ // snapshot stays published, untouched, until the next one is complete.
+ const sliced=new FarField({enabled:true,tier});
+ let before=published(sliced),slices=0;
+ for(const [i,anchor] of route.entries()){
+  const rebuilds=sliced.stats.rebuilds;
+  for(let n=0;n<200000&&sliced.stats.rebuilds===rebuilds;n++){
+   sliced.update(...anchor,{budgetMs:.001});
+   if(sliced.stats.rebuilds===rebuilds)assert(n%7||published(sliced)===before,'the previous horizon stays published while the next one is prepared');
+  }
+  assert(sliced.stats.rebuilds===rebuilds+1&&sliced._job===null,'a sliced publication completes');
+  before=published(sliced);slices+=sliced.stats.applyFrames;
+  assert(before===wholeAt[i],`sliced publication equals the one-call publication at step ${i}`);
+ }
+ assert(slices>route.length*4,'the tiny budget really did spread publication across calls');
+
+ // Leaving the cell abandons a publication in flight; nothing half-written
+ // appears, and the next cell publishes normally.
+ const far=[2400,2400],rebuilds=sliced.stats.rebuilds;
+ for(let n=0;n<200000&&!sliced._job;n++)sliced.update(...far,{budgetMs:.001});
+ assert(sliced._job&&sliced.stats.rebuilds===rebuilds&&published(sliced)===before,'a publication can be caught in flight');
+ sliced.update(...route[0],{budgetMs:0});
+ assert(sliced._job===null&&sliced.stats.applySuperseded===1&&published(sliced)===before,'a cell change drops the in-flight publication without publishing it');
+ for(let n=0;n<200000&&sliced.stats.rebuilds===rebuilds;n++)sliced.update(...route[0],{budgetMs:.001});
+ assert(published(sliced)===wholeAt[0],'the cell returned to publishes exactly its own snapshot');
+ for(let n=0;n<200000&&!sliced._job;n++)sliced.update(...far,{budgetMs:.001});
+ sliced.forceReplan();assert(sliced._job===null,'forceReplan clears a publication in flight');
+
+ // The memo is bounded and belongs to the terrain it was built on.
+ assert(whole._roadMemo.size>0&&whole._roadMemo.size<=768,'road memo stays within its bound');
+ const flat=[0,0,40,0],geo=buildFarRoad(flat,7,null);
+ assert(geo.vertices instanceof Float32Array&&geo.vertices.length%3===0&&geo.indices.every(i=>i<geo.vertices.length/3)&&geo.trimCount===-1&&geo.draped,'a prepared road is self-contained and zero-based');
+ setTerrainEnabled(false);whole._planAnchor={x:0,z:0};whole._writeRoads([{flat:new Float64Array(flat),width:7,surface:'dirt'}]);
+ assert(whole._roadMemo.size===1&&whole.stats.roadVertsUsed===4,'changing the terrain discards roads prepared for the old terrain');
+ // Dirt is cut by whichever pavement crosses it, so a reused dirt road must
+ // match the pavement present now, not the pavement present when it was built.
+ const dirt={flat:new Float64Array([-40,0,40,0]),width:7,surface:'dirt'};
+ const crossAt=x=>({flat:new Float64Array([x,-40,x,40]),width:9,surface:'asphalt'});
+ const roadsOf=ff=>JSON.stringify([Array.from(ff._road.posAttr.array.slice(0,ff.stats.roadVertsUsed*3)),Array.from(ff._road.idxAttr.array.slice(0,ff._road.geo.drawRange.count))]);
+ const reused=new FarField({enabled:true,tier});reused._planAnchor={x:0,z:0};
+ for(const roads of [[dirt,crossAt(-20)],[dirt,crossAt(20)],[dirt],[dirt,crossAt(20),crossAt(-20)],[dirt,crossAt(-20)]]){
+  const fresh=new FarField({enabled:true,tier});fresh._planAnchor={x:0,z:0};
+  reused._writeRoads(roads);fresh._writeRoads(roads);
+  assert(roadsOf(reused)===roadsOf(fresh),'a reused dirt road is cut by the pavement that crosses it now');fresh.dispose();
+ }
+ assert(reused.stats.roadMemoHits>0,'the crossing fixture exercises reuse');reused.dispose();
+ whole.dispose();sliced.dispose();assert(whole._roadMemo===null&&whole._job===null,'disposal releases the memo and any job');
+ console.log('PASS bounded publication: deferred heights equal eager heights, reused roads equal fresh roads, and a sliced, superseded or replanned publication never shows a partial horizon.');
 }

@@ -1,0 +1,16 @@
+[1679.5,80.9,193.7,108.3,69.5,63.7,169.9,189.3,107.5] applyTotalSampled 935
+935 _applySnapshot | 935 ff.<computed> | 935 update | 935 go | 935 (anon) | 935 (root) | 797 terrainHeight | 714 terrainVertexHeight | 450 _writeRoads | 407 expandFarInstances | 398 drapeTerrainTriangles | 389 tileDescriptors | 366 emit | 310 festivalPlan | 298 _basePlan | 297 seamResponsesNear | 297 _suppressSetForHeart | 296 classifySeamsNear | 295 _computePlan | 280 woodlandCampsNear | 226 cellPlan | 220 blocked | 216 reservations | 200 queryPoint | 182 nudgeOffStage | 181 gate | 163 nearestRoad | 97 ownerPads | 82 treeDensity | 62 nearestHeart | 53 cellMayReach | 53 roadsInBounds | 48 heartInCell | 43 nudgeOff | 40 shapesClearOfRoads | 32 distToSeg | 31 roadClear | 30 lakeInCell | 29 lakeAt | 27 lakeContaining
+398ms terrainVertexHeight <- terrainHeight <- expandFarInstances <- _applySnapshot <- ff.<computed> <- update <- go
+135ms terrainVertexHeight <- terrainHeight <- emit <- drapeTerrainTriangles <- _writeRoads <- ff.<computed> <- _applySnapshot
+119ms gate <- terrainVertexHeight <- terrainHeight <- emit <- drapeTerrainTriangles <- _writeRoads <- ff.<computed>
+96ms terrainVertexHeight <- terrainHeight <- emit <- drapeTerrainTriangles <- _writeRoads <- ff.<computed> <- _writeRoads
+90ms nearestRoad <- queryPoint <- nudgeOffStage <- _computePlan <- _basePlan <- classifySeamsNear <- seamResponsesNear
+33ms nearestRoad <- queryPoint <- nudgeOff <- _computePlan <- _basePlan <- classifySeamsNear <- seamResponsesNear
+32ms terrainVertexHeight <- terrainHeight <- _writeRoads <- ff.<computed> <- _applySnapshot <- ff.<computed> <- update
+18ms terrainVertexHeight <- terrainHeight <- emit <- drapeTerrainTriangles <- ff.<computed> <- _applySnapshot <- ff.<computed>
+16ms heartInCell <- nearestHeart <- treeDensity <- cellMayReach <- woodlandCampsNear <- tileDescriptors <- terrainVertexHeight
+15ms terrainVertexHeight <- terrainHeight <- emit <- drapeTerrainTriangles <- ff.<computed> <- ff.<computed> <- _applySnapshot
+14ms gate <- terrainVertexHeight <- terrainHeight <- _writeRoads <- ff.<computed> <- _applySnapshot <- ff.<computed>
+11ms nearestRoad <- cellMayReach <- woodlandCampsNear <- tileDescriptors <- terrainVertexHeight <- terrainHeight <- expandFarInstances
+11ms gate <- terrainVertexHeight <- terrainHeight <- emit <- drapeTerrainTriangles <- ff.<computed> <- _applySnapshot
+10ms heartInCell <- nearestHeart <- treeDensity <- queryPoint <- nudgeOffStage <- _computePlan <- _basePlan

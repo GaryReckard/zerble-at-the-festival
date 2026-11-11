@@ -113,6 +113,23 @@ and compression still need their own measured justification.
 - **Texture mipmap audit.** Confirm `generateMipmaps = true` on the larger canvas textures so distant draws sample cheap LOD levels.
 - **Light layers for the Sugar Shack work spots.** Currently every standard material in range pays the per-fragment SpotLight cost. Putting the lights on a layer that only the banner is on would cut that to ~3 affected meshes.
 
+## November 11 review: unmeasured candidates
+
+Recorded during the [far-field publication fix](../../verification/performance/2026-11-11-far-field-publication/README.md).
+"Code read" means the mechanism was confirmed in source; none of these has a
+GPU or device measurement, so each needs an A/B before it is scheduled.
+
+| Candidate | Evidence | Risk to check |
+|---|---|---|
+| Stop the horizon at the fog limit | Measured at one Low pose: over half of kept instances beyond 520 m, canopies to 1,508 m. | Changes the published set. Needs Noon/Midnight screenshots and a look at pool demand on dense seeds. |
+| Render directly when bloom and Trip are both off | Code read: the frame still renders into the composer's half-float target and runs FXAA and `OutputPass` (`src/main.js` composer setup). The lowest Auto rung keeps this path. | Sky, water and star shader materials must tone-map and color-convert the same way; `renderer.info` capture must still work. |
+| Per-tier context-light pool | Code read: 6 point + 6 spot pooled lights plus headlights and the disco spot stay in the light count all day (`src/contextLights.js`), and Low's Lambert shades per fragment. | Night look on Low. Keep the count constant per tier so programs do not recompile. |
+| Freeze static chunk subtrees | Desktop profile: `updateMatrixWorld` plus matrix multiplies were about 5% of sampled CPU across roughly 7,700 nodes. The November 7 probe froze 74 booth meshes only; r160 forces children whenever a parent updates, so a real test needs `scene.matrixAutoUpdate = false` and frozen chunk groups. | Animated children inside chunk groups silently stop moving if a branch is frozen wrongly. |
+| Budget chunk unloads | Code read: every chunk past the unload radius is disposed in the same `ChunkManager.update` call that builds new ones. | Registry and collider removal must stay immediate; only the dispose walk can wait. |
+| Give lake builds the streaming deadline | Code read: `lakeManager.update` receives no deadline and builds every missing lake in range in one call. | Lakes must register before neighbouring chunks build. |
+| Cheaper terrain cache keys | Microbenchmark: 19,881 warm vertex lookups took 2.47 ms, about 1.0 ms of it the `gate()` template string; integer Map keys halved the bare lookup. | Heights must stay bit-identical; `terrainVertexHeight` accepts off-lattice coordinates. |
+| Attribute iPad game-update time | The November 8 capture leaves roughly 13 ms per frame outside render and world with no device breakdown. | Measurement only: a people-frame trace on the device. |
+
 ## June unresponsive-page diagnosis (historical)
 
 The record below predates the October registry and bounded post-process

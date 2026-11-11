@@ -2141,6 +2141,11 @@ function collectPerfSample() {
       return {
         ffActive: ff.stats.active,
         ffCold: r1(ff.stats.maxColdStepMs),
+        // Longest single slice of publishing a planned snapshot, and how many
+        // frames the latest publication was spread over. The 2026-11-08 iPad
+        // route spent 424 ms here as one call, which ffCold never covered.
+        ffApply: r1(ff.stats.maxApplyStepMs),
+        ffApplyFrames: ff.stats.applyFrames,
         ffRebuilds: ff.stats.rebuilds,
         ffHandoffs: ff.stats.handoffs,
         ffOverflow: ff.stats.overflow,

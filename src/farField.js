@@ -1,6 +1,6 @@
 import {landscapeClearance} from './worldgen/landscapePolicy.js';
 import { pavedCutters, trimRoadTriangles } from './roadGeometry.js';
-import { terrainHeight, terrainEnabled, drapeTerrainTriangles } from './worldgen/terrain.js';
+import { terrainHeight, terrainEnabled, terrainGenerationKey, drapeTerrainTriangles, prepareTerrainHeight, prepareTerrainArea } from './worldgen/terrain.js';
 // FarField — the render-only festival horizon (festival-horizon change).
 //
 // A PEER of ChunkManager/LakeManager owned by world.js, never another chunk
@@ -305,7 +305,14 @@ export function instHash(seed, i) {
 // backdrop, roof or rear wall, truss and beacon; a vendor row becomes a strip
 // of roof peaks with warm light markers alongside. Sizes are coarse on purpose —
 // these read through 300-500m of fog, not up close.
-export function expandFarInstances(records, densityMul) {
+// Ground heights are DEFERRED: every instance carries the point it stands on
+// (gx, gz) and up to two vertical offsets (ya, yb), and `groundFarInstance`
+// resolves `y` later. Sampling terrain here made each rewrite pay for every
+// candidate before the pool caps discarded more than half of them, and the
+// discarded ones are the farthest, whose terrain tiles are the coldest (a cold
+// tile runs festival and woodland planning). Selection reads x/z only, so the
+// kept set is unchanged by resolving heights afterwards.
+export function planFarInstances(records, densityMul) {
   const out = { canopy: [], marqueeWall: [], truss: [], peak: [], vendorLegs: [], warm: [], beacon: [], forest: [], roads: [] };
   for (const r of records) {
     if (r.kind === '__road') { out.roads.push({flat:r.flat,width:r.width,surface:r.surface}); continue; }
@@ -333,28 +340,30 @@ export function expandFarInstances(records, densityMul) {
       const rad = r.step * (0.14 + t * 0.44 + instHash(r.forestSeed, 3) * 0.12);
       const h = 13.0 + t * 7.0 + instHash(r.forestSeed, 4) * 2.0;
       out.forest.push({
-        x: r.x, z: r.z, y: terrainHeight(r.x, r.z) + h * 0.32, yaw: instHash(r.forestSeed, 5) * Math.PI * 2,
+        x: r.x, z: r.z, y: 0, yaw: instHash(r.forestSeed, 5) * Math.PI * 2,
         sx: rad, sy: h * 0.6, sz: rad * (0.85 + instHash(r.forestSeed, 6) * 0.3),
         color: FOREST_PALETTE[(r.forestSeed >>> 3) % FOREST_PALETTE.length],
         ownerCx: ownerCellCoord(r.x), ownerCz: ownerCellCoord(r.z),
+        gx: r.x, gz: r.z, ya: h * 0.32,
       });
       continue;
     }
-    const ground = terrainHeight(r.x, r.z);
-    const own = { ownerCx: r.ownerCx, ownerCz: r.ownerCz };
+    // Every instance of a cluster stands on the cluster's own ground sample
+    // unless it overrides gx/gz (camp pitches, vendor bays).
+    const own = { ownerCx: r.ownerCx, ownerCz: r.ownerCz, gx: r.x, gz: r.z };
     if (STAGE_KINDS.has(r.kind)) {
       const s = r.scale;
       if (r.kind === 'tent_stage') {
         const rise = MARQUEE_SHAPE.ridgeHeight - MARQUEE_SHAPE.eaveHeight;
         out.canopy.push({
-          x: r.x, z: r.z, y: ground + MARQUEE_SHAPE.eaveHeight + rise / 2, yaw: r.yaw,
+          x: r.x, z: r.z, y: 0, ya: MARQUEE_SHAPE.eaveHeight, yb: rise / 2, yaw: r.yaw,
           sx: MARQUEE_SHAPE.width, sy: rise, sz: MARQUEE_SHAPE.depth,
           color: MARQUEE_SHAPE.roofColor, ...own,
         });
         const backZ = -MARQUEE_SHAPE.depth / 2;
         out.marqueeWall.push({
           x: r.x + Math.sin(r.yaw) * backZ, z: r.z + Math.cos(r.yaw) * backZ,
-          y: ground, yaw: r.yaw,
+          y: 0, yaw: r.yaw,
           sx: MARQUEE_SHAPE.width, sy: MARQUEE_SHAPE.ridgeHeight, sz: 1,
           color: MARQUEE_SHAPE.roofColor, ...own,
         });
@@ -366,7 +375,7 @@ export function expandFarInstances(records, densityMul) {
         const rx = Math.sin(rightYaw), rz = Math.cos(rightYaw);
         const deckH = STAGE_SURFACES.deckHeight * s;
         out.truss.push({
-          x: r.x, z: r.z, y: ground + deckH / 2, yaw: r.yaw,
+          x: r.x, z: r.z, y: 0, ya: deckH / 2, yaw: r.yaw,
           sx: shape.width * s, sy: deckH, sz: shape.depth * s,
           color: STAGE_SURFACES.deckColor, ...own,
         });
@@ -377,14 +386,14 @@ export function expandFarInstances(records, densityMul) {
           : STAGE_SURFACES.sideBannerColors[Math.floor(bannerRng() * STAGE_SURFACES.sideBannerColors.length)];
         out.truss.push({
           x: r.x + Math.sin(r.yaw) * bannerZ, z: r.z + Math.cos(r.yaw) * bannerZ,
-          y: ground + STAGE_SURFACES.bannerCenterY * s, yaw: r.yaw,
+          y: 0, ya: STAGE_SURFACES.bannerCenterY * s, yaw: r.yaw,
           sx: shape.width * s, sy: STAGE_SURFACES.bannerHeight * s,
           sz: STAGE_SURFACES.bannerThickness * s,
           color: bannerColor, ...own,
         });
         if (shape.hasRoof) {
           out.canopy.push({
-            x: r.x, z: r.z, y: ground + postH + shape.roofRise * s / 2,
+            x: r.x, z: r.z, y: 0, ya: postH, yb: shape.roofRise * s / 2,
             yaw: rightYaw,
             sx: (shape.depth + 2 * shape.roofOverhang) * s,
             sy: shape.roofRise * s,
@@ -394,15 +403,15 @@ export function expandFarInstances(records, densityMul) {
           const backZ = -(shape.depth / 2 + 0.3) * s;
           out.truss.push({
             x: r.x + Math.sin(r.yaw) * backZ, z: r.z + Math.cos(r.yaw) * backZ,
-            y: ground + postH / 2, yaw: r.yaw,
+            y: 0, ya: postH / 2, yaw: r.yaw,
             sx: shape.width * s, sy: postH, sz: 0.4 * s,
             color: shape.roofColor, ...own,
           });
         }
         out.truss.push(
-          { x: r.x + rx * postOff, z: r.z + rz * postOff, y: ground + postH / 2, yaw: 0, sx: 0.5 * s, sy: postH, sz: 0.5 * s, color: TRUSS_HEX, ...own },
-          { x: r.x - rx * postOff, z: r.z - rz * postOff, y: ground + postH / 2, yaw: 0, sx: 0.5 * s, sy: postH, sz: 0.5 * s, color: TRUSS_HEX, ...own },
-          { x: r.x, z: r.z, y: ground + postH, yaw: rightYaw, sx: 0.4 * s, sy: 0.4 * s, sz: shape.width * s, color: TRUSS_HEX, ...own },
+          { x: r.x + rx * postOff, z: r.z + rz * postOff, y: 0, ya: postH / 2, yaw: 0, sx: 0.5 * s, sy: postH, sz: 0.5 * s, color: TRUSS_HEX, ...own },
+          { x: r.x - rx * postOff, z: r.z - rz * postOff, y: 0, ya: postH / 2, yaw: 0, sx: 0.5 * s, sy: postH, sz: 0.5 * s, color: TRUSS_HEX, ...own },
+          { x: r.x, z: r.z, y: 0, ya: postH, yaw: rightYaw, sx: 0.4 * s, sy: 0.4 * s, sz: shape.width * s, color: TRUSS_HEX, ...own },
         );
       }
       const bs = 0.8 + instHash(r.clusterSeed, 3) * 0.3;
@@ -410,7 +419,7 @@ export function expandFarInstances(records, densityMul) {
         : (r.kind === 'main_stage' ? STAGE_SHAPES.main.trussHeight + STAGE_SHAPES.main.roofRise : STAGE_SHAPES.side.trussHeight) * s;
       const beaconY = roofTop + bs + 0.4 * (r.kind === 'tent_stage' ? 1 : s);
       out.beacon.push({
-        x: r.x, z: r.z, y: ground + beaconY, yaw: 0, sx: bs, sy: bs, sz: bs,
+        x: r.x, z: r.z, y: 0, ya: beaconY, yaw: 0, sx: bs, sy: bs, sz: bs,
         color: BEACON_PALETTE[paletteIndex(r, BEACON_PALETTE.length)], ...own,
       });
     } else if (r.kind === 'camp_village') {
@@ -425,7 +434,7 @@ export function expandFarInstances(records, densityMul) {
       let index = 0;
       for (const pitch of pitches) {
         const { recipe } = pitch;
-        const pitchGround = terrainHeight(r.x + pitch.x, r.z + pitch.z);
+        const pitchAt = { gx: r.x + pitch.x, gz: r.z + pitch.z };
         for (const [i, family] of recipe.tentFamilies.entries()) {
           const slot = index++;
           if (slot > 0 && densityMul < 1 && instHash(r.clusterSeed, slot + 401) >= densityMul) continue;
@@ -436,20 +445,20 @@ export function expandFarInstances(records, densityMul) {
             : family === 'cabin' ? [5.1, 4.36, 5.1]
             : family === 'dome' ? [6.32, 3.3, 6.32] : [4.4, 3.4, 5];
           out.peak.push({ x: r.x + pitch.x - Math.sin(yaw) * distance,
-            z: r.z + pitch.z - Math.cos(yaw) * distance, y: pitchGround + h / 2, yaw,
+            z: r.z + pitch.z - Math.cos(yaw) * distance, y: 0, ya: h / 2, yaw,
             sx: w, sy: h, sz: d,
-            color: VILLAGE_PALETTE[(baseIdx + slot) % VILLAGE_PALETTE.length], ...own });
+            color: VILLAGE_PALETTE[(baseIdx + slot) % VILLAGE_PALETTE.length], ...own, ...pitchAt });
         }
         if (recipe.kitchen) {
           const distance = (recipe.layoutRadius * .85 + .35) * 2;
           out.canopy.push({ x: r.x + pitch.x + Math.sin(pitch.facing) * distance,
             z: r.z + pitch.z + Math.cos(pitch.facing) * distance,
-            y: pitchGround + 5.15, yaw: pitch.facing, sx: 6, sy: .7, sz: 6,
-            color: 0x3a82c0, ...own });
+            y: 0, ya: 5.15, yaw: pitch.facing, sx: 6, sy: .7, sz: 6,
+            color: 0x3a82c0, ...own, ...pitchAt });
         }
       }
       const fs = 0.42 + instHash(r.clusterSeed, 7) * 0.16;
-      out.warm.push({ x: r.x, z: r.z, y: ground + 1.0, yaw: 0, sx: fs, sy: fs, sz: fs, ...own });
+      out.warm.push({ x: r.x, z: r.z, y: 0, ya: 1.0, yaw: 0, sx: fs, sy: fs, sz: fs, ...own });
     } else if (r.kind === 'vendor_row') {
       // The first cluster-local RNG draw is the real builder's booth count.
       // Lower tiers may omit slots, but surviving roofs stay on the exact
@@ -463,26 +472,45 @@ export function expandFarInstances(records, densityMul) {
         if (densityMul < 1 && instHash(r.clusterSeed, i * 2 + (side > 0 ? 1 : 0)) >= densityMul) continue;
         const appearance = vendorCanopyAppearance(ix, iz);
         out.peak.push({
-          x: ix, z: iz, y: terrainHeight(ix, iz) + VENDOR_ROOF_SHAPE.centerY,
+          x: ix, z: iz, y: 0, ya: VENDOR_ROOF_SHAPE.centerY,
           yaw: r.yaw + (side < 0 ? -Math.PI / 2 : Math.PI / 2) + Math.PI + appearance.roofYaw,
           sx: VENDOR_ROOF_SHAPE.radius, sy: VENDOR_ROOF_SHAPE.height, sz: VENDOR_ROOF_SHAPE.radius,
-          color: appearance.roof, vendor: true, ...own,
+          color: appearance.roof, vendor: true, ...own, gx: ix, gz: iz,
         });
-        out.vendorLegs.push({ x: ix, z: iz, y: terrainHeight(ix, iz),
+        out.vendorLegs.push({ x: ix, z: iz, y: 0,
           yaw: r.yaw + (side < 0 ? -Math.PI / 2 : Math.PI / 2) + Math.PI,
-          sx: 1, sy: 1, sz: 1, ...own });
+          sx: 1, sy: 1, sz: 1, ...own, gx: ix, gz: iz });
         // One warm marker per bay-pair, on the AISLE side — the strung lights
         // over the street you actually drive down.
         if (i % 2 === 0) {
           const ws = 0.32 + instHash(r.clusterSeed, i + (side > 0 ? 0 : 53) + 211) * 0.12;
           out.warm.push({
-            x: ix - px * 2.2 * side, z: iz - pz * 2.2 * side, y: terrainHeight(ix, iz) + 2.9, yaw: 0,
-            sx: ws, sy: ws, sz: ws, ...own,
+            x: ix - px * 2.2 * side, z: iz - pz * 2.2 * side, y: 0, ya: 2.9, yaw: 0,
+            sx: ws, sy: ws, sz: ws, ...own, gx: ix, gz: iz,
           });
         }
       }
     }
   }
+  return out;
+}
+
+// y = ground + ya + yb, summed left to right exactly as the original inline
+// expressions were, so a deferred height is bit-identical to an eager one. An
+// absent offset is skipped rather than added as zero: `-0 + 0` is `+0`, and a
+// ground sample of negative zero must survive.
+export function groundFarInstance(inst) {
+  let y = terrainHeight(inst.gx, inst.gz);
+  if (inst.ya !== undefined) y += inst.ya;
+  if (inst.yb !== undefined) y += inst.yb;
+  inst.y = y;
+  return inst;
+}
+
+// Eager form for tests and tools that want every candidate fully placed.
+export function expandFarInstances(records, densityMul) {
+  const out = planFarInstances(records, densityMul);
+  for (const name in out) if (name !== 'roads') out[name].forEach(groundFarInstance);
   return out;
 }
 
@@ -588,6 +616,74 @@ function peakRoofGeometry() {
   return geo;
 }
 
+// ---------- Road underlay geometry ----------
+
+const POOL_ORDER = ['canopy', 'marqueeWall', 'truss', 'peak', 'vendorLegs', 'warm', 'beacon', 'forest'];
+// Roads within reach of one anchor number in the low hundreds; this leaves
+// room for the cells around it without growing for a whole session.
+const ROAD_MEMO_LIMIT = 768;
+const boxesMeet = (a, b) => a.maxX >= b.minX && a.minX <= b.maxX && a.maxZ >= b.minZ && a.minZ <= b.maxZ;
+
+// One road's finished underlay: a mitered ribbon, with paved footprints cut
+// out of dirt, split along the terrain lattice. The result depends only on
+// the polyline, its width, the cutters that overlap it and the terrain, never
+// on where it lands in the shared buffer, which is what makes it reusable
+// from one snapshot to the next. Rebuilding every road on every 80 m cell
+// crossing was about half of the measured rewrite.
+//
+// Values pass through Math.fround wherever the single-pass writer stored a
+// number in the Float32 position buffer and read it back, so this is
+// bit-identical to that writer.
+//
+// Returns { vertices: Float32Array, indices: number[] (0-based), trimCount,
+// draped }. `trimCount` is the vertex count after trimming, or -1 when no
+// trim ran; the planner replays the capacity checks with it.
+export function buildFarRoad(flat, width, cutters) {
+  const f = Math.fround;
+  const halfW = width * FAR_ROAD_WIDTH_FRAC / 2;
+  const n = flat.length / 2;
+  let vertices = new Array(n * 6), indices = [];
+  for (let i = 0; i < n; i++) {
+    const cxp = flat[i * 2], czp = flat[i * 2 + 1];
+    let tx, tz;
+    if (i > 0 && i < n - 1) {
+      const p0x = flat[(i - 1) * 2], p0z = flat[(i - 1) * 2 + 1];
+      const p2x = flat[(i + 1) * 2], p2z = flat[(i + 1) * 2 + 1];
+      const d1x = cxp - p0x, d1z = czp - p0z, l1 = Math.hypot(d1x, d1z) || 1;
+      const d2x = p2x - cxp, d2z = p2z - czp, l2 = Math.hypot(d2x, d2z) || 1;
+      tx = d1x / l1 + d2x / l2; tz = d1z / l1 + d2z / l2;
+    } else if (i < n - 1) {
+      tx = flat[(i + 1) * 2] - cxp; tz = flat[(i + 1) * 2 + 1] - czp;
+    } else {
+      tx = cxp - flat[(i - 1) * 2]; tz = czp - flat[(i - 1) * 2 + 1];
+    }
+    const tl = Math.hypot(tx, tz) || 1;
+    const pxn = -(tz / tl), pzn = tx / tl;
+    const o = i * 6;
+    vertices[o] = f(cxp + pxn * halfW); vertices[o + 1] = f(terrainHeight(vertices[o], czp + pzn * halfW)); vertices[o + 2] = f(czp + pzn * halfW);
+    vertices[o + 3] = f(cxp - pxn * halfW); vertices[o + 4] = f(terrainHeight(vertices[o + 3], czp - pzn * halfW)); vertices[o + 5] = f(czp - pzn * halfW);
+  }
+  for (let i = 0; i < n - 1; i++) {
+    const a = i * 2, b = a + 1, c = a + 2, d = a + 3;
+    indices.push(a, c, b, b, c, d);
+  }
+  let trimCount = -1;
+  if (cutters && cutters.length) {
+    const triangles = [];
+    for (let j = 0; j < indices.length; j += 3) triangles.push([0, 1, 2].map(k => ({ x: vertices[indices[j + k] * 3], z: vertices[indices[j + k] * 3 + 2] })));
+    const trimmed = trimRoadTriangles(triangles, cutters);
+    vertices = []; indices = [];
+    for (const tri of trimmed) for (const p of tri) {
+      indices.push(vertices.length / 3);
+      vertices.push(f(p.x), f(terrainHeight(p.x, p.z)), f(p.z));
+    }
+    trimCount = indices.length;
+  }
+  const draped = terrainEnabled();
+  if (draped) ({ vertices, indices } = drapeTerrainTriangles(vertices, indices));
+  return { vertices: Float32Array.from(vertices), indices, trimCount, draped };
+}
+
 // ---------- The world-facing peer ----------
 //
 // Constructed by world.js beside the chunk/lake managers. When `enabled` is
@@ -612,6 +708,9 @@ export class FarField {
     this.stats = {
       active: 0, overflow: 0, rebuilds: 0, superseded: 0,
       roadVertsUsed: 0, roadsClipped: 0, maxColdStepMs: 0, handoffs: 0,
+      // Publication of a committed snapshot: longest single slice, frames the
+      // last one took, publications abandoned by a cell change, memo traffic.
+      maxApplyStepMs: 0, applyFrames: 0, applySuperseded: 0, roadMemoHits: 0, roadMemoMisses: 0,
       demandByPool: {}, overflowByPool: {},
     };
     // The narrow completion predicate (design D1/D4): "is (cx,cz) fully
@@ -621,6 +720,9 @@ export class FarField {
     this._playerCell = null;
     this._planAnchor = { x: 0, z: 0 };
     this._roadSeen = null;
+    this._job = null;               // in-flight publication of a committed snapshot
+    this._roadMemo = new Map();     // content key -> draped geometry per polyline
+    this._roadMemoGen = '';
     this._todQ = -1;
     this._nightOn = false;
     this._active = { canopy: [], marqueeWall: [], truss: [], peak: [], vendorLegs: [], warm: [], beacon: [], forest: [] };
@@ -662,6 +764,7 @@ export class FarField {
   forceReplan() {
     if (!this.enabled || this.disposed) return;
     this._playerCell = null;
+    this._job = null;
     this.planner.pending = null;
     this.planner.committed = null;
   }
@@ -781,6 +884,9 @@ export class FarField {
       this._planAnchor.x = pcx * 80;
       this._planAnchor.z = pcz * 80;
       this._roadSeen = new Set();
+      // A publication still in flight belongs to the cell just left. Its road
+      // and height work is retained by the caches, so dropping it loses little.
+      if (this._job) { this._job = null; this.stats.applySuperseded++; }
       this.planner.begin(version, coarseCellsFor(this._planAnchor.x, this._planAnchor.z, this.tier.radius));
     }
 
@@ -790,19 +896,34 @@ export class FarField {
     // most one indivisible cold step, which stats.maxColdStepMs measures and
     // the tier's maxColdStepMs gate judges. With no budget given (tests,
     // sandbox), exactly one cell is planned per call.
-    if (this.planner.pending && !(opts.budgetMs != null && opts.budgetMs <= 0)) {
+    if (!(opts.budgetMs != null && opts.budgetMs <= 0)) {
       const t0 = performance.now();
-      for (;;) {
+      const deadline = opts.budgetMs == null ? Infinity : t0 + opts.budgetMs;
+      while (this.planner.pending) {
         const c0 = performance.now();
         const committed = this.planner.step((cx, cz) => this._planCellRecords(cx, cz, this._roadSeen), 1);
         const cellMs = performance.now() - c0;
         if (cellMs > this.stats.maxColdStepMs) this.stats.maxColdStepMs = cellMs;
         if (committed) {
-          this._applySnapshot(this.planner.committed.records);
+          this._job = this._beginApply(this.planner.committed.records);
           break;
         }
-        if (!this.planner.pending) break;
-        if (opts.budgetMs == null || performance.now() - t0 >= opts.budgetMs) break;
+        if (opts.budgetMs == null || performance.now() >= deadline) break;
+      }
+      // The committed snapshot is published in bounded pieces: the previous
+      // horizon stays on screen until every height and road is ready, then the
+      // pools are rewritten at once. Without a budget this finishes here.
+      if (this._job) {
+        const a0 = performance.now();
+        const done = this._advanceApply(this._job, deadline);
+        const stepMs = performance.now() - a0;
+        this._job.frames++;
+        if (stepMs > this.stats.maxApplyStepMs) this.stats.maxApplyStepMs = stepMs;
+        if (done) {
+          this.stats.applyFrames = this._job.frames;
+          this._commitApply(this._job);
+          this._job = null;
+        }
       }
     }
 
@@ -843,44 +964,84 @@ export class FarField {
     return out;
   }
 
-  // Atomic pool rewrite from a committed snapshot (design D2/D3): expand,
-  // keep the nearest under each fixed cap, write matrices/colors in place,
-  // flip needsUpdate, recompute the owner-maintained bounds. Never touches
-  // the registry, never disposes or reallocates a buffer.
+  // Pool rewrite from a committed snapshot (design D2/D3), in three parts so
+  // the expensive middle can be spread over frames:
+  //   _beginApply   expand to candidates and keep the nearest under each cap
+  //                 (x/z arithmetic only, no terrain);
+  //   _advanceApply resolve ground heights for the KEPT instances and prepare
+  //                 road geometry, stopping at the deadline;
+  //   _commitApply  write matrices, colors, roads and bounds in place.
+  // Only the last part touches a pool, so the rewrite the player sees is still
+  // atomic. It never touches the registry and never reallocates a buffer.
+  // The 2026-11-08 iPad route measured 424 ms for this work as one call.
   _applySnapshot(records) {
+    const job = this._beginApply(records);
+    this._advanceApply(job, Infinity);
+    this._commitApply(job);
+  }
+
+  _beginApply(records) {
     const ax = this._planAnchor.x, az = this._planAnchor.z;
-    const expanded = expandFarInstances(records, this.tier.densityMul || 1);
+    const expanded = planFarInstances(records, this.tier.densityMul || 1);
+    const kept = {}, demandByPool = {}, overflowByPool = {};
+    let active = 0, overflow = 0;
+    // Legs follow only retained vendor roofs, including capacity pressure in
+    // the roof pool; both then use the same owner-cell completion envelope.
+    const key = p => `${p.x},${p.z}`;
+    for (const name of POOL_ORDER) {
+      let candidates = expanded[name];
+      if (name === 'vendorLegs') {
+        const roofs = new Set(kept.peak.filter(p => p.vendor).map(key));
+        candidates = candidates.filter(p => roofs.has(key(p)));
+      }
+      const sel = selectNearest(candidates, ax, az, this._pools[name].cap);
+      sel.overflow += expanded[name].length - candidates.length;
+      demandByPool[name] = expanded[name].length;
+      overflowByPool[name] = sel.overflow;
+      kept[name] = sel.kept;
+      overflow += sel.overflow;
+      active += sel.kept.length;
+    }
+    return { kept, roads: expanded.roads, roadPlan: null, pool: 0, next: 0, frames: 0,
+      active, overflow, demandByPool, overflowByPool };
+  }
+
+  // Returns true once every kept instance is grounded and the road plan is
+  // complete. Each call makes progress before it looks at the clock, so a
+  // deadline that has already passed still cannot stall publication.
+  _advanceApply(job, deadline) {
+    while (job.pool < POOL_ORDER.length) {
+      const list = job.kept[POOL_ORDER[job.pool]];
+      while (job.next < list.length) {
+        const inst = list[job.next];
+        // A cold terrain tile is the one expensive thing a height can need.
+        // Warm it in bounded pieces first; the height itself is then cheap.
+        if (!prepareTerrainHeight(inst.gx, inst.gz, deadline)) return false;
+        groundFarInstance(inst);
+        job.next++;
+        if ((job.next & 15) === 0 && performance.now() >= deadline) return false;
+      }
+      job.pool++; job.next = 0;
+    }
+    if (!job.roadPlan) job.roadPlan = this._planRoads(job.roads, null, deadline);
+    return !!job.roadPlan;
+  }
+
+  _commitApply(job) {
     // A (re)plan snaps every proxy's ownership state without an envelope
     // (design D1/D4) — clear active envelopes, rebuild the owner-cell index.
     this._ownerCells.clear();
     this._handoffs.length = 0;
-    let active = 0, overflow = 0;
-    const demandByPool = {}, overflowByPool = {};
-    // Legs follow only retained vendor roofs, including capacity pressure in
-    // the roof pool; both then use the same owner-cell completion envelope.
-    const key = p => `${p.x},${p.z}`;
-    for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'vendorLegs', 'warm', 'beacon', 'forest']) {
-      const pool = this._pools[name];
-      let candidates = expanded[name];
-      if (name === 'vendorLegs') {
-        const roofs = new Set(this._active.peak.filter(p => p.vendor).map(key));
-        candidates = candidates.filter(p => roofs.has(key(p)));
-      }
-      const sel = selectNearest(candidates, ax, az, pool.cap);
-      sel.overflow += expanded[name].length - candidates.length;
-      demandByPool[name] = expanded[name].length;
-      overflowByPool[name] = sel.overflow;
-      this._active[name] = sel.kept;
-      overflow += sel.overflow;
-      active += sel.kept.length;
-      this._writePool(pool, sel.kept);
+    for (const name of POOL_ORDER) {
+      this._active[name] = job.kept[name];
+      this._writePool(this._pools[name], job.kept[name]);
     }
-    this._writeRoads(expanded.roads);
+    this._commitRoads(job.roadPlan);
     this._applyNightVisibility();
-    this.stats.active = active;
-    this.stats.overflow = overflow;
-    this.stats.demandByPool = demandByPool;
-    this.stats.overflowByPool = overflowByPool;
+    this.stats.active = job.active;
+    this.stats.overflow = job.overflow;
+    this.stats.demandByPool = job.demandByPool;
+    this.stats.overflowByPool = job.overflowByPool;
     this.stats.rebuilds++;
     this.stats.superseded = this.planner.superseded;
   }
@@ -944,10 +1105,80 @@ export class FarField {
   // so joints read smoothly; a polyline that would overflow either cap is
   // skipped WHOLE (deterministic capacity behavior — never a half ribbon),
   // counted in stats.roadsClipped.
-  _writeRoads(flats, reservedPaved = null) {
-    const { geo, posAttr, idxAttr, colorAttr, mesh } = this._road;
+  _writeRoads(flats) {
+    this._commitRoads(this._planRoads(flats, null, Infinity));
+  }
 
-    const pos = posAttr.array, idx = idxAttr.array;
+  // One memo entry per distinct polyline (content, width, surface). The
+  // snapshot's records are fresh copies on every plan, so identity cannot key
+  // this; a short content key finds the entry and a full comparison confirms it.
+  _roadEntry(record) {
+    const original = Array.isArray(record) || ArrayBuffer.isView(record) ? record : record.flat;
+    const width = record.width ?? CONFIG.ROAD_WIDTH, surface = record.surface;
+    const n = original.length;
+    const key = `${surface}|${width}|${n}|${original[0]},${original[1]},${original[n - 2]},${original[n - 1]}`;
+    let entry = this._roadMemo.get(key);
+    if (entry) {
+      let same = entry.original.length === n;
+      for (let i = 0; same && i < n; i++) same = entry.original[i] === original[i];
+      if (same) {
+        // Refresh recency: eviction below removes the oldest insertion.
+        this._roadMemo.delete(key); this._roadMemo.set(key, entry);
+        return entry;
+      }
+    }
+    // The horizon bends long segments onto the terrain lattice every 10 m.
+    let flat = original;
+    if (terrainEnabled()) {
+      flat = [original[0], original[1]];
+      for (let i = 2; i < n; i += 2) {
+        const ax = original[i - 2], az = original[i - 1], bx = original[i], bz = original[i + 1];
+        const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 10));
+        for (let j = 1; j <= steps; j++) flat.push(ax + (bx - ax) * j / steps, az + (bz - az) * j / steps);
+      }
+    }
+    let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+    for (let i = 0; i < flat.length; i += 2) {
+      if (flat[i] < minX) minX = flat[i];
+      if (flat[i] > maxX) maxX = flat[i];
+      if (flat[i + 1] < minZ) minZ = flat[i + 1];
+      if (flat[i + 1] > maxZ) maxZ = flat[i + 1];
+    }
+    // The ribbon offsets each point by exactly half its width. The extra
+    // centimetre covers float32 rounding of the stored vertices.
+    const pad = width * FAR_ROAD_WIDTH_FRAC / 2 + 0.01;
+    entry = { original: Float64Array.from(original), flat, width, surface,
+      bounds: { minX: minX - pad, minZ: minZ - pad, maxX: maxX + pad, maxZ: maxZ + pad },
+      cutters: null, cutterBounds: null, geo: null, variants: [], warm: 0 };
+    if (this._roadMemo.size >= ROAD_MEMO_LIMIT) this._roadMemo.delete(this._roadMemo.keys().next().value);
+    this._roadMemo.set(key, entry);
+    return entry;
+  }
+
+  // The footprints a paved road cuts out of any dirt it crosses, with one box
+  // around all of them for the cheap "could this touch that" test.
+  _roadCutters(entry) {
+    if (!entry.cutters) {
+      const flat = entry.flat;
+      entry.cutters = pavedCutters([{ surface: entry.surface, width: entry.width,
+        points: Array.from({ length: flat.length / 2 }, (_, i) => ({ x: flat[i * 2], z: flat[i * 2 + 1] })) }],
+        null, Infinity, FAR_ROAD_WIDTH_FRAC);
+      const box = { minX: Infinity, minZ: Infinity, maxX: -Infinity, maxZ: -Infinity };
+      for (const c of entry.cutters) {
+        box.minX = Math.min(box.minX, c.bounds.minX); box.maxX = Math.max(box.maxX, c.bounds.maxX);
+        box.minZ = Math.min(box.minZ, c.bounds.minZ); box.maxZ = Math.max(box.maxZ, c.bounds.maxZ);
+      }
+      entry.cutterBounds = box;
+    }
+    return entry.cutters;
+  }
+
+  // Decide which roads fit and prepare their geometry WITHOUT touching the
+  // live buffers. Returns null when the deadline passes with geometry still to
+  // build; whatever was built stays in the memo, so the retry resumes there.
+  _planRoads(flats, reservedPaved, deadline, progress = { built: 0 }) {
+    const generation = terrainGenerationKey();
+    if (generation !== this._roadMemoGen) { this._roadMemo.clear(); this._roadMemoGen = generation; }
 
     // roadsInBounds pads its query by ROAD_MAX_EDGE_CELLS heart cells, so the
     // coarse-cell sweep discovers arterials far beyond the horizon. Keep only
@@ -958,104 +1189,105 @@ export class FarField {
     const reach = this.tier.radius + COARSE_CELL;
     const scored = [];
     for (const record of flats) {
-      const original=Array.isArray(record)||ArrayBuffer.isView(record)?record:record.flat;
-      let flat = original;
-      if (terrainEnabled()) {
-        flat = [original[0], original[1]];
-        for (let i = 2; i < original.length; i += 2) {
-          const ax = original[i - 2], az = original[i - 1], bx = original[i], bz = original[i + 1];
-          const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 10));
-          for (let j = 1; j <= steps; j++) flat.push(ax + (bx - ax) * j / steps, az + (bz - az) * j / steps);
-        }
-      }
+      const entry = this._roadEntry(record), flat = entry.flat;
       let best = Infinity;
       for (let i = 0; i < flat.length; i += 2) {
         const d = Math.hypot(flat[i] - ax, flat[i + 1] - az);
         if (d < best) best = d;
       }
-      if (best <= reach) scored.push({ flat, key:original, d: best, width:record.width ?? CONFIG.ROAD_WIDTH, surface:record.surface });
+      // `key` is the record's own array: two records may share one memo entry,
+      // but each keeps its own capacity reservation.
+      if (best <= reach) scored.push({ entry, flat, d: best, key: record.flat || record });
     }
     scored.sort((a, b) => a.d - b.d || a.flat[0] - b.flat[0] || a.flat[1] - b.flat[1]);
-    const cutters=pavedCutters(scored.filter(r=>!reservedPaved||r.surface!=='asphalt'||reservedPaved.has(r.key)).map(r=>({surface:r.surface,width:r.width,points:Array.from({length:r.flat.length/2},(_,i)=>({x:r.flat[i*2],z:r.flat[i*2+1]}))})),null,Infinity,FAR_ROAD_WIDTH_FRAC);
-    const committedPaved=new Map();
-    let reserveV=0,reserveI=0;
-    if(reservedPaved)for(const size of reservedPaved.values()){reserveV+=size.vertices;reserveI+=size.indices;}
+
+    // Paved roads that cut dirt, nearest-first. A second pass (below) keeps
+    // only the pavement the first pass could afford.
+    const paved = [];
+    for (const { entry, key } of scored) {
+      if (entry.surface === 'asphalt' && (!reservedPaved || reservedPaved.has(key)) && this._roadCutters(entry).length) paved.push(entry);
+    }
+    let allCutters = null;
+    const committedPaved = new Map(), items = [];
+    let reserveV = 0, reserveI = 0, asphaltScored = 0;
+    if (reservedPaved) for (const size of reservedPaved.values()) { reserveV += size.vertices; reserveI += size.indices; }
     let v = 0, ix = 0, clipped = 0;
-    let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
-    for (const { flat, key, width, surface } of scored) {
-      if(reservedPaved&&surface==='asphalt'){
-        const size=reservedPaved.get(key);if(!size){clipped++;continue;}
-        reserveV-=size.vertices;reserveI-=size.indices;
+    for (const { entry, flat, key } of scored) {
+      const asphalt = entry.surface === 'asphalt';
+      if (asphalt) asphaltScored++;
+      if (reservedPaved && asphalt) {
+        const size = reservedPaved.get(key); if (!size) { clipped++; continue; }
+        reserveV -= size.vertices; reserveI -= size.indices;
       }
-      const capV=this.tier.caps.roadVerts-reserveV,capI=this.tier.caps.roadIndices-reserveI;
-      const halfW = width * FAR_ROAD_WIDTH_FRAC / 2;
+      const capV = this.tier.caps.roadVerts - reserveV, capI = this.tier.caps.roadIndices - reserveI;
       const n = flat.length / 2;
       if (n < 2) continue;
       if (v + n * 2 > capV || ix + (n - 1) * 6 > capI) { clipped++; continue; }
-      const base = v, firstIndex=ix;
-      for (let i = 0; i < n; i++) {
-        const cxp = flat[i * 2], czp = flat[i * 2 + 1];
-        let tx, tz;
-        if (i > 0 && i < n - 1) {
-          const p0x = flat[(i - 1) * 2], p0z = flat[(i - 1) * 2 + 1];
-          const p2x = flat[(i + 1) * 2], p2z = flat[(i + 1) * 2 + 1];
-          const d1x = cxp - p0x, d1z = czp - p0z, l1 = Math.hypot(d1x, d1z) || 1;
-          const d2x = p2x - cxp, d2z = p2z - czp, l2 = Math.hypot(d2x, d2z) || 1;
-          tx = d1x / l1 + d2x / l2; tz = d1z / l1 + d2z / l2;
-        } else if (i < n - 1) {
-          tx = flat[(i + 1) * 2] - cxp; tz = flat[(i + 1) * 2 + 1] - czp;
-        } else {
-          tx = cxp - flat[(i - 1) * 2]; tz = czp - flat[(i - 1) * 2 + 1];
-        }
-        const tl = Math.hypot(tx, tz) || 1;
-        const pxn = -(tz / tl), pzn = tx / tl;
-        const o = (base + i * 2) * 3;
-        pos[o] = cxp + pxn * halfW; pos[o + 1] = terrainHeight(pos[o], czp + pzn * halfW); pos[o + 2] = czp + pzn * halfW;
-        pos[o + 3] = cxp - pxn * halfW; pos[o + 4] = terrainHeight(pos[o + 3], czp - pzn * halfW); pos[o + 5] = czp - pzn * halfW;
-        minY = Math.min(minY, pos[o + 1], pos[o + 4]);
-        maxY = Math.max(maxY, pos[o + 1], pos[o + 4]);
-        if (cxp - halfW < minX) minX = cxp - halfW;
-        if (cxp + halfW > maxX) maxX = cxp + halfW;
-        if (czp - halfW < minZ) minZ = czp - halfW;
-        if (czp + halfW > maxZ) maxZ = czp + halfW;
-      }
-      for (let i = 0; i < n - 1; i++) {
-        const a = base + i * 2, b = a + 1, cIdx = a + 2, d = a + 3;
-        idx[ix] = a; idx[ix + 1] = cIdx; idx[ix + 2] = b;
-        idx[ix + 3] = b; idx[ix + 4] = cIdx; idx[ix + 5] = d;
-        ix += 6;
-      }
-      v += n * 2;
-      if(surface!=='asphalt'&&cutters.length){
-        const triangles=[];
-        for(let j=firstIndex;j<ix;j+=3)triangles.push([0,1,2].map(k=>({x:pos[idx[j+k]*3],z:pos[idx[j+k]*3+2]})));
-        const trimmed=trimRoadTriangles(triangles,cutters),count=trimmed.length*3;
-        if(base+count>capV||firstIndex+count>capI){v=base;ix=firstIndex;clipped++;continue;}
-        v=base;ix=firstIndex;
-        for(const tri of trimmed)for(const p of tri){pos[v*3]=p.x;pos[v*3+1]=terrainHeight(p.x,p.z);pos[v*3+2]=p.z;idx[ix++]=v++;}
-      }
-      if(terrainEnabled()){
-        const draped=drapeTerrainTriangles(Array.from(pos.slice(base*3,v*3)),Array.from(idx.slice(firstIndex,ix),i=>i-base));
-        const count=draped.vertices.length/3;
-        if(base+count>capV||firstIndex+draped.indices.length>capI){v=base;ix=firstIndex;clipped++;continue;}
-        pos.set(draped.vertices,base*3);
-        for(let i=0;i<draped.indices.length;i++)idx[firstIndex+i]=base+draped.indices[i];
-        v=base+count;ix=firstIndex+draped.indices.length;
-      }
-      if(surface==='asphalt')committedPaved.set(key,{vertices:v-base,indices:ix-firstIndex});
-      const color=new THREE.Color(surface==='asphalt'?0x505458:ROAD_HEX);
-      for(let j=base;j<v;j++){const o=j*3;colorAttr.array[o]=color.r;colorAttr.array[o+1]=color.g;colorAttr.array[o+2]=color.b;}
 
+      // Find or build this road's geometry. Pavement depends on nothing else;
+      // dirt depends on exactly the paved roads that can reach it, in order.
+      let geo, touching = null;
+      if (asphalt || !paved.length) {
+        geo = asphalt ? entry.geo : (entry.variants.find(x => x.plain) || {}).geo;
+      } else {
+        touching = paved.filter(p => boxesMeet(entry.bounds, p.cutterBounds));
+        const hit = entry.variants.find(x => !x.plain && x.touching.length === touching.length && x.touching.every((p, i) => p === touching[i]));
+        geo = hit && hit.geo;
+      }
+      if (geo) this.stats.roadMemoHits++;
+      else {
+        if (progress.built > 0 && performance.now() >= deadline) return null;
+        // Warm the terrain under the ribbon before building on it. `warm` is a
+        // resume cursor, so a road that spans many cold tiles spreads out too.
+        const pad = entry.width * FAR_ROAD_WIDTH_FRAC / 2 + 11;
+        for (; entry.warm < flat.length; entry.warm += 2) {
+          const x = flat[entry.warm], z = flat[entry.warm + 1];
+          if (!prepareTerrainArea(x - pad, z - pad, x + pad, z + pad, deadline)) return null;
+        }
+        progress.built++; this.stats.roadMemoMisses++;
+        const trim = !asphalt && paved.length > 0;
+        if (trim && !allCutters) allCutters = paved.flatMap(p => p.cutters);
+        geo = buildFarRoad(flat, entry.width, trim ? allCutters : null);
+        if (asphalt) entry.geo = geo;
+        else {
+          if (entry.variants.length >= 4) entry.variants.shift();
+          entry.variants.push(trim ? { plain: false, touching, geo } : { plain: true, geo });
+        }
+      }
+
+      // Replay the capacity checks the single-pass writer made after trimming
+      // and after draping, so a road is kept or skipped exactly as before.
+      const base = v, firstIndex = ix;
+      if (geo.trimCount >= 0 && (base + geo.trimCount > capV || firstIndex + geo.trimCount > capI)) { clipped++; continue; }
+      if (geo.draped && (base + geo.vertices.length / 3 > capV || firstIndex + geo.indices.length > capI)) { clipped++; continue; }
+      v = base + geo.vertices.length / 3; ix = firstIndex + geo.indices.length;
+      if (asphalt) committedPaved.set(key, { vertices: v - base, indices: ix - firstIndex });
+      items.push({ geo, asphalt });
     }
     // A capacity-omitted paved road must not cut holes in retained dirt. If the
-    // first nearest-first pass dropped pavement, rewrite once using only kept
+    // first nearest-first pass dropped pavement, plan once more using only kept
     // paved footprints and reserve their exact sizes before admitting dirt.
     // The second pass is bounded and cannot evict its reserved cutters.
-    if(!reservedPaved&&committedPaved.size<scored.filter(r=>r.surface==='asphalt').length)return this._writeRoads(flats,committedPaved);
+    if (!reservedPaved && committedPaved.size < asphaltScored) return this._planRoads(flats, committedPaved, deadline, progress);
+    return { items, clipped };
+  }
+
+  _commitRoads(plan) {
+    const { geo, posAttr, idxAttr, colorAttr, mesh } = this._road;
+    const pos = posAttr.array, idx = idxAttr.array, col = colorAttr.array;
+    const color = this._col;
+    let v = 0, ix = 0;
+    for (const { geo: g, asphalt } of plan.items) {
+      pos.set(g.vertices, v * 3);
+      for (let i = 0; i < g.indices.length; i++) idx[ix + i] = v + g.indices[i];
+      color.setHex(asphalt ? 0x505458 : ROAD_HEX);
+      const count = g.vertices.length / 3;
+      for (let j = v; j < v + count; j++) { const o = j * 3; col[o] = color.r; col[o + 1] = color.g; col[o + 2] = color.b; }
+      v += count; ix += g.indices.length;
+    }
     // Clipping introduces vertices on terrain creases, so derive bounds from
     // the final committed buffer rather than the original ribbon endpoints.
-    minX=minY=minZ=Infinity;maxX=maxY=maxZ=-Infinity;
+    let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
     for(let i=0;i<v;i++){const o=i*3;minX=Math.min(minX,pos[o]);maxX=Math.max(maxX,pos[o]);minY=Math.min(minY,pos[o+1]);maxY=Math.max(maxY,pos[o+1]);minZ=Math.min(minZ,pos[o+2]);maxZ=Math.max(maxZ,pos[o+2]);}
     posAttr.needsUpdate = true;
     colorAttr.needsUpdate = true;
@@ -1072,7 +1304,7 @@ export class FarField {
       geo.boundingSphere.radius = 0;
     }
     this.stats.roadVertsUsed = v;
-    this.stats.roadsClipped = clipped;
+    this.stats.roadsClipped = plan.clipped;
   }
 
   // Shared Noon→Midnight behavior (design D5, task 2.4): whole-batch
@@ -1190,6 +1422,8 @@ export class FarField {
     this._active = null;
     this._ownerCells = null;
     this._handoffs = null;
+    this._job = null;
+    this._roadMemo = null;
     this.group = null;
   }
 }

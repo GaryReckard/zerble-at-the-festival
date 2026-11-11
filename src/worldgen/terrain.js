@@ -8,7 +8,7 @@ import { heartsInBounds } from './hearts.js';
 import { lakesInBounds } from './water.js';
 import { festivalPlan, campVillagesNear, MAX_POI_REACH } from './festival.js';
 import { clusterExtent } from './tuning.js';
-import { woodlandCampsNear } from '../woodlandCamping.js';
+import { woodlandCampsNear, prepareWoodlandCamps } from '../woodlandCamping.js';
 
 export const TERRAIN_VERSION = 1;
 export const TERRAIN_STEP = 10;
@@ -87,15 +87,64 @@ function intersects(p,b,pad=0) {
   const r = p.radius + pad;
   return p.x+r>=b.minX && p.x-r<=b.maxX && p.z+r>=b.minZ && p.z-r<=b.maxZ;
 }
+function tileReach() {
+  const maxExtent = Math.max(100, ...['food_court','vendor_row','main_stage','side_stage','tent_stage','camp_village','welfare_post','healing_arts']
+    .map(kind=>clusterExtent(kind,2)));
+  return {maxExtent, reach: MAX_POI_REACH + maxExtent + SHOULDER + TERRAIN_STEP * 2};
+}
+// A cold tile plans every festival hub and woodland camp within about 700 m,
+// which measured 50-600 ms as one call. Consumers that can wait a frame (the
+// far horizon) warm a tile through this instead: it fills the same per-hub
+// and per-camp caches tileDescriptors reads, one plan at a time, and stops
+// once the deadline passes after at least one new plan. Returns whether the
+// tile is ready. Heights are unaffected; only when the planning runs changes.
+function prepareTile(tx,tz,deadline) {
+  if(tileCache.has(`${tx},${tz}`))return true;
+  const b={minX:tx*TILE,minZ:tz*TILE,maxX:(tx+1)*TILE,maxZ:(tz+1)*TILE};
+  const {maxExtent,reach}=tileReach();
+  planning = true;
+  try {
+    for(const h of heartsInBounds(b.minX-reach,b.minZ-reach,b.maxX+reach,b.maxZ+reach)) {
+      if(ownerCache.has(`${h.cx},${h.cz}`))continue;
+      ownerPads(h);
+      if(performance.now()>=deadline)return false;
+    }
+    if(!prepareWoodlandCamps({minX:b.minX-maxExtent-SHOULDER-20,minZ:b.minZ-maxExtent-SHOULDER-20,
+      maxX:b.maxX+maxExtent+SHOULDER+20,maxZ:b.maxZ+maxExtent+SHOULDER+20},deadline))return false;
+  } finally { planning=false; }
+  tileDescriptors(tx,tz);
+  return true;
+}
+// Warm every tile a box touches. See prepareTile.
+export function prepareTerrainArea(minX,minZ,maxX,maxZ,deadline=Infinity) {
+  if(!enabled)return true;
+  gate();
+  for(let tz=Math.floor(minZ/TILE);tz<=Math.floor(maxZ/TILE);tz++)for(let tx=Math.floor(minX/TILE);tx<=Math.floor(maxX/TILE);tx++)
+    if(!prepareTile(tx,tz,deadline))return false;
+  return true;
+}
+// Warm what terrainHeight(x,z) will read: the tiles under the four lattice
+// corners, skipping corners that are already cached or wholly owned by a
+// landscape district (those never consult festival pads).
+export function prepareTerrainHeight(x,z,deadline=Infinity) {
+  if(!enabled)return true;
+  gate();
+  const ix=Math.floor(x/TERRAIN_STEP)*TERRAIN_STEP,iz=Math.floor(z/TERRAIN_STEP)*TERRAIN_STEP;
+  for(let k=0;k<4;k++){
+    const vx=ix+(k&1)*TERRAIN_STEP,vz=iz+(k>>1)*TERRAIN_STEP;
+    if(vertexCache.has(`${vx},${vz}`))continue;
+    if(landscapeVersion()===2){landscapeInfluence(vx,vz,landscapeProbe);if(landscapeProbe.weight===1)continue;}
+    if(!prepareTile(Math.floor(vx/TILE),Math.floor(vz/TILE),deadline))return false;
+  }
+  return true;
+}
 function tileDescriptors(tx,tz) {
   const key = `${tx},${tz}`;
   if(tileCache.has(key)) return tileCache.get(key);
   const b={minX:tx*TILE,minZ:tz*TILE,maxX:(tx+1)*TILE,maxZ:(tz+1)*TILE};
   // Bound from the actual tunable envelope sizes, rather than assuming the
   // default food court or stage scale survives live tuning.
-  const maxExtent = Math.max(100, ...['food_court','vendor_row','main_stage','side_stage','tent_stage','camp_village','welfare_post','healing_arts']
-    .map(kind=>clusterExtent(kind,2)));
-  const reach = MAX_POI_REACH + maxExtent + SHOULDER + TERRAIN_STEP * 2;
+  const {maxExtent,reach}=tileReach();
   const out=[];
   planning = true;
   try {

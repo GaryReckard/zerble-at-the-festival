@@ -2396,6 +2396,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
         disposed: ff.disposed,
         stats: { ...ff.stats },
         playerCell: ff._playerCell,
+        publishing: !!ff._job,
         pendingCells: ff.planner && ff.planner.pending
           ? ff.planner.pending.cells.length - ff.planner.pending.next : 0,
         committed: !!(ff.planner && ff.planner.committed),

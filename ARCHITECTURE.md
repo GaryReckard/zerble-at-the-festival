@@ -324,6 +324,19 @@ so contents are byte-stable per cell), and palette/variation come from pure
 integer hashes over descriptor identity — zero RNG draws, so worldgen goldens
 cannot move.
 
+**Publication.** A committed plan is not written to the pools in the same
+call. Candidates are placed by x/z, the caps keep the nearest, and only then
+are ground heights resolved for the survivors (`planFarInstances` →
+`groundFarInstance`). Road underlays come from `buildFarRoad`, whose output
+for one polyline is independent of its place in the shared buffer and is
+reused from an owner-held memo until the terrain generation changes. Height
+resolution, road preparation and cold terrain-tile warm-up
+(`prepareTerrainHeight` / `prepareTerrainArea` in `worldgen/terrain.js`)
+advance under the same streaming remainder as planning; the pools and road
+buffers are then rewritten together, so the previous horizon stays complete on
+screen until its replacement is. A cell change drops the publication in
+flight. Callers that pass no budget still get the whole rewrite in one call.
+
 **Handoff.** Each proxy instance carries its owning cluster's chunk cell (via
 `ownerCellCoord`, the one exported owner-cell rule). When
 `ChunkManager.isLoaded(cx, cz)` — the narrow "fully built" completion

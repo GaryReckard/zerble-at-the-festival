@@ -117,6 +117,20 @@ function cellMayReach(cx,cz,bounds) {
   }
   return false;
 }
+// Bounded warm-up for callers that can wait a frame. Plans the same cells
+// woodlandCampsNear would, stopping once the deadline passes after at least
+// one new cell, and returns whether every cell is now cached. The plans land
+// in the shared cache, so the later woodlandCampsNear only reads them.
+export function prepareWoodlandCamps(bounds,deadline=Infinity){
+  const current=`${getSessionSeed()}:${worldgenEpoch()}`;
+  if(current!==gate){cache.clear();gate=current;}
+  for(let z=Math.floor((bounds.minZ-REACH)/CELL);z<=Math.floor((bounds.maxZ+REACH)/CELL);z++)for(let x=Math.floor((bounds.minX-REACH)/CELL);x<=Math.floor((bounds.maxX+REACH)/CELL);x++){
+    if(cache.has(`${x},${z}`)||!cellMayReach(x,z,bounds))continue;
+    cellPlan(x,z);
+    if(performance.now()>=deadline)return false;
+  }
+  return true;
+}
 export function woodlandCampsNear(bounds){
   const current=`${getSessionSeed()}:${worldgenEpoch()}`;
   if(current!==gate){cache.clear();gate=current;}
