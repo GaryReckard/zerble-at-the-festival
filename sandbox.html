@@ -344,6 +344,7 @@
             <option value="heart">Heart particle</option>
             <option value="smile_pickup">Smile pickup (rising + homing)</option>
             <option value="smile_face">Smile pickup (face close-up)</option>
+            <option value="quest_bubbles">Passenger quest thought bubbles (every icon)</option>
             <option value="bubbles">Bubbles (Zerble's trail)</option>
             <option value="bubbles_special">Bubble upgrades (lineup or stream)</option>
             <option value="fireworks">Fireworks (cycles all shells)</option>
@@ -615,6 +616,7 @@ import {buildShrub} from './src/models/shrub.js';
     import {BUBBLE_TYPES} from './src/bubbleTypes.js';
     import {SpecialBubbleRenderer} from './src/specialBubbles.js';
     import {Smiles} from './src/smiles.js';
+    import {QuestBubbles, QUEST_ICONS} from './src/models/questBubble.js';
     import {BoostStreaks} from './src/boostStreaks.js';
     import {Fireworks, SHELL_TYPES} from './src/fireworks.js';
     import {Crowd} from './src/crowd.js';
@@ -869,6 +871,7 @@ import {buildShrub} from './src/models/shrub.js';
         currentEntity?.previewParty?.dispose();
         if (currentEntity instanceof NutWagon) currentEntity.despawn();
         if (currentEntity instanceof Smiles) currentEntity.dispose();
+        if (currentEntity instanceof QuestBubbles) currentEntity.dispose();
         if (currentEntity instanceof Crowd) currentEntity.smiles.dispose();
         if (currentEntity instanceof SpecialBubbleRenderer) currentEntity.dispose();
         if (currentEntity instanceof Bubbles) currentEntity._specialRenderer.dispose();
@@ -3181,6 +3184,36 @@ import {buildShrub} from './src/models/shrub.js';
                 };
                 cam.target.set(0, 1, 0);
                 cam.dist = 8;
+                applyCam();
+                break;
+            }
+            case 'quest_bubbles': {
+                // Every destination icon in a row over stand-in riders. Warmth
+                // sweeps 0 → 1 → 0 so the dim, bright and pulsing looks all
+                // pass by; the potty bubble shows the urgent jitter.
+                const bubbles = new QuestBubbles(scene, QUEST_ICONS.length);
+                entityRoot = bubbles.group;
+                currentEntity = bubbles;
+                const riders = new THREE.Group();
+                const span = (QUEST_ICONS.length - 1) * 1.7;
+                QUEST_ICONS.forEach((icon, i) => {
+                    const npc = buildSimpleNPC([0xe25563, 0x4fb8a8, 0xf2c14e, 0x7c4fb8][i % 4], 0xd8b493);
+                    npc.position.set(i * 1.7 - span / 2, 0, 0);
+                    riders.add(npc);
+                    bubbles.show(icon, icon, 0);
+                });
+                scene.add(riders);
+                let t = 0;
+                updateFn = (dt) => {
+                    t += dt;
+                    const warmth = 0.5 - 0.5 * Math.cos(t * 0.6);
+                    QUEST_ICONS.forEach((icon, i) => bubbles.place(icon, i * 1.7 - span / 2, 1.95, 0, {warmth, urgent: icon === 'potty'}, t));
+                };
+                updateFn(0);
+                cam.target.set(0, 2.2, 0);
+                cam.yaw = 0;
+                cam.pitch = 0.08;
+                cam.dist = 17;
                 applyCam();
                 break;
             }

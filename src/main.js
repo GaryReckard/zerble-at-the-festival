@@ -69,6 +69,7 @@ import { MonkParty } from './monks.js';
 import { OneWheels } from './oneWheels.js';
 import { NutWagon } from './nutWagon.js';
 import { QuestRuntime } from './quests/runtime.js';
+import { QuestPresentation } from './quests/presentation.js';
 import { Lurleen } from './lurleen.js';
 import { Birds } from './birds.js';
 import { ChaseCamera } from './camera.js';
@@ -904,6 +905,12 @@ const quests = new QuestRuntime({
   toast: (msg, ms) => HUD.toast(msg, ms), sound: Sound, analytics: Analytics,
   deductSmiles: (n) => { Scoring.deduct(n); HUD.setSmiles(Scoring.current); },
 });
+const questView = new QuestPresentation({
+  runtime: quests, crowd, zerble, scene, festivalMap,
+  compassRoot: document.getElementById('quest-strip'),
+  reducedMotion: () => A11y.reducedMotion,
+  hum: (warmth) => Sound.playQuestHum(warmth),
+});
 crowd.onBoard = (handle) => {
   Analytics.passengerBoard();
   if (passportCanCollect()) playerStats.record('passengers');
@@ -976,6 +983,7 @@ A11y.init();
 Settings.init({
   bubbles,
   festivalMap,
+  questView,
   // "Apply & restart" calls this to preserve a live session across the reload.
   // Returns null on the title card (nothing to resume) → a fresh boot.
   captureState: () => {
@@ -1488,6 +1496,7 @@ function tickBody(dt) {
     peopleFrameTrace?.pickups('adults-before', smiles);
     if (!npcsFrozen()) people.run('adults',peopleFrame);
     if (!npcsFrozen()) quests.update(dt);   // after the crowd, so a rider who just left is seen at once
+    questView.update(dt);
     peopleFrameTrace?.pickups('adults-after', smiles);
     peopleFrameTrace?.population('adult-poses',crowd);
     // Same-frame collects coalesce into ONE scoring event (and, in group 5,

@@ -4,14 +4,15 @@
 
 ## Where it stands
 
-_Updated after every commit. Last update: 2026-11-15, after the core-loop commit._
+_Updated after every commit. Last update: 2026-11-15, after the presentation commit._
 
-- Done: plan (group 1), pure engine and test (group 2), the playable core loop (group 3), and the urgent run's rules (task 6.1).
-- Works in the game today: offers on boarding, toasts, arrival with a cheer and a smile burst, missed stops, give-up, the timed porta-potty run, and the debug commands.
-- Not built yet: the thought bubble (group 4), compass, map pins, sounds, analytics and the setting (group 5), the urgent run's squirm and countdown display (6.2, 6.3), mountaintop (group 7), monk parties (group 8), close-out docs (group 9).
-- Next: group 4. Subscribe to `quests.subscribe((type, quest, data) => …)` in `main.js`; do not put presentation into `runtime.js`.
+- Done: plan (1), engine and test (2), playable core loop (3), thought bubbles and their sandbox view (4), compass strip, setting, map pins, sounds and analytics (5), and the urgent run's rules, icon and countdown (6.1 and most of 6.2).
+- Not built yet: the urgent rider's squirm pose and a watched success/failure (6.2, 6.3), mountaintop (7), monk parties (8), close-out docs (9).
+- Next: group 7 or 8. Both only need a destination source and a call into `QuestRuntime`; the engine already has `summit` and `party` quest types with rewards and tests.
+  - Mountaintop: pass an `extraDestinations(origin)` function to `QuestRuntime` in `main.js` that returns `{ kind: 'mountaintop', x, z, radius }` candidates. `__dbg.giveQuest('summit')` forces one.
+  - Monks: call `quests.offerParty(key, dest, memberCount)` when a `MonkParty` finishes boarding Zerble, keep the party aboard until the quest ends, and call `quests.cancel(key)` if the party leaves. `QuestPresentation` already floats one shared bubble over the cart for a `party` quest.
 - Nothing is half-applied in the working tree.
-- Environment note: this checkout runs Node 22 although the project asks for 24; `npm ci` had to be run once. `npm run check` takes about five minutes.
+- Environment note: this checkout runs Node 22 although the project asks for 24; `npm ci` had to be run once. `npm run check` takes five to ten minutes.
 
 ## Rules that apply to this work
 
@@ -37,3 +38,5 @@ Without a GPU browser, the project's fallback is `bin/verify-headless` (one `--e
 - The plan can describe a place its builder later omitted, so a rider may occasionally be dropped at a spot with little there. Not yet observed; if it shows up, check the registry near the destination at offer time.
 - After `__dbg.teleport` the chase camera can end up behind a tree. Use `__dbg.camLock(...)` for screenshots.
 - `HUD.toast` holds one message, so a quest remark replaces whatever toast was showing.
+- Phones are landscape only (portrait shows "Rotate your phone"), so test touch layouts at 844×390, not 390×844.
+- Three riders on the back bench give three overlapping bubbles. They step upward by a `stack` offset; it is readable but crowded.

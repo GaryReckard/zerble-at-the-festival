@@ -144,6 +144,7 @@ export const Settings = {
         <div class="settings-tab is-hidden" data-tab="accessibility" role="tabpanel">
           <div class="settings-section">
             ${toggleRow('set-map-visible', 'Festival minimap', 'M opens the larger map, even with the minimap hidden')}
+            ${toggleRow('set-quest-compass', 'Passenger compass', 'arrows and distances for riders’ requests')}
             <button id="set-map-reset" class="settings-apply">Reset this festival’s explored map</button>
             ${toggleRow('set-reduced-motion', 'Reduced motion', 'calm the strobes, warp &amp; pulses')}
             ${toggleRow('set-colorblind', 'Colorblind-friendly cues', 'mark a lost smile by shape, not just colour')}
@@ -238,6 +239,7 @@ export const Settings = {
     bindSlider($('#set-vol-sfx'), 'sfx', (v) => Sound.setSfxVolume(v));
 
     $('#set-map-visible').addEventListener('change', e => refs.festivalMap?.setCompact(e.target.checked));
+    $('#set-quest-compass').addEventListener('change', e => refs.questView?.setCompassVisible(e.target.checked));
     $('#set-map-reset').addEventListener('click', () => {
       if (confirm('Clear explored territory and known places for this festival? This cannot be undone.')) void refs.festivalMap?.reset();
     });
@@ -281,6 +283,7 @@ export const Settings = {
     setSlider($('#set-vol-sfx'), Sound.getSfxVolume(), 'sfx');
     // Accessibility
     $('#set-map-visible').checked = refs.festivalMap?.compact ?? true;
+    $('#set-quest-compass').checked = refs.questView?.compassVisible ?? true;
     $('#set-reduced-motion').checked = A11y.reducedMotion;
     $('#set-colorblind').checked = A11y.colorblind;
     this._refreshApply();

@@ -1,7 +1,7 @@
 ---
 change: passenger-quests
 status: in_progress
-current_task: "4.1"
+current_task: "6.2"
 blocked_by: null
 open_questions: 3
 started: 2026-11-15
@@ -45,3 +45,8 @@ ref: ROADMAP "Gameplay verbs" passenger quests bullet; .claude/passenger-quests-
 **Event:** discovery
 **What:** Through the real title card and a mode-plank click on Low, a forced request was offered, `questGo` reached the stop, the rider left and 15 smiles reached the HUD with no console errors. Two things differ from the plan. First, a `QuestRuntime` glue class (`src/quests/runtime.js`) was added so `main.js` only constructs it and calls `onBoard`/`update`; presentation layers subscribe to it. Second, the crowd needed no exit hooks: the runtime polls `crowd.riderInfo` for at most three riders per frame, which catches every way a rider can leave. The urgent run's rules and its potty targeting landed with the core loop because the engine already modelled them; only its squirm pose, "!!!" bubble and countdown display remain in group 6. This session has no GPU browser, so game checks use a Playwright driver on software WebGL (see HANDOFF).
 **Refs:** -> Task 3.6, -> Task 6.1, -> A1
+
+### 2026-11-15 -- Presentation verified; phone layout corrected
+**Event:** discovery
+**What:** Bubbles, compass chips and the minimap flag were checked in the real game at Noon and Midnight on Low (software WebGL). Two layout facts were not in the plan: phones play landscape only, and on touch layouts the right edge holds SLOW/CAM/BOOST/HONK, so the strip moves to the left column under the status rail for `(pointer: coarse)`. Presentation lives in `src/quests/presentation.js`, which subscribes to the runtime; the pure bearing and formatting rules are in `src/quests/compassMath.js` and are covered by the Node test. Zerble's forward is (-sin h, -cos h), so a larger heading turns the cart to screen left and the arrow angle is negated.
+**Refs:** -> Tasks 4.x, 5.x

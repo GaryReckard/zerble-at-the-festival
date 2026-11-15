@@ -16,23 +16,23 @@
 - [x] 3.6 Real-game smoke test (title card, mode plank, boot, a completed quest, clean console); CHANGELOG entry; commit.
 
 ## 4. Thought bubble
-- [ ] 4.1 `src/models/questBubble.js`: shared canvas icon textures, pooled sprites, brightness and pulse by proximity.
-- [ ] 4.2 Sandbox entity `quest_bubbles` (import, option, `loadEntity` case).
-- [ ] 4.3 Attach bubbles to quest riders in the game; free them on every quest end.
-- [ ] 4.4 Noon and Midnight captures in the sandbox and the game; Low-tier boot check; commit.
+- [x] 4.1 `src/models/questBubble.js`: shared canvas icon textures, pooled sprites, brightness and pulse by proximity.
+- [x] 4.2 Sandbox entity `quest_bubbles` (import, option, `loadEntity` case).
+- [x] 4.3 Attach bubbles to quest riders in the game; free them on every quest end.
+- [x] 4.4 Noon and Midnight captures in the sandbox and the game; Low-tier boot check; commit.
 
 ## 5. Navigation aids
-- [ ] 5.1 `src/questHud.js` compass strip with direction arrow, distance and warm-up colour; CSS in `index.html`.
-- [ ] 5.2 Compass setting (default on) in `settings.js`.
-- [ ] 5.3 Festival-map objective pins through `festivalMap.setObjectives`.
-- [ ] 5.4 Sounds in `sound.js`: accept chirp, proximity hum, arrival flourish (no change to the start-gesture audio chain).
-- [ ] 5.5 Analytics events through `src/analytics.js`.
-- [ ] 5.6 Verify in the game on desktop and a phone-sized viewport; commit.
+- [x] 5.1 `src/questHud.js` compass strip with direction arrow, distance and warm-up colour; CSS in `index.html`.
+- [x] 5.2 Compass setting (default on) in `settings.js`.
+- [x] 5.3 Festival-map objective pins through `festivalMap.setObjectives`.
+- [x] 5.4 Sounds in `sound.js`: accept chirp, proximity hum, arrival flourish (no change to the start-gesture audio chain).
+- [x] 5.5 Analytics events through `src/analytics.js`.
+- [x] 5.6 Verify in the game on desktop and a phone-sized viewport; commit.
 
 ## 6. "Gotta GO!" porta-potty run
 - [x] 6.1 Urgent quest type in the engine: countdown, success bonus, failure penalty; tests.
-- [ ] 6.2 Potty candidates in `worldSource.js`; squirm pose and "!!!" bubble; countdown in the compass widget.
-- [ ] 6.3 Success sends the rider toward the potty; failure makes them flee; toasts; verify; commit.
+- [ ] 6.2 Squirm pose for the urgent rider. (Potty candidates, the "!!" bubble icon and the compass countdown are done.)
+- [ ] 6.3 Watch a full urgent success and a failure in the game (rider reaches the door; rider flees) and tune. The calls are wired; only the visuals are unverified.
 
 ## 7. "Take me to the mountaintop"
 - [ ] 7.1 Find admitted mountain districts and a legal arrival point from the landscape planner; tests.

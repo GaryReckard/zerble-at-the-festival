@@ -230,4 +230,29 @@ assert.equal(planOffer([{ kind: 'food_court', x: 10, z: 0 }], origin), null, 'no
   }
 }
 
-console.log('passenger quests: catalog, picking, offers, arrival, missed, patience, remarks, urgent, summit and party OK');
+// --- compass --------------------------------------------------------------
+{
+  const { relativeBearing, formatDistance, formatClock, chipState } = await import('../src/quests/compassMath.js');
+  const deg = (r) => Math.round(r * 180 / Math.PI) + 0;   // + 0 folds -0 into 0
+  // Heading 0 faces -Z. +X is screen right for the chase camera.
+  assert.equal(deg(relativeBearing({ x: 0, z: 0, heading: 0 }, { x: 0, z: -100 })), 0, 'dead ahead');
+  assert.equal(deg(relativeBearing({ x: 0, z: 0, heading: 0 }, { x: 100, z: 0 })), 90, 'to the right turns the arrow clockwise');
+  assert.equal(deg(relativeBearing({ x: 0, z: 0, heading: 0 }, { x: -100, z: 0 })), -90, 'to the left');
+  assert.equal(Math.abs(deg(relativeBearing({ x: 0, z: 0, heading: 0 }, { x: 0, z: 100 }))), 180, 'behind');
+  // Zerble's forward is (-sin h, -cos h): heading +90° faces -X.
+  assert.equal(deg(relativeBearing({ x: 0, z: 0, heading: Math.PI / 2 }, { x: -100, z: 0 })), 0, 'the arrow follows the cart, not the world');
+  assert.equal(deg(relativeBearing({ x: 0, z: 0, heading: Math.PI / 2 }, { x: 0, z: -100 })), 90);
+  assert.equal(deg(relativeBearing({ x: 0, z: 0, heading: 7 * Math.PI }, { x: 0, z: 100 })), 0, 'wrapped headings stay in range');
+  assert.equal(formatDistance(3), '5 m'); assert.equal(formatDistance(47), '45 m'); assert.equal(formatDistance(243), '240 m'); assert.equal(formatDistance(1250), '1.3 km');
+  assert.equal(formatClock(42.2), '0:43'); assert.equal(formatClock(75), '1:15'); assert.equal(formatClock(-3), '0:00');
+  const engine = new PassengerQuests({ random: seq(0.5) });
+  const quest = engine.offer('a', origin, { kind: 'porta_potty', x: 0, z: -150 }, { type: 'urgent' });
+  engine.update(0.1, { x: 0, z: 0, speed: 5 });
+  let chip = chipState(quest, { x: 0, z: 0, heading: 0 });
+  assert.equal(chip.angle, 0); assert.equal(chip.text, '130 m', 'distance is to the edge of the stop'); assert.equal(chip.urgent, true); assert.match(chip.clock, /^\d:\d\d$/);
+  engine.update(0.1, { x: 0, z: -140, speed: 5 });
+  chip = chipState(quest, { x: 0, z: -140, heading: 0 });
+  assert.equal(chip.text, 'Stop here!'); assert.equal(chip.inside, true);
+}
+
+console.log('passenger quests: catalog, picking, offers, arrival, missed, patience, remarks, urgent, summit, party and compass OK');
