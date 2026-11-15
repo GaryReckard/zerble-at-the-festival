@@ -1,7 +1,7 @@
 ---
 change: passenger-quests
 status: in_progress
-current_task: "2.1"
+current_task: "3.1"
 blocked_by: null
 open_questions: 3
 started: 2026-11-15

@@ -4,11 +4,12 @@
 
 ## Where it stands
 
-_Updated after every commit. Last update: 2026-11-15, plan written, no code yet._
+_Updated after every commit. Last update: 2026-11-15, after the engine commit._
 
-- Done: plan and records (task group 1).
-- Next: task group 2, the pure engine and its Node test.
+- Done: plan (group 1) and the pure engine with its Node test (group 2). The engine already models ordinary, urgent, summit and party quests, so groups 6 to 8 are wiring and presentation, not new rules.
+- Next: group 3, wiring the engine into the game (`worldSource.js`, the crowd passenger API, `main.js`).
 - Nothing is half-applied in the working tree.
+- Environment note: this checkout runs Node 22 although the project asks for 24; `npm ci` had to be run once. `npm run check` takes about five minutes.
 
 ## Rules that apply to this work
 

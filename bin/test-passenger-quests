@@ -1,0 +1,233 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { QUEST, DESTINATIONS, LINES, linesFor } from '../src/quests/catalog.js';
+import { candidatesInBand, pickWeighted, planOffer } from '../src/quests/pick.js';
+import { PassengerQuests } from '../src/quests/engine.js';
+
+// A replayable random source: cycles through the supplied values.
+const seq = (...values) => { let i = 0; return () => values[i++ % values.length]; };
+const recorder = () => { const events = []; const emit = (type, quest, data) => events.push({ type, quest, ...data }); emit.events = events; emit.of = (t) => events.filter((e) => e.type === t); return emit; };
+const drive = (engine, emit, from, to, seconds, speed = 8, dt = 0.1) => {
+  const steps = Math.round(seconds / dt);
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    engine.update(dt, { x: from.x + (to.x - from.x) * t, z: from.z + (to.z - from.z) * t, speed }, emit);
+  }
+};
+
+// --- catalog -------------------------------------------------------------
+for (const [kind, info] of Object.entries(DESTINATIONS)) {
+  assert(info.label && info.short && info.icon, `${kind} has copy and an icon`);
+  assert(info.radius >= 16, `${kind} has a usable arrive radius`);
+  assert(info.ask.length >= 1, `${kind} can ask for a ride`);
+  for (const type of ['warm', 'cold', 'thanks', 'near', 'missed', 'idle', 'gaveUp']) assert(linesFor(kind, type).length, `${kind} can say something for ${type}`);
+}
+assert.equal(linesFor('porta_potty', 'warm')[0], 'Hurry hurry hurry!', 'kind lines win over the shared bank');
+assert.equal(linesFor('beach', 'warm'), LINES.warm, 'kinds without their own lines fall back');
+for (const kind of ['porta_potty', 'mountaintop', 'monk_party']) assert.equal(DESTINATIONS[kind].weight, 0, `${kind} is never an ordinary request`);
+
+// --- picking -------------------------------------------------------------
+const origin = { x: 0, z: 0 };
+const field = [
+  { kind: 'food_court', x: 50, z: 0 },      // too close
+  { kind: 'drum_circle', x: 100, z: 0 },
+  { kind: 'main_stage', x: 0, z: 250 },
+  { kind: 'beach', x: 400, z: 0 },          // too far
+  { kind: 'porta_potty', x: 0, z: 120 },
+  { kind: 'porta_potty', x: 0, z: -90 },
+  { kind: 'mountaintop', x: 600, z: 0 },
+];
+const band = candidatesInBand(field, origin, QUEST.MIN_DIST, QUEST.MAX_DIST);
+assert.deepEqual(band.map((c) => c.kind).sort(), ['drum_circle', 'main_stage', 'porta_potty', 'porta_potty']);
+assert.equal(pickWeighted([], Math.random), null);
+assert.equal(pickWeighted([{ kind: 'porta_potty', x: 0, z: 100, dist: 100 }], seq(0.5)), null, 'zero-weight kinds are never drawn');
+
+// Rolls: [urgent?, summit?, weighted pick]
+let plan = planOffer(field, origin, { random: seq(0.99, 0.99, 0.0) });
+assert.equal(plan.type, 'ride'); assert.equal(plan.dest.kind, 'drum_circle');
+plan = planOffer(field, origin, { random: seq(0.99, 0.99, 0.999) });
+assert.equal(plan.dest.kind, 'main_stage');
+plan = planOffer(field, origin, { random: seq(0.01) });
+assert.equal(plan.type, 'urgent'); assert.equal(plan.dest.z, -90, 'the urgent run targets the NEAREST potty');
+plan = planOffer(field, origin, { random: seq(0.99, 0.01) });
+assert.equal(plan.type, 'summit'); assert.equal(plan.dest.kind, 'mountaintop');
+assert.equal(planOffer(field, origin, { random: seq(0.01), allowUrgent: false, allowSummit: false }).type, 'ride');
+assert.equal(planOffer(field, origin, { force: 'urgent' }).type, 'urgent');
+assert.equal(planOffer(field, origin, { force: 'main_stage', random: seq(0.2) }).dest.kind, 'main_stage');
+assert.equal(planOffer(field, origin, { force: 'beach' }), null, 'a forced kind still honours the distance band');
+assert.equal(planOffer([{ kind: 'food_court', x: 10, z: 0 }], origin), null, 'nothing in range means a plain rider');
+// Closer destinations are likelier, but far ones still happen.
+{
+  const counts = { drum_circle: 0, main_stage: 0 };
+  let state = 1; const lcg = () => (state = (state * 48271) % 2147483647) / 2147483647;
+  for (let i = 0; i < 4000; i++) counts[planOffer(field, origin, { random: lcg, allowUrgent: false, allowSummit: false }).dest.kind]++;
+  assert(counts.drum_circle > counts.main_stage * 0.9, 'the nearer place is not penalised');
+  assert(counts.main_stage > 800, 'the farther place still turns up often');
+  // Damping repeats: with a drum quest already active the stage dominates.
+  const damped = { drum_circle: 0, main_stage: 0 };
+  for (let i = 0; i < 4000; i++) damped[planOffer(field, origin, { random: lcg, activeKinds: ['drum_circle'], allowUrgent: false, allowSummit: false }).dest.kind]++;
+  assert(damped.main_stage > damped.drum_circle * 1.5, 'an active kind is asked for less often');
+}
+
+// --- offering ------------------------------------------------------------
+{
+  const engine = new PassengerQuests({ random: seq(0.9) });
+  assert.equal(engine.rollOffer(), true, 'the first boarder always has a request');
+  const emit = recorder();
+  const quest = engine.offer('a', origin, { kind: 'drum_circle', x: 100, z: 0 }, {}, emit);
+  assert(quest); assert.equal(emit.of('offered').length, 1); assert(emit.events[0].line);
+  assert.equal(engine.rollOffer(), false, 'later boarders roll against the chance (0.9 > 0.3)');
+  assert.equal(new PassengerQuests({ random: seq(0.1) }).rollOffer(), true);
+  assert.equal(engine.offer('a', origin, { kind: 'beach', x: 0, z: 100 }), null, 'one quest per rider');
+  assert.equal(engine.offer('b', origin, { kind: 'nonsense', x: 0, z: 100 }), null);
+  assert.equal(engine.offer('b', origin, { kind: 'beach', x: NaN, z: 100 }), null);
+  assert(engine.offer('b', origin, { kind: 'beach', x: 0, z: 100 }));
+  assert(engine.offer('c', origin, { kind: 'beach', x: 0, z: 100 }));
+  assert.equal(engine.full, true);
+  assert.equal(engine.offer('d', origin, { kind: 'beach', x: 0, z: 100 }), null, 'at most three at once');
+  assert.equal(engine.rollOffer(), false, 'a full strip never offers');
+  assert.equal(engine.cancel('b', emit), true);
+  assert.equal(emit.of('cancelled')[0].quest.riderId, 'b');
+  assert.equal(engine.cancel('b'), false);
+  engine.clear(emit);
+  assert.equal(engine.active.length, 0); assert.equal(emit.of('cancelled').length, 3);
+}
+
+// --- arrival and reward --------------------------------------------------
+{
+  const engine = new PassengerQuests({ random: seq(0.5) });
+  const emit = recorder();
+  const dest = { kind: 'drum_circle', x: 200, z: 0 };
+  const quest = engine.offer('a', origin, dest, {}, emit);
+  assert.equal(engine.reward(quest), 6 + 4, '6 plus one per 50 m');
+  drive(engine, emit, origin, { x: 190, z: 0 }, 24);
+  assert.equal(emit.of('arrived').length, 0, 'inside the radius but still rolling is not an arrival');
+  assert(quest.warmth > 0.95);
+  assert.equal(emit.of('near').length, 1, 'the rider calls the stop once');
+  engine.update(0.1, { x: 190, z: 0, speed: 1 }, emit);
+  const arrived = emit.of('arrived');
+  assert.equal(arrived.length, 1); assert.equal(arrived[0].reward, 10); assert(arrived[0].line);
+  assert.equal(engine.active.length, 0); assert.equal(engine.completed, 1);
+  assert(emit.of('hint').length >= 1, 'a 24 s drive draws at least one remark');
+  assert(emit.of('hint').every((h) => h.tone !== 'cold'), 'no "wrong way" remark while approaching');
+}
+
+// A sprawling venue supplies its own larger radius.
+{
+  const engine = new PassengerQuests({ random: seq(0.5) });
+  const quest = engine.offer('a', origin, { kind: 'drum_circle', x: 200, z: 0, radius: 60 });
+  assert.equal(quest.radius, 60);
+  assert.equal(engine.offer('b', origin, { kind: 'camp_village', x: 200, z: 0, radius: 10 }).radius, 45, 'never below the kind minimum');
+}
+
+// --- missed it -----------------------------------------------------------
+{
+  const engine = new PassengerQuests({ random: seq(0.5) });
+  const emit = recorder();
+  const quest = engine.offer('a', origin, { kind: 'drum_circle', x: 200, z: 0 }, {}, emit);
+  drive(engine, emit, origin, { x: 300, z: 0 }, 30, 10);
+  assert.equal(emit.of('missed').length, 1, 'blowing through the stop is called out once');
+  assert.equal(quest.missed, true); assert.equal(engine.reward(quest), 5, 'the bonus halves');
+  drive(engine, emit, { x: 300, z: 0 }, { x: 205, z: 0 }, 12, 8);
+  drive(engine, emit, { x: 205, z: 0 }, { x: 320, z: 0 }, 12, 10);
+  assert.equal(emit.of('missed').length, 1, 'a second pass is not announced again');
+  engine.update(0.1, { x: 320, z: 0, speed: 8 }, emit);
+  drive(engine, emit, { x: 320, z: 0 }, { x: 200, z: 0 }, 14, 8);
+  engine.update(0.1, { x: 200, z: 0, speed: 0 }, emit);
+  assert.equal(emit.of('arrived')[0].reward, 5);
+}
+
+// --- patience ------------------------------------------------------------
+{
+  const engine = new PassengerQuests({ random: seq(0.5) });
+  const emit = recorder();
+  engine.offer('a', origin, { kind: 'drum_circle', x: 200, z: 0 }, {}, emit);
+  // Circling at a constant distance makes no progress.
+  for (let t = 0; t < QUEST.STALL_SECONDS - 1; t += 0.5) engine.update(0.5, { x: Math.cos(t) * 5, z: Math.sin(t) * 5, speed: 6 }, emit);
+  assert.equal(emit.of('gaveUp').length, 0);
+  assert(emit.of('hint').some((h) => h.tone === 'cold'), 'going nowhere draws a "wrong way" remark');
+  for (let t = 0; t < 3; t += 0.5) engine.update(0.5, { x: 0, z: 5, speed: 6 }, emit);
+  assert.equal(emit.of('gaveUp').length, 1); assert.equal(engine.active.length, 0);
+
+  // Steady progress never runs out, however slow.
+  const slow = new PassengerQuests({ random: seq(0.5) });
+  const e2 = recorder();
+  slow.offer('a', origin, { kind: 'drum_circle', x: 300, z: 0 }, {}, e2);
+  drive(slow, e2, origin, { x: 260, z: 0 }, 400, 1);
+  assert.equal(e2.of('gaveUp').length, 0, 'a slow but steady drive keeps the rider happy');
+
+  // Parked AT the destination but (say) still rolling: no patience drain.
+  const chill = new PassengerQuests({ random: seq(0.5) });
+  const e3 = recorder();
+  chill.offer('a', origin, { kind: 'drum_circle', x: 100, z: 0 }, {}, e3);
+  for (let t = 0; t < 200; t += 0.5) chill.update(0.5, { x: 95, z: 0, speed: 3 }, e3);
+  assert.equal(e3.of('gaveUp').length, 0);
+
+  // A parked cart far from the stop gets one nudge per stop.
+  const idle = new PassengerQuests({ random: seq(0.5) });
+  const e4 = recorder();
+  idle.offer('a', origin, { kind: 'drum_circle', x: 200, z: 0 }, {}, e4);
+  for (let t = 0; t < 30; t += 0.5) idle.update(0.5, { x: 0, z: 0, speed: 0 }, e4);
+  assert.equal(e4.of('hint').filter((h) => h.tone === 'idle').length, 1);
+}
+
+// --- remarks are rate limited across riders ------------------------------
+{
+  const engine = new PassengerQuests({ random: seq(0.0) });
+  const emit = recorder();
+  for (const id of ['a', 'b', 'c']) engine.offer(id, origin, { kind: 'main_stage', x: 0, z: 290 }, {}, emit);
+  let last = -Infinity, clock = 0;
+  for (let i = 0; i < 600; i++) {
+    clock += 0.1;
+    const before = emit.of('hint').length;
+    engine.update(0.1, { x: 0, z: clock * 2, speed: 2.5 }, emit);
+    if (emit.of('hint').length > before) { assert(clock - last >= QUEST.HINT_GAP - 0.2, 'remarks are spaced out'); last = clock; }
+    assert(emit.of('hint').length - before <= 1, 'never two remarks in one frame');
+  }
+  assert(emit.of('hint').length >= 3);
+}
+
+// --- urgent --------------------------------------------------------------
+{
+  const engine = new PassengerQuests({ random: seq(0.5) });
+  const emit = recorder();
+  const quest = engine.offer('a', origin, { kind: 'porta_potty', x: 150, z: 0 }, { type: 'urgent' }, emit);
+  assert.equal(quest.totalTime, 30 + 150 / 5);
+  drive(engine, emit, origin, { x: 140, z: 0 }, 15, 9);
+  engine.update(0.1, { x: 140, z: 0, speed: 0 }, emit);
+  const win = emit.of('arrived')[0];
+  assert(win.reward > QUEST.URGENT_REWARD && win.reward <= QUEST.URGENT_REWARD + QUEST.URGENT_BONUS, 'spare time earns a bonus');
+
+  const late = new PassengerQuests({ random: seq(0.5) });
+  const e2 = recorder();
+  late.offer('a', origin, { kind: 'porta_potty', x: 150, z: 0 }, { type: 'urgent' }, e2);
+  for (let t = 0; t < 70; t += 0.5) late.update(0.5, { x: 0, z: 0, speed: 0 }, e2);
+  assert.equal(e2.of('failed').length, 1); assert.equal(e2.of('failed')[0].penalty, QUEST.URGENT_PENALTY);
+  assert.equal(e2.of('gaveUp').length, 0, 'the urgent clock, not patience, ends an urgent run');
+  assert.equal(late.active.length, 0);
+}
+
+// --- summit and party rewards ---------------------------------------------
+{
+  const engine = new PassengerQuests({ random: seq(0.5) });
+  const summit = engine.offer('a', origin, { kind: 'mountaintop', x: 600, z: 0 }, { type: 'summit' });
+  assert.equal(engine.reward(summit), 20);
+  const party = engine.offer('monks', origin, { kind: 'monk_party', x: 0, z: 150 }, { type: 'party', members: 5 });
+  assert.equal(engine.reward(party), 15);
+  const emit = recorder();
+  engine.update(0.1, { x: 0, z: 150, speed: 0 }, emit);
+  assert.equal(emit.of('arrived').length, 1); assert.equal(emit.of('arrived')[0].quest.members, 5);
+  assert.equal(engine.snapshot().length, 1); assert.equal(engine.snapshot()[0].kind, 'mountaintop');
+}
+
+// Ordinary rewards stay inside the range the design promises.
+{
+  const engine = new PassengerQuests({ random: seq(0.5) });
+  for (const d of [QUEST.MIN_DIST, 150, QUEST.MAX_DIST]) {
+    const q = engine.offer(`r${d}`, origin, { kind: 'beach', x: d, z: 0 });
+    assert(engine.reward(q) >= 7 && engine.reward(q) <= 12, `reward for ${d} m`);
+    engine.cancel(`r${d}`);
+  }
+}
+
+console.log('passenger quests: catalog, picking, offers, arrival, missed, patience, remarks, urgent, summit and party OK');

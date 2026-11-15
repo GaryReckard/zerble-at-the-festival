@@ -2,10 +2,10 @@
 - [x] 1.1 Write README, proposal, design, tasks, deliberation skip, session log, questions and HANDOFF; commit as documentation.
 
 ## 2. Pure quest engine
-- [ ] 2.1 `src/quests/catalog.js`: destination kinds, labels, icon ids, arrive radii, toast banks, constants.
-- [ ] 2.2 `src/quests/pick.js`: distance band and inverse-distance weighted choice with an injected random source.
-- [ ] 2.3 `src/quests/engine.js`: offer, update, cancel, events, rewards, stall patience, missed-it, max-active cap.
-- [ ] 2.4 `bin/test-passenger-quests` covering 2.1 to 2.3; add it to `npm run check`.
+- [x] 2.1 `src/quests/catalog.js`: destination kinds, labels, icon ids, arrive radii, toast banks, constants.
+- [x] 2.2 `src/quests/pick.js`: distance band and inverse-distance weighted choice with an injected random source.
+- [x] 2.3 `src/quests/engine.js`: offer, update, cancel, events, rewards, stall patience, missed-it, max-active cap.
+- [x] 2.4 `bin/test-passenger-quests` covering 2.1 to 2.3; add it to `npm run check`.
 
 ## 3. Core loop in the game
 - [ ] 3.1 `src/quests/worldSource.js`: candidates from the worldgen plan and the registry, with lake rejection.
