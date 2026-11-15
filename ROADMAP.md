@@ -99,6 +99,15 @@ parameters, dated observations and unanswered decisions. Use the
   — they're supposed to keep their distance. A procedural-placement spacing bug in
   the festival planner ([worldgen/festival.js](src/worldgen/festival.js)) or the POI
   spacing guards in [chunks.js](src/chunks.js). Repro is the seed + coords above.
+  *Diagnosed 2026-11-15, not fixed:* the plan still reproduces it, with a tent stage
+  at (55, -331) and a side stage at (61, -319). Their hubs sit in neighboring cells
+  only 52 m apart, at (-25, -309) and (26, -320), and every hub plants a stage. The
+  cross-hub seam pass leaves a stage meeting a stage unresolved on purpose
+  (`_seamResponse`, "stage+stage = unresolved spacing"), and it only compares each
+  hub's zone nearest the other heart, which here is not the stage. Eight seeds over a
+  5 km square held 12 stage pairs closer than 40 m among 5,566 stages. A fix needs a
+  dedicated stage-to-stage check that drops the yielding hub's stage and its
+  dependents, and it will move the POI snapshot for the affected hubs only.
 
 ---
 
@@ -211,8 +220,9 @@ harness history, tier contract and acceptance criteria.
 - **Bubble Upgrades rollout:** finish the pending visual gate, crowd charm,
   leaderboard headroom and final performance/docs checks in the
   [feature plan](BUBBLE-UPGRADES-PLAN.md).
-- **Passenger quests:** rider destinations, shared monk-party quests and the
-  urgent porta-potty variant. Include a future **“Take me to the mountaintop”** request targeting a reachable, admitted mountain destination, with a legal arrival/drop-off area; this remains quest work, not part of the current terrain implementation.
+- **Passenger quests (in progress):** rider destinations, shared monk-party quests and the
+  urgent porta-potty variant. The plan, checklist and handoff notes are in the
+  [active change](openspec/changes/passenger-quests/README.md). Include a future **“Take me to the mountaintop”** request targeting a reachable, admitted mountain destination, with a legal arrival/drop-off area; this remains quest work, not part of the current terrain implementation.
 - **Festival activities:** daily-seed challenge, boost/hop tricks, food-truck
   purchase-and-dining behavior and vendor power-ups.
 - **Physical festival:** implement the [documented plan](openspec/changes/physical-festival/README.md)
