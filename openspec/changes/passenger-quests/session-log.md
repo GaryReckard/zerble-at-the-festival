@@ -1,7 +1,7 @@
 ---
 change: passenger-quests
 status: in_progress
-current_task: "6.2"
+current_task: "6.3"
 blocked_by: null
 open_questions: 3
 started: 2026-11-15
@@ -21,14 +21,17 @@ ref: ROADMAP "Gameplay verbs" passenger quests bullet; .claude/passenger-quests-
 - **D4:** Rewards are spawned smile pickups. They reach `Scoring.collect` through the existing path, so combo, Lurleen and `rawSmiles` behave as for organic smiles and `Scoring.award` is not called a second time.
 - **D5:** Quest randomness uses `Math.random`. No seeded stream is read or advanced.
 - **D6:** At most three active quests, independent of the eight seats.
+- **D7 (2026-11-15, Gary):** The work moved off `main` onto the `passenger-quests` branch mid-session; local `main` was reset to `origin/main`. Supersedes the branch part of D1. Still no pushes.
+- **D8:** A monk party asks for an ordinary destination (so the bubble and compass show a real place) but speaks through the `monk_party` line bank via the engine's `voice` option, and its toasts are narration without quotes.
+- **D9:** The mountaintop drop-off is the point on the district's `mainRoad` nearest its `commons`, read with `access.query(bounds, { request: false })` so a quest never triggers planner work.
 
 ## Assumptions
 
 | # | Assumption | Confidence | Status | Resolution |
 |---|-----------|------------|--------|------------|
 | A1 | `festivalPlan` and `campVillagesNear` are cheap enough to call once per boarding | Medium | Verified | 0.4 ms in the running game (plans are already warm from streaming and the horizon). A fully cold Node process took 0.4 to 1.3 s for a 900 m reach, so do not widen the reach without re-measuring. |
-| A2 | The landscape planner exposes admitted mountain districts with a reachable point | Low | Open | Investigate in task 7.1 |
-| A3 | `cheerTimer` reads as a thumbs-up on a just-disembarked rider | Medium | Open | Look at it in task 3.6 |
+| A2 | The landscape planner exposes admitted mountain districts with a reachable point | Low | Verified in code, not live | `LandscapeRuntime.access.query` returns `{candidate, state}`; `state.status === 'ready'` carries `state.plan` with `mainRoad` and `commons`. Not yet seen in the game (task 7.3). |
+| A3 | `cheerTimer` reads as a thumbs-up on a just-disembarked rider | Medium | Open | The call is made; the pose was never caught in a screenshot. Needs a real-GPU look (task 10.1). |
 
 ## Dangling Threads
 
@@ -50,3 +53,8 @@ ref: ROADMAP "Gameplay verbs" passenger quests bullet; .claude/passenger-quests-
 **Event:** discovery
 **What:** Bubbles, compass chips and the minimap flag were checked in the real game at Noon and Midnight on Low (software WebGL). Two layout facts were not in the plan: phones play landscape only, and on touch layouts the right edge holds SLOW/CAM/BOOST/HONK, so the strip moves to the left column under the status rail for `(pointer: coarse)`. Presentation lives in `src/quests/presentation.js`, which subscribes to the runtime; the pure bearing and formatting rules are in `src/quests/compassMath.js` and are covered by the Node test. Zerble's forward is (-sin h, -cos h), so a larger heading turns the cart to screen left and the arrow angle is negated.
 **Refs:** -> Tasks 4.x, 5.x
+
+### 2026-11-15 -- Variants built; a boarding-contract bug found and fixed
+**Event:** discovery
+**What:** Changing `crowd.onBoard` to pass a handle broke one caller: `groupParticipation.completeBoarding` still passed the private record for each monk, so every monk was offered a solo quest that was cancelled a frame later, and those phantom offers could fill the three-quest cap and block the party's real request. Group boarding now calls `onBoard(handle, { party: true })` and `main.js` skips solo offers for party members. After the fix, seed 1977 showed five monks board, share one request, arrive and leave together for 15 smiles. The urgent squirm and the mountaintop request could not be confirmed visually in this environment (software rendering; no admitted district in range).
+**Refs:** -> D8, -> D9, -> Tasks 7.3, 6.3, 10.x

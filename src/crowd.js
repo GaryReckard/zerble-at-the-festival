@@ -181,8 +181,9 @@ export class Crowd {
     // touchier (faster displeasure build). Stays 1.0 in Just Cruisin'.
     this.frownRateMult = 1.0;
     this.onFrown = null;
-    // `onBoard(handle)` fires when an NPC actually climbs aboard Zerble
-    // (boarding→riding). Passenger quests key off the handle.
+    // `onBoard(handle, { party })` fires when someone actually climbs aboard
+    // Zerble (boarding→riding). Passenger quests key off the handle; members
+    // of a travelling party arrive with `party: true` and share one quest.
     this.onBoard = null;
     this.npcs = [];
     this.free = []; // indices available
@@ -2127,6 +2128,8 @@ export class Crowd {
 
     // Slight dance bob even while riding (extra dance-y characters wiggle a bit)
     npc.bob += dt * (1.2 + 0.6 * npc.dance);
+    // The "Gotta GO!" rider cannot sit still: a fast bounce and a side-to-side twist.
+    if (npc.rideMood === 'urgent') { npc.bob += dt * 9; npc.yaw += Math.sin(npc.bob * 1.7) * 0.24; }
 
     // Disembark when the ride times out (and Zerble's idle), OR immediately if
     // the bubble tank ran dry — riders bail on a bubble-less cart.
@@ -2149,7 +2152,7 @@ export class Crowd {
     const seatPos = { x: npc.pos.x, z: npc.pos.z };
     npc.seatSlot = null;
     npc.seatY = undefined;
-    npc.rideHold = false;
+    npc.rideHold = false; npc.rideMood = null;
     npc.state = 'disembarking';
     // Pick a destination 3-6m away from where we got off
     const a = Math.random() * Math.PI * 2;
@@ -2184,6 +2187,11 @@ export class Crowd {
     const out = [];
     for (const npc of this.npcs) if (npc.state === 'riding' && npc.seatSlot && !npc.seatSlot.vehicle && !npc.party) out.push(npc.personHandle);
     return out;
+  }
+
+  setRideMood(handle, mood) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (npc) npc.rideMood = mood || null;
   }
 
   holdRide(handle, on) {

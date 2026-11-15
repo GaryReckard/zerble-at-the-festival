@@ -21,6 +21,7 @@ export class QuestRuntime {
     Object.assign(this, { crowd, zerble, smiles, registry, worldgen, toast, sound, analytics, deductSmiles, extraDestinations, random });
     this.engine = new PassengerQuests({ random });
     this.enabled = true;
+    this.parties = new Map();       // party key -> { leave() }
     this.listeners = new Set();     // presentation layers: (type, quest, data) => void
     this.lastGatherMs = 0;
     this.lastEvent = null;
@@ -58,14 +59,22 @@ export class QuestRuntime {
     });
     if (!plan) return null;
     const quest = this.engine.offer(handle, origin, plan.dest, { type: plan.type }, this._emit);
-    if (quest) this.crowd.holdRide(handle, true);
+    if (quest) { this.crowd.holdRide(handle, true); if (quest.type === 'urgent') this.crowd.setRideMood(handle, 'urgent'); }
     return quest;
   }
 
-  // A party sharing one destination (monks). `key` identifies the party.
-  offerParty(key, dest, members) {
-    if (!this.enabled) return null;
-    return this.engine.offer(key, this._player(), dest, { type: 'party', members }, this._emit);
+  // A party sharing one destination (monks). `key` identifies the party and
+  // `party` supplies { leave() } so the whole group steps off together. The
+  // party picks an ordinary destination but speaks in its own voice.
+  offerParty(key, party, members, { voice = 'monk_party', force = null } = {}) {
+    if (!this.enabled || this.engine.full || this.engine.has(key)) return null;
+    const origin = this._player();
+    const candidates = gatherDestinations(origin, { registry: this.registry, worldgen: this.worldgen, reach: QUEST.MAX_DIST });
+    const plan = planOffer(candidates, origin, { random: this.random, activeKinds: this.engine.activeKinds(), allowUrgent: false, allowSummit: false, force });
+    if (!plan) return null;
+    const quest = this.engine.offer(key, origin, plan.dest, { type: 'party', members, voice }, this._emit);
+    if (quest) this.parties.set(key, party);
+    return quest;
   }
 
   cancel(riderId, reason = 'left') { return this.engine.cancel(riderId, this._emit, reason); }
@@ -96,28 +105,32 @@ export class QuestRuntime {
   _handle(type, quest, data) {
     this.lastEvent = { type, kind: quest.kind, riderId: quest.riderId, ...data };
     const solo = quest.type !== 'party';
+    const party = solo ? null : this.parties.get(quest.riderId);
+    if (type !== 'offered' && type !== 'hint' && type !== 'near' && type !== 'missed') this.parties.delete(quest.riderId);
+    // Riders speak in quotes; a party's lines are narration.
+    const say = (icon, line, tail = '') => (solo ? `${icon} “${line}”${tail}` : `🙏 ${line}${tail}`);
     switch (type) {
       case 'offered':
-        this.toast(`💭 “${data.line}”`, quest.type === 'urgent' ? 3600 : 3000);
+        this.toast(say('💭', data.line), quest.type === 'urgent' ? 3600 : 3000);
         this.sound?.playQuestAsk?.(quest.type === 'urgent');
         this.analytics?.questOffered?.(quest.type, quest.kind, quest.startDist);
         break;
       case 'hint': case 'near': case 'missed':
-        this.toast(`💭 “${data.line}”`, 2400);
+        this.toast(say('💭', data.line), 2400);
         break;
       case 'arrived':
         if (solo) {
           this.crowd.endRide(quest.riderId, this.zerble, { celebrate: CELEBRATE_SECONDS });
           if (quest.type === 'urgent') this.crowd.sendToPotty(quest.riderId);
-        }
+        } else party?.leave();
         this._spawnBurst(data.reward);
-        this.toast(`😄 “${data.line}”  +${data.reward}`, 2800);
+        this.toast(say('😄', data.line, `  +${data.reward}`), 2800);
         this.sound?.playQuestArrive?.();
         this.analytics?.questCompleted?.(quest.type, quest.kind, quest.age, data.reward, quest.missed);
         break;
       case 'gaveUp':
-        if (solo) this.crowd.holdRide(quest.riderId, false);
-        this.toast(`💭 “${data.line}”`, 2800);
+        if (solo) this.crowd.holdRide(quest.riderId, false); else party?.leave();
+        this.toast(say('💭', data.line), 2800);
         this.analytics?.questEnded?.(quest.type, quest.kind, 'gave_up', quest.age);
         break;
       case 'failed':

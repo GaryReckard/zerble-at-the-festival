@@ -4,23 +4,26 @@
 
 ## Where it stands
 
-_Updated after every commit. Last update: 2026-11-15, after the presentation commit._
+_Last update: 2026-11-15, after the variants commit._
 
-- Done: plan (1), engine and test (2), playable core loop (3), thought bubbles and their sandbox view (4), compass strip, setting, map pins, sounds and analytics (5), and the urgent run's rules, icon and countdown (6.1 and most of 6.2).
-- Not built yet: the urgent rider's squirm pose and a watched success/failure (6.2, 6.3), mountaintop (7), monk parties (8), close-out docs (9).
-- Next: group 7 or 8. Both only need a destination source and a call into `QuestRuntime`; the engine already has `summit` and `party` quest types with rewards and tests.
-  - Mountaintop: pass an `extraDestinations(origin)` function to `QuestRuntime` in `main.js` that returns `{ kind: 'mountaintop', x, z, radius }` candidates. `__dbg.giveQuest('summit')` forces one.
-  - Monks: call `quests.offerParty(key, dest, memberCount)` when a `MonkParty` finishes boarding Zerble, keep the party aboard until the quest ends, and call `quests.cancel(key)` if the party leaves. `QuestPresentation` already floats one shared bubble over the cart for a `party` quest.
+- **Branch: `passenger-quests`** (local only, not pushed). Local `main` equals `origin/main`.
+- Built and committed: the engine and tests, the core loop, thought bubbles, compass, map pins, sounds, analytics, the Settings toggle, the urgent porta-potty run with its squirm, the mountaintop request, monk-party shared quests, and the docs.
+- Open, in order of value:
+  1. Task 10.x: Gary plays it on real hardware and judges rewards.
+  2. Task 7.3: see a mountaintop request live.
+  3. Task 6.3: watch an urgent success (does the rider reach the potty door?) and a failure (do they flee?) on a real GPU.
+  4. Task 9.3: Mid and High boots.
 - Nothing is half-applied in the working tree.
 - Environment note: this checkout runs Node 22 although the project asks for 24; `npm ci` had to be run once. `npm run check` takes five to ten minutes.
 
 ## Rules that apply to this work
 
-- Commit small, verified slices on local `main`. **Never push** (main deploys).
+- Commit small, verified slices on the `passenger-quests` branch. **Never push and never commit to `main`** without Gary asking.
 - Do not touch the iPad performance work under `openspec/changes/ipad-performance-strategy/`; another agent owns it.
 - Every game-visible commit carries its CHANGELOG entry under the real date.
 - Before each commit: `npm run check`, `npm run build`, then the real game on `/?mute=1` (title card, mode plank click, world boot, console clean).
 - Tick boxes in `tasks.md`, then run `bin/readme-sync passenger-quests`.
+- `crowd.onBoard(handle, { party })` passes a person handle, never the private record. Any new caller must do the same.
 
 ## How to verify quickly
 
@@ -29,7 +32,7 @@ node bin/test-passenger-quests
 npm run dev     # http://127.0.0.1:8765/?mute=1
 ```
 
-In the browser console after clicking a mode plank: `__dbg.giveQuest()` (seats a rider if needed), `__dbg.quests()`, `__dbg.questGo()`, then stop the cart. `__dbg.giveQuest('urgent')` forces the porta-potty run.
+In the browser console after clicking a mode plank: `__dbg.giveQuest()` (seats a rider if needed), `__dbg.quests()`, `__dbg.questGo()`, then stop the cart. `__dbg.giveQuest('urgent')` forces the porta-potty run and `'summit'` the mountaintop. For monks: `__dbg.summonNutWagon()`, wait for `__dbg.monks().count`, park Zerble within 14 m of them with bubble juice in the tank, and they board and ask on their own; `__dbg.monkQuest()` forces a request once they ride.
 
 Without a GPU browser, the project's fallback is `bin/verify-headless` (one `--eval`, software WebGL). For multi-step flows the previous agent used a small Playwright script that loads `playwright` from `~/.zerble-verify`, opens `/?mute=1&perf=low&seed=1234`, waits for `#mode-cruisin:not([disabled])`, clicks it, waits for `window.__dbg`, then calls the commands above with waits between them. Festival-goers take up to a minute to appear under software rendering, so retry `giveQuest()` until it stops answering "no free rider". Keep one headless browser alive at a time and close it in `finally`.
 

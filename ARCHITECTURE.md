@@ -43,6 +43,10 @@ src/
   bubbles.js                InstancedMesh bubble particle system
   smiles.js                 Smile pickup orbs
   crowd.js                  NPC pool, AI, state machine
+  quests/                   Passenger quests: engine, runtime glue, destination sources, presentation
+    catalog.js  pick.js  engine.js  worldSource.js  summitSource.js
+    runtime.js  presentation.js  compassMath.js
+  questHud.js               Passenger-quest compass strip (DOM)
   people/                   Registered populations, stable lifetimes, activity claims and queries
   camera.js                 Chase / first-person / top-down camera
   input.js                  Keyboard + touch input blend
@@ -59,7 +63,7 @@ src/
     foodTruck.js  hammock.js  heart.js  kid.js
     leafBanner.js  leafDrumCircle.js  parasolMarshal.js
     performer.js  puppet.js  shrub.js  stage.js  tent.js  tentStage.js
-    tree.js  tribalFigures.js  wook.js
+    tree.js  tribalFigures.js  wook.js  questBubble.js
   worldgen/                 Render-agnostic infinite-layout generator (v2; flag-gated)
     index.js                queryPoint/queryRegion — the data contract (no THREE/DOM)
     constants.js  tuning.js  Named tunables (CONFIG / FESTIVAL_TUNING)
@@ -526,6 +530,22 @@ than scattering mode checks.
 
 Debug surface: `__dbg.runInfo()/runDay()/vibe()/strike()/sputterLeft()` — see
 DEBUGGING.md "Festival Run drills."
+
+---
+
+## Passenger quests (`src/quests/`)
+
+Some riders who board Zerble ask to be driven somewhere. The feature is built in three layers so the rules can be tested without a browser. `engine.js` (`PassengerQuests`) is a pure state machine: it knows riders only as opaque ids and the cart only as `{ x, z, speed }`, and it returns events (`offered`, `hint`, `near`, `missed`, `arrived`, `gaveUp`, `failed`, `cancelled`) instead of touching NPCs, three.js or the DOM. `runtime.js` (`QuestRuntime`) is the glue that `main.js` constructs. It turns a boarding into an offer, turns events into toasts, sound, analytics, smile bursts and crowd calls, and notifies subscribers. `presentation.js` (`QuestPresentation`) is one such subscriber and owns what the player sees beyond toasts: the pooled thought-bubble sprites in `models/questBubble.js`, the compass strip in `questHud.js` (bearing math in `compassMath.js`) and the festival-map pins through `setObjectives`. Each layer can be absent without breaking the one beneath it. Tuning and all copy live in `catalog.js`, and `pick.js` chooses a destination from a distance band, weighting nearer places higher.
+
+Destinations come from the worldgen plan, not from the registry, because the registry only holds streamed chunks and a destination 300 m away is usually not loaded yet. `worldSource.js` reads `festivalPlan` and `campVillagesNear` once per boarding, aims stage requests at the dance floor in front of the deck, and rejects any candidate that `lakeAt` reports as water. The live registry adds what the plan does not describe (beaches, hammocks, forest drum circles) and the exact porta-potties for the urgent run. `summitSource.js` reads only Mountain Top districts the landscape planner has already admitted, asks it with `{ request: false }` so a quest never triggers planner work, and uses the point on the district's main road nearest its commons as the drop-off.
+
+Quests reach the crowd through a narrow surface in `crowd.js` ("Passenger-quest surface"): `riderInfo` reports whether someone still rides and where their head is, `holdRide` suspends the ordinary ride timer, `endRide` steps the rider off through `_exitRide` with a cheer or a flee, `setRideMood` drives the urgent rider's fidget and `sendToPotty` sends a relieved rider to a free porta-potty. The runtime polls `riderInfo` for each active quest every frame, which catches every way a rider can leave without a hook on each exit path. `monks.js` calls `onBoardZerble` and `onLeaveZerble`, and `questHold` keeps a party aboard past its ordinary ride time.
+
+Rewards are ordinary smile pickups. The runtime calls `smiles.spawn` around the cart, and the pickups are collected through the normal path to `Scoring.collect`, so the combo, Lurleen's doubling and the leaderboard's raw-smile count apply in Free Roam and Festival Run alike. Only the urgent failure penalty writes to the score directly, through `Scoring.deduct`. Quest rolls use `Math.random`, the same as boarding, so no seeded world stream is read or advanced.
+
+There are four quest types. A **ride** (about three in ten boarders, and always the first of a session) pays `6 + floor(distance / 50)` smiles, and a missed stop halves it. An **urgent** run ("Gotta GO!", 12% of offers when a potty is 60 to 220 m away) runs on a countdown of `30 + distance / 5` seconds, pays 10 plus up to 5 for spare time and costs 2 smiles on failure. A **summit** request (10% of offers when an admitted district is 200 to 900 m away) pays `10 + floor(distance / 60)`. A **party** is one shared quest for a whole monk party, paying 3 per monk and ending with all members stepping off together. At most three quests are active at once.
+
+To add a destination kind, add an entry to `DESTINATIONS` in `catalog.js` (label, icon id, arrive radius, weight and its line banks), add a painter with the same icon id to `ICONS` in `models/questBubble.js` (the compass reads the same art), and supply candidates from a source: add the plan or registry kind to `worldSource.js`, or pass an `extraDestinations(origin)` function to `QuestRuntime` as the summit source does. Then add the case to `bin/test-passenger-quests` and check the icon in `sandbox.html?entity=quest_bubbles&mute=1`. The debug surface is `__dbg.quests()`, `giveQuest()`, `monkQuest()` and `questGo()`; see DEBUGGING.md.
 
 ---
 

@@ -36,14 +36,14 @@ export class PassengerQuests {
 
   // `dest` is { kind, x, z, radius?, label? }. `members` is the head count for
   // a party sharing one quest. Returns the quest, or null when refused.
-  offer(riderId, origin, dest, { type = 'ride', members = 1 } = {}, emit = null) {
+  offer(riderId, origin, dest, { type = 'ride', members = 1, voice = null } = {}, emit = null) {
     const info = DESTINATIONS[dest?.kind];
     if (!info || this.full || this.has(riderId) || !Number.isFinite(dest.x) || !Number.isFinite(dest.z)) return null;
     const startDist = Math.hypot(dest.x - origin.x, dest.z - origin.z);
     const radius = Math.max(info.radius ?? QUEST.ARRIVE_RADIUS, dest.radius ?? 0);
     const total = type === 'urgent' ? QUEST.URGENT_BASE_SECONDS + startDist / QUEST.URGENT_METRES_PER_SECOND : 0;
     const quest = {
-      id: this._nextId++, riderId, type, kind: dest.kind, icon: info.icon,
+      id: this._nextId++, riderId, type, kind: dest.kind, icon: info.icon, voice: voice || dest.kind,
       label: dest.label || info.label, short: info.short,
       x: dest.x, z: dest.z, radius, members: Math.max(1, members | 0),
       startDist, dist: startDist, best: startDist, lastHintDist: startDist,
@@ -55,7 +55,7 @@ export class PassengerQuests {
     this.quests.push(quest);
     this.offeredEver++;
     this._hintCooldown = QUEST.HINT_GAP;
-    emit?.('offered', quest, { line: this._line(quest.kind, 'ask') });
+    emit?.('offered', quest, { line: this._line(quest.voice, 'ask') });
     return quest;
   }
 
@@ -88,7 +88,7 @@ export class PassengerQuests {
   }
 
   _say(quest, type, emit, event = 'hint') {
-    const line = this._line(quest.kind, type);
+    const line = this._line(quest.voice, type);
     if (!line) return false;
     this._hintCooldown = QUEST.HINT_GAP;
     emit?.(event, quest, { line, tone: type });
@@ -110,7 +110,7 @@ export class PassengerQuests {
       if (inside && speed < QUEST.ARRIVE_SPEED) {
         this._remove(quest);
         this.completed++;
-        emit?.('arrived', quest, { reward: this.reward(quest), line: this._line(quest.kind, 'thanks') });
+        emit?.('arrived', quest, { reward: this.reward(quest), line: this._line(quest.voice, 'thanks') });
         continue;
       }
 
@@ -119,7 +119,7 @@ export class PassengerQuests {
         if (quest.timeLeft <= 0) {
           quest.timeLeft = 0;
           this._remove(quest);
-          emit?.('failed', quest, { penalty: QUEST.URGENT_PENALTY, line: this._line(quest.kind, 'failed') });
+          emit?.('failed', quest, { penalty: QUEST.URGENT_PENALTY, line: this._line(quest.voice, 'failed') });
           continue;
         }
       }
@@ -140,7 +140,7 @@ export class PassengerQuests {
       else if (!inside && quest.type !== 'urgent') quest.stall += dt;
       if (quest.stall > QUEST.STALL_SECONDS) {
         this._remove(quest);
-        emit?.('gaveUp', quest, { line: this._line(quest.kind, 'gaveUp') });
+        emit?.('gaveUp', quest, { line: this._line(quest.voice, 'gaveUp') });
         continue;
       }
 
@@ -165,7 +165,7 @@ export class PassengerQuests {
         const info = DESTINATIONS[quest.kind];
         const closer = dist < quest.lastHintDist - 3;
         quest.lastHintDist = dist;
-        if (!quest.senseSaid && info.sense && dist < (info.senseRange || 0) + quest.radius && closer) {
+        if (!quest.senseSaid && quest.voice === quest.kind && info.sense && dist < (info.senseRange || 0) + quest.radius && closer) {
           quest.senseSaid = true;
           this._say(quest, 'sense', emit);
         } else this._say(quest, closer ? 'warm' : 'cold', emit);

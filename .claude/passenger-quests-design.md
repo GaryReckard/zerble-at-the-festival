@@ -1,7 +1,10 @@
 # Passenger quests — design doc
 
-> Status: design only, not yet implemented. Tracked in ROADMAP under
-> "Gameplay verbs".
+> Status: implemented on branch `passenger-quests` as of 2026-11-15. The build
+> departs from this doc in the ways listed under "Departures" in
+> [the change's design.md](../openspec/changes/passenger-quests/design.md#departures-from-the-older-design-doc).
+> Read this doc for the original player-facing intent and that file for what
+> was built.
 
 The hook: an NPC boards Zerble's cart with a small icon over their head
 showing where they want to go. The player drives them there, gets a smile

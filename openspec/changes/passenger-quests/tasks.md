@@ -31,19 +31,25 @@
 
 ## 6. "Gotta GO!" porta-potty run
 - [x] 6.1 Urgent quest type in the engine: countdown, success bonus, failure penalty; tests.
-- [ ] 6.2 Squirm pose for the urgent rider. (Potty candidates, the "!!" bubble icon and the compass countdown are done.)
+- [x] 6.2 Squirm pose for the urgent rider. (Potty candidates, the "!!" bubble icon and the compass countdown are done.)
 - [ ] 6.3 Watch a full urgent success and a failure in the game (rider reaches the door; rider flees) and tune. The calls are wired; only the visuals are unverified.
 
 ## 7. "Take me to the mountaintop"
-- [ ] 7.1 Find admitted mountain districts and a legal arrival point from the landscape planner; tests.
-- [ ] 7.2 Mountaintop quest kind, icon, lines and reward; verify on a seed with a reachable district; commit.
+- [x] 7.1 Find admitted mountain districts and a legal arrival point from the landscape planner; tests.
+- [x] 7.2 Mountaintop quest kind, icon, lines, reward and source, with Node tests.
+- [ ] 7.3 See a mountaintop request in the live game. No admitted district was within 900 m on seeds 1234 or 1977; find a seed and start point with one (`map-sandbox.html?landscape=2`, "Find nearby Mountain Top") and run `__dbg.giveQuest('summit')`.
 
 ## 8. Monk party shared destination
-- [ ] 8.1 Party quest in the engine: one quest for the group, all-or-none completion; tests.
-- [ ] 8.2 Hook `MonkParty` boarding Zerble; hold the party ride until the quest ends; one shared bubble.
-- [ ] 8.3 Verify with `__dbg` monk helpers; commit.
+- [x] 8.1 Party quest in the engine: one quest for the group, all-or-none completion; tests.
+- [x] 8.2 Hook `MonkParty` boarding Zerble; hold the party ride until the quest ends; one shared bubble.
+- [x] 8.3 Verify with `__dbg` monk helpers; commit.
 
 ## 9. Documentation and close-out
-- [ ] 9.1 CHANGELOG entries travel with each commit; trim ROADMAP "Passenger quests" bullets to what remains.
-- [ ] 9.2 ARCHITECTURE.md section, DEBUGGING.md commands, a `passenger-quests` capability spec, verification record.
-- [ ] 9.3 Final `npm run check`, `npm run build`, Low and Mid game boots, `bin/readme-sync passenger-quests`, HANDOFF update.
+- [x] 9.1 CHANGELOG entries travel with each commit; trim ROADMAP "Passenger quests" bullets to what remains.
+- [x] 9.2 ARCHITECTURE.md section, DEBUGGING.md commands, a `passenger-quests` capability spec, verification record.
+- [x] 9.3 Final `npm run check`, `npm run build`, Low game boot, `bin/readme-sync passenger-quests`, HANDOFF update. (Mid and High boots moved to 10.3.)
+
+## 10. Acceptance on real hardware (Gary)
+- [ ] 10.1 Play it on a real GPU and a phone: bubble legibility, compass placement, toast pacing, audio cues.
+- [ ] 10.2 Judge reward sizes in Festival Run and against the leaderboard ceiling.
+- [ ] 10.3 Boot Mid and High and confirm a clean console.

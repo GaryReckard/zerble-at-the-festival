@@ -82,15 +82,21 @@ export class MonkParty {
         this.ready.add(handle);
         if(this.ready.size!==this.members.length)return false;
         this.boarding=false;this.rideUntil=this.clock+45+this.rng()*25;
-        return this.people.completeBoarding(this.reservation,this.vehicle!==this.wagon);
+        const seated=this.people.completeBoarding(this.reservation,this.vehicle!==this.wagon);
+        // A shared passenger quest may hold the party aboard Zerble past the
+        // ordinary ride time; `questHold` is cleared whenever the party leaves.
+        if(seated&&this.vehicle!==this.wagon)this.questHold=!!this.onBoardZerble?.(this);
+        return seated;
     }
     leave() {
         if(this._disposed||!this.members.length||!this.vehicle)return;
+        const wasZerble=this.vehicle!==this.wagon;this.questHold=false;
         const base=this.vehicle.position;
         this.center.set(base.x,0,base.z);this.destination.copy(this.center);
         this.people.leave(this.reservation,this.members,this.center);this.reservation=null;
         this.vehicle=null;this.boarding=false;this.ready.clear();this.cooldown=this.clock+65;
         this.nextChoice=this.clock+10;
+        if(wasZerble)this.onLeaveZerble?.(this);
     }
     update(dt,zerble) {
         if(this._disposed)return;
@@ -116,7 +122,7 @@ export class MonkParty {
                 this.leave();return;
             }
             if(this.boarding&&(!stopped||this.clock>this.boardDeadline)){this.leave();return;}
-            if(!this.boarding&&stopped&&(this.clock>=this.rideUntil||(this.vehicle!==this.wagon&&this.people.bubblesEmpty))){
+            if(!this.boarding&&stopped&&((this.clock>=this.rideUntil&&!this.questHold)||(this.vehicle!==this.wagon&&this.people.bubblesEmpty))){
                 this.leave();
             }
             return;

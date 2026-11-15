@@ -255,4 +255,37 @@ assert.equal(planOffer([{ kind: 'food_court', x: 10, z: 0 }], origin), null, 'no
   assert.equal(chip.text, 'Stop here!'); assert.equal(chip.inside, true);
 }
 
-console.log('passenger quests: catalog, picking, offers, arrival, missed, patience, remarks, urgent, summit, party and compass OK');
+// --- a party speaks in its own voice but shows the real destination --------
+{
+  const engine = new PassengerQuests({ random: seq(0.0) });
+  const emit = recorder();
+  const quest = engine.offer('monks', origin, { kind: 'drum_circle', x: 0, z: 150 }, { type: 'party', members: 4, voice: 'monk_party' }, emit);
+  assert.equal(quest.icon, 'drum'); assert.equal(quest.short, 'Drum circle');
+  assert.match(emit.of('offered')[0].line, /monks/i, 'the ask is narrated for the monks');
+  drive(engine, emit, origin, { x: 0, z: 140 }, 30, 6);
+  assert(emit.of('hint').length >= 1); assert(emit.of('hint').every((h) => /monk/i.test(h.line)), 'no drum-circle rider lines leak into the party voice');
+  engine.update(0.1, { x: 0, z: 140, speed: 0 }, emit);
+  assert.equal(emit.of('arrived')[0].reward, 12); assert.match(emit.of('arrived')[0].line, /monks/i);
+}
+
+// --- mountaintop drop-off ---------------------------------------------------
+{
+  const { summitDropOff, summitDestinations } = await import('../src/quests/summitSource.js');
+  const plan = { commons: { x: 100, z: 100 }, mainRoad: [{ x: 0, z: 0 }, { x: 60, z: 40 }, { x: 95, z: 80 }, { x: 140, z: 60 }] };
+  assert.deepEqual(summitDropOff(plan), { x: 95, z: 80 }, 'the road point nearest the commons');
+  assert.equal(summitDropOff({ commons: { x: 0, z: 0 }, mainRoad: [] }), null);
+  assert.equal(summitDropOff(null), null);
+  const asked = [];
+  const landscape = { access: { query(bounds, options) { asked.push(options); return [
+    { candidate: { id: 'a', kind: 'mountain-top' }, state: { status: 'ready', plan } },
+    { candidate: { id: 'b', kind: 'mountain-top' }, state: { status: 'pending' } },
+    { candidate: { id: 'c', kind: 'wooded-ridge' }, state: { status: 'rejected', plan: null } },
+  ]; } } };
+  const found = summitDestinations(origin, landscape);
+  assert.equal(found.length, 1); assert.equal(found[0].kind, 'mountaintop'); assert.equal(found[0].districtId, 'a');
+  assert.deepEqual(asked, [{ request: false }], 'a quest never asks the planner for new work');
+  assert.deepEqual(summitDestinations(origin, null), []);
+  assert.deepEqual(summitDestinations(origin, { ...landscape, disposed: true }), []);
+}
+
+console.log('passenger quests: catalog, picking, offers, arrival, missed, patience, remarks, urgent, summit, party voice, mountaintop source and compass OK');

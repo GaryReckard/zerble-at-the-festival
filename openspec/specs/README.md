@@ -50,6 +50,7 @@ ones in `openspec/changes/archive/`.
 | Capability | What it owns |
 |---|---|
 | [feedback-systems](feedback-systems/spec.md) | Bubbles + the juice resource, smile pickups, the lost-smile cue |
+| [passenger-quests](passenger-quests/spec.md) | Riders who ask for a lift: offer rules, plan-first destinations, arrival/missed/patience, urgent run, summit and monk-party requests, smile-pickup rewards, bubble/compass/map presentation |
 | [input-controls](input-controls/spec.md) | The source-agnostic input facade, keyboard + virtual touch controls |
 | [camera](camera/spec.md) | The three-mode chase rig, per-mode zoom, intro reveal, debug pin |
 | [hud](hud/spec.md) | Score/best, juice gauge, toast, hit flash, star vignette, title card |

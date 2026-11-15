@@ -27,6 +27,8 @@ not physical-device acceptance.
 
 ## Recent investigations
 
+- [Passenger quests, November 15](passenger-quests/README.md): Node rule tests, Low-tier real-game runs for the core loop, presentation and a monk party, touch layout and icon sandbox captures, plus the list of what remains unverified (real GPU, audio, mountaintop, urgent visuals).
+
 - [Far-field publication stall, November 11](performance/2026-11-11-far-field-publication/README.md): CPU attribution of the 424 ms iPad far-field interval, byte-identical bounded publication across 120 fingerprinted horizons, offline before/after timing and the pending iPad acceptance run.
 
 - [Device autopilot and world attribution, November 7](performance/2026-11-07-ipad-autopilot/README.md): fixed-route guided capture and capture-only world/ground sections, full checks/build, native desktop route and stop pilots, exact cleanup; the next physical-iPad run remains the device acceptance check.

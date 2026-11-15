@@ -81,7 +81,11 @@ export const DESTINATIONS = Object.freeze({
     ask: ['The monks bow, and point the way.', 'The monks would be grateful for a lift.'],
     warm: ['The monks hum in approval.', 'A monk nods serenely.'],
     cold: ['A monk raises one eyebrow.', 'The monks exchange a patient look.'],
-    thanks: ['The monks bow deeply. Blessings on your cart.', 'The monks leave you with a quiet smile.'] },
+    thanks: ['The monks bow deeply. Blessings on your cart.', 'The monks leave you with a quiet smile.'],
+    near: ['The monks gather their robes. Nearly there.', 'A monk gently taps the roof: here is good.'],
+    missed: ['The monks watch their stop drift by, unbothered.', 'A monk clears his throat, very softly.'],
+    idle: ['The monks wait. They are good at waiting.', 'A monk begins, quietly, to hum.'],
+    gaveUp: ['The monks decide the journey was the destination, and step down.'] },
 });
 
 export const LINES = Object.freeze({

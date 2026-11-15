@@ -220,9 +220,7 @@ harness history, tier contract and acceptance criteria.
 - **Bubble Upgrades rollout:** finish the pending visual gate, crowd charm,
   leaderboard headroom and final performance/docs checks in the
   [feature plan](BUBBLE-UPGRADES-PLAN.md).
-- **Passenger quests (in progress):** rider destinations, shared monk-party quests and the
-  urgent porta-potty variant. The plan, checklist and handoff notes are in the
-  [active change](openspec/changes/passenger-quests/README.md). Include a future **“Take me to the mountaintop”** request targeting a reachable, admitted mountain destination, with a legal arrival/drop-off area; this remains quest work, not part of the current terrain implementation.
+- **Passenger quest acceptance.** Rider destinations, the urgent porta-potty run, the mountaintop request and shared monk-party quests are built on the `passenger-quests` branch and verified on a software-rendered Low boot only. Still needed: a playtest on a real GPU and a phone, the audio cues by ear, a live mountaintop request (none was in range on the seeds tried), a watched urgent success and failure, Mid and High boots, and Gary's read on the reward sizes against the Festival Run economy and the leaderboard ceiling. Kids requesting rides, tokens and streaks stay parked. See the [change record](openspec/changes/passenger-quests/README.md) and [what was measured](verification/passenger-quests/README.md).
 - **Festival activities:** daily-seed challenge, boost/hop tricks, food-truck
   purchase-and-dining behavior and vendor power-ups.
 - **Physical festival:** implement the [documented plan](openspec/changes/physical-festival/README.md)

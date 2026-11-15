@@ -70,6 +70,7 @@ import { OneWheels } from './oneWheels.js';
 import { NutWagon } from './nutWagon.js';
 import { QuestRuntime } from './quests/runtime.js';
 import { QuestPresentation } from './quests/presentation.js';
+import { summitDestinations } from './quests/summitSource.js';
 import { Lurleen } from './lurleen.js';
 import { Birds } from './birds.js';
 import { ChaseCamera } from './camera.js';
@@ -904,17 +905,24 @@ const quests = new QuestRuntime({
   crowd, zerble, smiles, registry, worldgen: USE_WORLDGEN_V2,
   toast: (msg, ms) => HUD.toast(msg, ms), sound: Sound, analytics: Analytics,
   deductSmiles: (n) => { Scoring.deduct(n); HUD.setSmiles(Scoring.current); },
+  extraDestinations: (origin) => summitDestinations(origin, landscapeRuntime),
 });
+// A monk party that boards Zerble shares one destination. The party stays
+// aboard until the quest ends; if it leaves first (dry tank, lost seats) the
+// quest is cancelled. A quest ending calls party.leave(), which re-enters
+// onLeaveZerble with nothing left to cancel.
+monks.onBoardZerble = (party) => !!quests.offerParty(party, party, party.members.length);
+monks.onLeaveZerble = (party) => { quests.cancel(party); };
 const questView = new QuestPresentation({
   runtime: quests, crowd, zerble, scene, festivalMap,
   compassRoot: document.getElementById('quest-strip'),
   reducedMotion: () => A11y.reducedMotion,
   hum: (warmth) => Sound.playQuestHum(warmth),
 });
-crowd.onBoard = (handle) => {
+crowd.onBoard = (handle, { party = false } = {}) => {
   Analytics.passengerBoard();
   if (passportCanCollect()) playerStats.record('passengers');
-  quests.onBoard(handle);
+  if (!party) quests.onBoard(handle);   // a party asks once, through monks.onBoardZerble
 };
 
 // Nature-ambience proximity, recomputed every ~0.1s (see tick body).
@@ -2537,6 +2545,13 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       const quest = quests.onBoard(riders[0], { force: kind });
       return quest ? `${quest.type}: ${quest.label}, ${Math.round(quest.startDist)} m` : `no ${kind === true ? '' : kind + ' '}destination in range here`;
     },
+    // Force the monk party's shared request (they must already be riding Zerble).
+    monkQuest(kind = null) {
+      if (monks.status().vehicle !== 'zerble') return 'the monks are not riding Zerble';
+      const quest = quests.offerParty(monks, monks, monks.members.length, { force: kind });
+      if (quest) monks.questHold = true;
+      return quest ? `party of ${quest.members}: ${quest.label}, ${Math.round(quest.startDist)} m` : 'no destination in range (or the strip is full)';
+    },
     questGo(i = 0) {
       const quest = quests.active[i];
       if (!quest) return 'no active quest';
@@ -3104,7 +3119,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       const out = [
         'window.__dbg — agent control surface (localhost only). The one door.',
         '  drive:   start() · teleport(x,z) · tod(t 0..1) · setJuice(m) · addSmiles(n) · boostStreak() · photographer() · fillSeats(kind?) · rider(kind)',
-        '  quests:  quests() · giveQuest(kind?|\'urgent\'|\'summit\') · questGo(i?)',
+        '  quests:  quests() · giveQuest(kind?|\'urgent\'|\'summit\') · monkQuest(kind?) · questGo(i?)',
         '  board:   showScoreScreen(mock?) · seedBoard(n?)   (festival-run score screen + local top-10 drills)',
         '  bubbles: upgrades() · unlock(id|all) · relock(id|all) · forceSpecial(id|null) · unlockBurst(id) · lifetimeSmiles(n) · challenges()',
         '  run:     runInfo() · runDay(n) · vibe(v) · strike(n) · sputterLeft(s)   (stakes drills — need localStorage["zerble-mode"]="festival" before start())',

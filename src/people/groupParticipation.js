@@ -61,7 +61,7 @@ export class GroupParticipation {
   completeBoarding(token,notify){
     const reservation=this.#reservation;
     if(this.#closed||!reservation||reservation.token!==token||reservation.entries.some(e=>!this.hasSeat(e.handle,token)))return false;
-    for(const {handle} of reservation.entries){const n=this.#record(handle);if(!n)continue;n.state='riding';n.rideTimer=Infinity;if(notify)this.#crowd.onBoard?.(n);}
+    for(const {handle} of reservation.entries){const n=this.#record(handle);if(!n)continue;n.state='riding';n.rideTimer=Infinity;if(notify)this.#crowd.onBoard?.(handle,{party:true});}
     return true;
   }
   #releaseSeat(handle){

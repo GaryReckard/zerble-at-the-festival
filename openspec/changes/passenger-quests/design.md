@@ -49,7 +49,7 @@ src/questHud.js              DOM    compass strip
 | First boarder of a session | always a quest | So the feature is discovered early |
 | `MAX_ACTIVE` | 3 | Compass strip legibility |
 | Distance band | 80 to 300 m | Design doc |
-| `ARRIVE_RADIUS` | 25 m, or the venue's footprint plus 10 m when larger | Big venues are entered, not touched |
+| Arrive radius | Per kind in the catalog (16 to 45 m); a camp village supplies `min(60, footprint + 10)` and the larger value wins; stages are aimed at their dance floor instead of the deck | Big venues are entered, not touched |
 | Arrive speed | under 2 m/s | Design doc |
 | Stall patience | 75 s without getting 5 m closer | Replaces the fixed 90 s clock; see session-log D3 |
 | Missed | was inside the arrive radius, then beyond 60 m | Halves the bonus once |
