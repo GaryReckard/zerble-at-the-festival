@@ -1,7 +1,7 @@
 ---
 change: passenger-quests
 status: in_progress
-current_task: "3.1"
+current_task: "4.1"
 blocked_by: null
 open_questions: 3
 started: 2026-11-15
@@ -26,7 +26,7 @@ ref: ROADMAP "Gameplay verbs" passenger quests bullet; .claude/passenger-quests-
 
 | # | Assumption | Confidence | Status | Resolution |
 |---|-----------|------------|--------|------------|
-| A1 | `festivalPlan` and `campVillagesNear` are cheap enough to call once per boarding | Medium | Open | Measure in task 3.1 |
+| A1 | `festivalPlan` and `campVillagesNear` are cheap enough to call once per boarding | Medium | Verified | 0.4 ms in the running game (plans are already warm from streaming and the horizon). A fully cold Node process took 0.4 to 1.3 s for a 900 m reach, so do not widen the reach without re-measuring. |
 | A2 | The landscape planner exposes admitted mountain districts with a reachable point | Low | Open | Investigate in task 7.1 |
 | A3 | `cheerTimer` reads as a thumbs-up on a just-disembarked rider | Medium | Open | Look at it in task 3.6 |
 
@@ -40,3 +40,8 @@ ref: ROADMAP "Gameplay verbs" passenger quests bullet; .claude/passenger-quests-
 **Event:** phase-change
 **What:** Gary asked for a substantial non-performance roadmap item with under a day of usage left, then chose the full passenger-quest stack. The survey found the boarding hook, the reserved scoring door and the map's objective pins already in place, and found three facts the older design doc has wrong (seat count, registry coverage, monk boarding already exists).
 **Refs:** -> D1, -> D2, design.md "Departures"
+
+### 2026-11-15 -- Core loop verified in the real game
+**Event:** discovery
+**What:** Through the real title card and a mode-plank click on Low, a forced request was offered, `questGo` reached the stop, the rider left and 15 smiles reached the HUD with no console errors. Two things differ from the plan. First, a `QuestRuntime` glue class (`src/quests/runtime.js`) was added so `main.js` only constructs it and calls `onBoard`/`update`; presentation layers subscribe to it. Second, the crowd needed no exit hooks: the runtime polls `crowd.riderInfo` for at most three riders per frame, which catches every way a rider can leave. The urgent run's rules and its potty targeting landed with the core loop because the engine already modelled them; only its squirm pose, "!!!" bubble and countdown display remain in group 6. This session has no GPU browser, so game checks use a Playwright driver on software WebGL (see HANDOFF).
+**Refs:** -> Task 3.6, -> Task 6.1, -> A1

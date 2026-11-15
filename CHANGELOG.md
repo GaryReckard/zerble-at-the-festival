@@ -2,6 +2,12 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-11-15
+
+### Added
+- **Riders can ask for a lift somewhere.** About three in ten people who climb aboard Zerble now have a destination in mind (the first boarder of a session always does): a stage's dance floor, the food trucks, the vendor row, a drum circle, their camp, the front gate, the healing arts, the beach or the hammocks. Stopping near the place lets them off with an arms-up cheer and a burst of 7 to 12 smiles, more for a longer trip. They chat on the way ("I can smell the food trucks from here!"), call out a missed stop (which halves the bonus) and, if the cart goes nowhere for 75 seconds, politely decide to walk with no penalty. Destinations come from the festival plan, so a request can point at a place that has not streamed in yet. At most three requests are active at once. Rewards are ordinary smile pickups, so Festival Run combos and Lurleen's doubling apply. The rules live in a browser-free engine under `src/quests/` covered by `bin/test-passenger-quests`; `__dbg.quests()`, `giveQuest()` and `questGo()` drive it in the game.
+- **A rare "Gotta GO!" rider needs the nearest porta-potty against the clock.** Roughly one request in eight, when a potty is 60 to 220 m away, is urgent: 42 to 74 seconds depending on distance. Making it pays 10 smiles plus up to 5 for spare time and the rider dashes for the door; missing it costs 2 smiles and they flee, mortified.
+
 ## 2026-11-11
 
 ### Performance

@@ -8,12 +8,12 @@
 - [x] 2.4 `bin/test-passenger-quests` covering 2.1 to 2.3; add it to `npm run check`.
 
 ## 3. Core loop in the game
-- [ ] 3.1 `src/quests/worldSource.js`: candidates from the worldgen plan and the registry, with lake rejection.
-- [ ] 3.2 Crowd passenger API: `riderInfo`, `holdRide`, `endRide`, `onRideEnd` on every exit path.
-- [ ] 3.3 Wire `main.js`: offer on board, update each tick, arrival celebration and smile burst, give-up exit, cancel on ride end, resume/restart cleanup.
-- [ ] 3.4 Toasts for offer, hints, near, missed, arrival and give-up, using each kind's line bank.
-- [ ] 3.5 `__dbg.quests()`, `__dbg.giveQuest(kind)`, `__dbg.questGo()`; document them in DEBUGGING.md and `__dbg.help()`.
-- [ ] 3.6 Real-game smoke test (title card, mode plank, boot, a completed quest, clean console); CHANGELOG entry; commit.
+- [x] 3.1 `src/quests/worldSource.js`: candidates from the worldgen plan and the registry, with lake rejection.
+- [x] 3.2 Crowd passenger API: `riderInfo`, `holdRide`, `endRide`, `onRideEnd` on every exit path.
+- [x] 3.3 Wire `main.js`: offer on board, update each tick, arrival celebration and smile burst, give-up exit, cancel on ride end, resume/restart cleanup.
+- [x] 3.4 Toasts for offer, hints, near, missed, arrival and give-up, using each kind's line bank.
+- [x] 3.5 `__dbg.quests()`, `__dbg.giveQuest(kind)`, `__dbg.questGo()`; document them in DEBUGGING.md and `__dbg.help()`.
+- [x] 3.6 Real-game smoke test (title card, mode plank, boot, a completed quest, clean console); CHANGELOG entry; commit.
 
 ## 4. Thought bubble
 - [ ] 4.1 `src/models/questBubble.js`: shared canvas icon textures, pooled sprites, brightness and pulse by proximity.
@@ -30,7 +30,7 @@
 - [ ] 5.6 Verify in the game on desktop and a phone-sized viewport; commit.
 
 ## 6. "Gotta GO!" porta-potty run
-- [ ] 6.1 Urgent quest type in the engine: countdown, success bonus, failure penalty; tests.
+- [x] 6.1 Urgent quest type in the engine: countdown, success bonus, failure penalty; tests.
 - [ ] 6.2 Potty candidates in `worldSource.js`; squirm pose and "!!!" bubble; countdown in the compass widget.
 - [ ] 6.3 Success sends the rider toward the potty; failure makes them flee; toasts; verify; commit.
 

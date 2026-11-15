@@ -68,6 +68,7 @@ import { PeopleFrameTrace, savePeopleFrameTrace } from './people/frameTrace.js';
 import { MonkParty } from './monks.js';
 import { OneWheels } from './oneWheels.js';
 import { NutWagon } from './nutWagon.js';
+import { QuestRuntime } from './quests/runtime.js';
 import { Lurleen } from './lurleen.js';
 import { Birds } from './birds.js';
 import { ChaseCamera } from './camera.js';
@@ -896,9 +897,17 @@ crowd.onFrown = () => {
 };
 // An NPC climbed aboard — feed the passenger analytics (first board fires an
 // event; every board feeds the session_end count).
-crowd.onBoard = () => {
+// Passenger quests: some boarders ask to be driven somewhere. The runtime owns
+// the rules; thought bubbles, the compass and map pins subscribe to it.
+const quests = new QuestRuntime({
+  crowd, zerble, smiles, registry, worldgen: USE_WORLDGEN_V2,
+  toast: (msg, ms) => HUD.toast(msg, ms), sound: Sound, analytics: Analytics,
+  deductSmiles: (n) => { Scoring.deduct(n); HUD.setSmiles(Scoring.current); },
+});
+crowd.onBoard = (handle) => {
   Analytics.passengerBoard();
   if (passportCanCollect()) playerStats.record('passengers');
+  quests.onBoard(handle);
 };
 
 // Nature-ambience proximity, recomputed every ~0.1s (see tick body).
@@ -1478,6 +1487,7 @@ function tickBody(dt) {
     peopleFrameTrace?.mark('spatial');
     peopleFrameTrace?.pickups('adults-before', smiles);
     if (!npcsFrozen()) people.run('adults',peopleFrame);
+    if (!npcsFrozen()) quests.update(dt);   // after the crowd, so a rider who just left is seen at once
     peopleFrameTrace?.pickups('adults-after', smiles);
     peopleFrameTrace?.population('adult-poses',crowd);
     // Same-frame collects coalesce into ONE scoring event (and, in group 5,
@@ -2507,6 +2517,23 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     monks() { return monks.status(); },
     oneWheels() { return oneWheels.status(); },
     summonOneWheel() { return oneWheels.trySpawn(zerble.position,camera,true); },
+    // Passenger quests. giveQuest(kind?) hands a request to a seated rider
+    // (seating one first if the cart is empty); kind may be a destination
+    // kind, 'urgent' or 'summit'. questGo(i) drops Zerble at the i-th stop.
+    quests() { return quests.snapshot(); },
+    giveQuest(kind = true) {
+      let riders = crowd.zerbleRiders().filter(h => !quests.engine.has(h));
+      if (!riders.length) { this.rider('bench'); riders = crowd.zerbleRiders().filter(h => !quests.engine.has(h)); }
+      if (!riders.length) return 'no free rider (no NPC nearby to seat)';
+      const quest = quests.onBoard(riders[0], { force: kind });
+      return quest ? `${quest.type}: ${quest.label}, ${Math.round(quest.startDist)} m` : `no ${kind === true ? '' : kind + ' '}destination in range here`;
+    },
+    questGo(i = 0) {
+      const quest = quests.active[i];
+      if (!quest) return 'no active quest';
+      this.teleport(quest.x - Math.min(10, quest.radius * 0.4), quest.z);
+      return `at ${quest.label}; stop to let them off`;
+    },
     nutWagon() { return nutWagon.status(); },
     summonNutWagon() { return nutWagon.trySpawn(zerble.position, camera, true); },
     rider(kind = 'bench') {
@@ -3068,6 +3095,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       const out = [
         'window.__dbg — agent control surface (localhost only). The one door.',
         '  drive:   start() · teleport(x,z) · tod(t 0..1) · setJuice(m) · addSmiles(n) · boostStreak() · photographer() · fillSeats(kind?) · rider(kind)',
+        '  quests:  quests() · giveQuest(kind?|\'urgent\'|\'summit\') · questGo(i?)',
         '  board:   showScoreScreen(mock?) · seedBoard(n?)   (festival-run score screen + local top-10 drills)',
         '  bubbles: upgrades() · unlock(id|all) · relock(id|all) · forceSpecial(id|null) · unlockBurst(id) · lifetimeSmiles(n) · challenges()',
         '  run:     runInfo() · runDay(n) · vibe(v) · strike(n) · sputterLeft(s)   (stakes drills — need localStorage["zerble-mode"]="festival" before start())',
