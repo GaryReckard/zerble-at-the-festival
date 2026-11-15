@@ -27,11 +27,11 @@ export class PassengerQuests {
     return lines.length ? lines[Math.min(lines.length - 1, Math.floor(this.random() * lines.length))] : '';
   }
 
-  // Should this boarder carry a quest at all? The first boarder of a session
-  // always does, so the mechanic is discovered without a tutorial.
+  // Should an un-hailed boarder carry a quest? Rarely: hailing is the main
+  // way requests start, so walk-ups must not fill the strip on their own.
   rollOffer() {
     if (this.full) return false;
-    return this.offeredEver === 0 || this.random() < QUEST.CHANCE;
+    return this.random() < QUEST.CHANCE;
   }
 
   // `dest` is { kind, x, z, radius?, label? }. `members` is the head count for
@@ -51,7 +51,12 @@ export class PassengerQuests {
       entered: false, missed: false, nearSaid: false, senseSaid: false,
       hintTimer: QUEST.HINT_MIN * 0.6 + this.random() * QUEST.HINT_SPAN,
       totalTime: total, timeLeft: total, warmth: 0,
+      // An optional waypoint (the foot of a mountain road). The compass aims
+      // at `aim`, which is the waypoint until the cart has reached it.
+      via: dest.via && Number.isFinite(dest.via.x) && Number.isFinite(dest.via.z) ? { x: dest.via.x, z: dest.via.z } : null,
+      viaReached: false, aim: null,
     };
+    quest.aim = quest.via || quest;
     this.quests.push(quest);
     this.offeredEver++;
     this._hintCooldown = QUEST.HINT_GAP;
@@ -106,6 +111,10 @@ export class PassengerQuests {
       const span = Math.max(1, quest.startDist - quest.radius);
       quest.warmth = clamp01(1 - (dist - quest.radius) / span);
       const inside = dist <= quest.radius;
+      if (quest.via && !quest.viaReached && (inside || Math.hypot(quest.via.x - player.x, quest.via.z - player.z) < QUEST.VIA_RADIUS)) {
+        quest.viaReached = true; quest.aim = quest;
+        if (!inside) { this._say(quest, 'via', emit, 'via'); }
+      }
 
       if (inside && speed < QUEST.ARRIVE_SPEED) {
         this._remove(quest);
@@ -179,6 +188,7 @@ export class PassengerQuests {
       x: q.x, z: q.z, radius: q.radius, dist: Math.round(q.dist), startDist: Math.round(q.startDist),
       warmth: +q.warmth.toFixed(2), stall: Math.round(q.stall), missed: q.missed,
       timeLeft: q.type === 'urgent' ? +q.timeLeft.toFixed(1) : null, reward: this.reward(q),
+      via: q.via, viaReached: q.viaReached,
     }));
   }
 }

@@ -5,9 +5,9 @@ import {
   pickSpecial, specialRate, visibleCatalog,
 } from '../src/bubbleTypes.js';
 
-assert.equal(BUBBLE_TYPES.length, 11);
-assert.deepEqual(BUBBLE_TYPES.map((type) => type.order), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-assert.equal(new Set(BUBBLE_TYPES.map((type) => type.id)).size, 11);
+assert.equal(BUBBLE_TYPES.length, 15);
+assert.deepEqual(BUBBLE_TYPES.map((type) => type.order), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+assert.equal(new Set(BUBBLE_TYPES.map((type) => type.id)).size, 15);
 assert.deepEqual(BUBBLE_TYPES.filter((type) => type.secret).map((type) => type.id), ['mushroom']);
 for (const type of BUBBLE_TYPES) {
   assert.ok(type.look.pop.count < 20, `${type.id} pop count stays under 20`);
@@ -60,8 +60,8 @@ for (const type of BUBBLE_TYPES) {
   }
 }
 
-assert.equal(visibleCatalog(new Set()).entries.length, 10);
-assert.equal(visibleCatalog(new Set()).total, 10);
-assert.equal(visibleCatalog(new Set(['mushroom'])).entries.length, 11);
-assert.equal(visibleCatalog(new Set(['mushroom'])).total, 11);
+assert.equal(visibleCatalog(new Set()).entries.length, 14);
+assert.equal(visibleCatalog(new Set()).total, 14);
+assert.equal(visibleCatalog(new Set(['mushroom'])).entries.length, 15);
+assert.equal(visibleCatalog(new Set(['mushroom'])).total, 15);
 process.stdout.write('PASS bubble types: catalog, weighted picker, rates, charm, tint animations, and secret visibility\n');

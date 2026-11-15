@@ -61,6 +61,13 @@ export class ChallengeTracker {
   onLurleenFound() { return this._unlock('heart'); }
   onFireworksFinale() { return this._unlock('sparkler'); }
   onTripAccepted() { return this._unlock('mushroom'); }
+  // A passenger quest was delivered. `total` is the all-time ride count.
+  onQuestCompleted(type, total) {
+    if (type === 'urgent') this._unlock('relief');
+    if (type === 'summit') this._unlock('summit');
+    if (type === 'party') this._unlock('saffron');
+    if (total >= CHALLENGE.hitchRides) this._unlock('hitch');
+  }
 
   onRunDay(day) {
     if (getMode(this.world) !== 'festival' || day < 2) return false;

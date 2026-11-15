@@ -2,7 +2,16 @@
 // thought bubble and the sandbox all read one source.
 
 export const QUEST = Object.freeze({
-  CHANCE: 0.30,            // share of ordinary boarders who carry a quest
+  CHANCE: 0.08,            // share of un-hailed walk-up boarders who carry a quest
+  // Hailing is how most requests start: a few people near the cart visibly
+  // want a ride, and the player chooses whom to stop for.
+  HAIL_MAX: 2,             // people flagging the cart down at once
+  HAIL_MIN_DIST: 10, HAIL_MAX_DIST: 75,   // metres from the cart when chosen
+  HAIL_FIRST: 2, HAIL_EVERY: 5,           // seconds before the first / between later hails
+  HAIL_PATIENCE: 50,       // seconds a hail waits before giving up
+  HAIL_LEASH: 120,         // metres; the cart drove off, so the hail lapses
+  HAIL_PICKUP: 14,         // stop this close and they climb aboard
+  VIA_RADIUS: 45,          // reaching a waypoint this closely counts
   MAX_ACTIVE: 3,           // compass legibility, independent of the seat count
   MIN_DIST: 80,            // closer feels trivial
   MAX_DIST: 300,           // farther feels like a chore
@@ -76,6 +85,7 @@ export const DESTINATIONS = Object.freeze({
     ask: ['Take me to the mountaintop!', 'My camp is way up on the mountain. Can Zerble make it?'],
     warm: ['Up, up, up we go!', 'The air is getting thinner!', 'Look at that view already!'],
     sense: ['I can see the summit camps!'], senseRange: 150,
+    via: ['Here is the road up. Follow it to the top!', 'This is the way up. Hold on!'],
     thanks: ['What a climb. What a view!', 'Top of the world. Thank you!'] },
   monk_party: { label: 'where the monks are headed', short: 'Monks', icon: 'monk', weight: 0, radius: 30,
     ask: ['The monks bow, and point the way.', 'The monks would be grateful for a lift.'],

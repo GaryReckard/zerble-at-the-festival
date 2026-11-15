@@ -53,3 +53,11 @@
 - [ ] 10.1 Play it on a real GPU and a phone: bubble legibility, compass placement, toast pacing, audio cues.
 - [ ] 10.2 Judge reward sizes in Festival Run and against the leaderboard ceiling.
 - [ ] 10.3 Boot Mid and High and confirm a clean console.
+
+## 11. Follow-ups from Gary's first read (2026-11-15)
+- [x] 11.1 Hailing: people on foot show their request and board when the cart stops for them; walk-up chance cut to 8%.
+- [x] 11.2 Ride log persisted in `localStorage`, with a running count in the arrival toast.
+- [x] 11.3 Four quest-earned bubble types: Hitchhiker, Relief, Summit, Saffron.
+- [x] 11.4 Mountaintop guidance: road-foot waypoint, "Road up" pin, automatic map tracking.
+- [ ] 11.5 A player-facing ride-log page (Festival Passport is the natural home).
+- [ ] 11.6 Look at a hailer from the chase camera on a real GPU: is the bubble and wave noticeable at 30 to 75 m?

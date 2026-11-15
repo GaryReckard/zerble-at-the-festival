@@ -69,3 +69,9 @@ errors.
 * Mid and High tier boots were not run for this feature.
 * The effect on the Festival Run economy and the leaderboard ceiling was not
   measured.
+
+## Addendum: hailing, ride log and quest-earned bubbles (same day)
+
+Seed 1234, Low, software WebGL, zero console errors. A person began hailing for the vendor row within seconds of the crowd appearing, and a destination search from their position took 1.3 ms. Parking beside them (`__dbg.hailGo()`) brought them aboard with that same request, and `questGo` delivered them. A forced urgent run was then delivered: the log read two rides (one ride, one urgent), the record was present in `localStorage`, and Relief Bubbles were reported as earned.
+
+Not verified: how noticeable a hailer's bubble and wave are from the chase camera at 30 to 75 m, the three other new bubble types' unlocks in the game, how any of the four new bubbles look when emitted, and the mountaintop waypoint in the live game (Node test only).

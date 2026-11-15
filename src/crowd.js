@@ -2189,6 +2189,51 @@ export class Crowd {
     return out;
   }
 
+  // ----- Hailing: people on foot who want a ride -----
+  // Ordinary adults near the cart who could be asked to board. `visit` gets
+  // (handle, x, z, distance). Parties, photographers and anyone mid-activity
+  // are skipped by the same ambient-state rule the boarding trigger uses.
+  forEachHailCandidate(zerble, minDist, maxDist, visit) {
+    for (const npc of this.npcs) {
+      if (npc.party || npc.isPhotographer || npc.hailing || npc.curiosity < 0.3 || !ORDINARY_SOCIAL_STATES.has(npc.state) || npc.cheerTimer > 0 || npc.frownTimer > 0) continue;
+      const d = Math.hypot(npc.pos.x - zerble.position.x, npc.pos.z - zerble.position.z);
+      if (d >= minDist && d <= maxDist) visit(npc.personHandle, npc.pos.x, npc.pos.z, d);
+    }
+  }
+
+  // Where is this person's head, and can they still be picked up?
+  walkerInfo(handle, out) {
+    const npc = this.peopleHandles.resolve(handle);
+    out.boarding = !!npc && npc.state === 'boarding';
+    out.available = !!npc && !npc.party && (ORDINARY_SOCIAL_STATES.has(npc.state) || out.boarding);
+    if (!npc) return false;
+    out.x = npc.pos.x; out.z = npc.pos.z; out.y = npc.pos.y + 1.9 * (npc.scale || 1);
+    return out.available;
+  }
+
+  setHailing(handle, on) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (npc) npc.hailing = !!on;
+  }
+
+  // A short arms-up wave toward the cart, so a hail reads from a distance.
+  hailWave(handle, zerble) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (!npc || !ORDINARY_SOCIAL_STATES.has(npc.state)) return false;
+    npc.cheerTimer = 1.1; npc.cheerX = zerble.position.x; npc.cheerZ = zerble.position.z;
+    return true;
+  }
+
+  // The cart stopped for this person: claim a seat and start walking to it.
+  hailBoard(handle, zerble) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (!npc || npc.party || this.bubblesEmpty || !ORDINARY_SOCIAL_STATES.has(npc.state)) return false;
+    const slot = this._claimFreeSeat(zerble, npc);
+    if (!slot) return false;
+    npc.cheerTimer = 0; npc.state = 'boarding'; npc.seatSlot = slot; npc.stateTimer = 20;
+    return true;
+  }
+
   setRideMood(handle, mood) {
     const npc = this.peopleHandles.resolve(handle);
     if (npc) npc.rideMood = mood || null;

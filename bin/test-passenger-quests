@@ -72,12 +72,13 @@ assert.equal(planOffer([{ kind: 'food_court', x: 10, z: 0 }], origin), null, 'no
 // --- offering ------------------------------------------------------------
 {
   const engine = new PassengerQuests({ random: seq(0.9) });
-  assert.equal(engine.rollOffer(), true, 'the first boarder always has a request');
+  assert.equal(engine.rollOffer(), false, 'an un-hailed boarder rarely has a request (0.9 > 0.08)');
   const emit = recorder();
   const quest = engine.offer('a', origin, { kind: 'drum_circle', x: 100, z: 0 }, {}, emit);
   assert(quest); assert.equal(emit.of('offered').length, 1); assert(emit.events[0].line);
-  assert.equal(engine.rollOffer(), false, 'later boarders roll against the chance (0.9 > 0.3)');
-  assert.equal(new PassengerQuests({ random: seq(0.1) }).rollOffer(), true);
+  assert.equal(new PassengerQuests({ random: seq(0.05) }).rollOffer(), true);
+  assert(QUEST.CHANCE <= 0.1, 'walk-ups must not saturate the strip; hailing is the main source');
+  assert(QUEST.HAIL_MAX <= 2 && QUEST.HAIL_MAX < QUEST.MAX_ACTIVE, 'only a couple of people hail at once');
   assert.equal(engine.offer('a', origin, { kind: 'beach', x: 0, z: 100 }), null, 'one quest per rider');
   assert.equal(engine.offer('b', origin, { kind: 'nonsense', x: 0, z: 100 }), null);
   assert.equal(engine.offer('b', origin, { kind: 'beach', x: NaN, z: 100 }), null);
@@ -288,4 +289,52 @@ assert.equal(planOffer([{ kind: 'food_court', x: 10, z: 0 }], origin), null, 'no
   assert.deepEqual(summitDestinations(origin, { ...landscape, disposed: true }), []);
 }
 
-console.log('passenger quests: catalog, picking, offers, arrival, missed, patience, remarks, urgent, summit, party voice, mountaintop source and compass OK');
+// --- mountaintop waypoint: aim at the foot of the road first ----------------
+{
+  const { chipState } = await import('../src/quests/compassMath.js');
+  const engine = new PassengerQuests({ random: seq(0.5) });
+  const emit = recorder();
+  // Summit due north (-Z); the road up starts off to the east (+X).
+  const quest = engine.offer('a', origin, { kind: 'mountaintop', x: 0, z: -600, via: { x: 300, z: -100 } }, { type: 'summit' }, emit);
+  engine.update(0.1, { x: 0, z: 0, speed: 5 }, emit);
+  assert.equal(quest.aim, quest.via);
+  assert(chipState(quest, { x: 0, z: 0, heading: 0 }).angle > 60, 'the arrow points at the road, not straight at the peak');
+  engine.update(0.1, { x: 290, z: -90, speed: 5 }, emit);
+  assert.equal(quest.viaReached, true); assert.equal(quest.aim, quest);
+  assert.equal(emit.of('via').length, 1); assert.match(emit.of('via')[0].line, /road|way up/i);
+  engine.update(0.1, { x: 300, z: -100, speed: 5 }, emit);
+  assert.equal(emit.of('via').length, 1, 'the waypoint is announced once');
+  assert(chipState(quest, { x: 300, z: -100, heading: 0 }).angle < 0, 'then the arrow swings to the summit');
+  // A quest without a waypoint aims at its destination from the start.
+  const plain = engine.offer('b', origin, { kind: 'beach', x: 100, z: 0 });
+  assert.equal(plain.aim, plain); assert.equal(plain.via, null);
+  // The source derives the foot from the district road.
+  const { summitDestinations } = await import('../src/quests/summitSource.js');
+  const plan = { commons: { x: 0, z: -600 }, mainRoad: [{ x: 300, z: -100 }, { x: 200, z: -400 }, { x: 20, z: -580 }] };
+  const [dest] = summitDestinations(origin, { access: { query: () => [{ candidate: { id: 'm', kind: 'mountain-top' }, state: { status: 'ready', plan } }] } });
+  assert.deepEqual(dest.via, { x: 300, z: -100 }); assert.deepEqual([dest.x, dest.z], [20, -580]);
+}
+
+// --- quest log --------------------------------------------------------------
+{
+  const { createQuestLog } = await import('../src/quests/questLog.js');
+  const store = new Map();
+  const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) };
+  const log = createQuestLog(storage, () => 1234);
+  assert.equal(log.total, 0);
+  assert.equal(log.record({ type: 'ride', kind: 'beach', label: 'the beach', reward: 8 }), 1);
+  assert.equal(log.record({ type: 'urgent', kind: 'porta_potty', label: 'the nearest porta-potty', reward: 13 }), 2);
+  const again = createQuestLog(storage);
+  assert.equal(again.total, 2, 'the record survives a reload'); assert.equal(again.countOf('urgent'), 1);
+  assert.deepEqual(again.snapshot().recent.map((r) => r.kind), ['porta_potty', 'beach'], 'newest first');
+  assert.equal(again.snapshot().smiles, 21);
+  for (let i = 0; i < 30; i++) again.record({ type: 'ride', kind: 'beach', label: 'the beach', reward: 7 });
+  assert.equal(again.snapshot().recent.length, 20, 'the recent list is bounded'); assert.equal(again.total, 32);
+  store.set('zerble.questLog', '{not json');
+  assert.equal(createQuestLog(storage).total, 0, 'a corrupt record reads as empty');
+  assert.equal(createQuestLog({ getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } }).record({ type: 'ride', kind: 'beach', reward: 7 }), 1, 'blocked storage never interrupts play');
+  assert.equal(createQuestLog(null).record({ type: 'ride', kind: 'beach', reward: 7 }), 1);
+  again.reset(); assert.equal(createQuestLog(storage).total, 0);
+}
+
+console.log('passenger quests: catalog, picking, offers, arrival, missed, patience, remarks, urgent, summit, party voice, mountaintop source and waypoint, quest log and compass OK');

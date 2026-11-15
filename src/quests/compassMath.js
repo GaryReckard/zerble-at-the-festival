@@ -29,7 +29,7 @@ export function chipState(quest, player) {
   return {
     id: quest.id, icon: quest.icon, label: quest.short,
     urgent: quest.type === 'urgent',
-    angle: Math.round(relativeBearing(player, quest) * 180 / Math.PI / 6) * 6 + 0,   // + 0 folds -0 into 0
+    angle: Math.round(relativeBearing(player, quest.aim || quest) * 180 / Math.PI / 6) * 6 + 0,   // + 0 folds -0 into 0
     text: inside ? 'Stop here!' : formatDistance(Math.max(0, quest.dist - quest.radius)),
     clock: quest.type === 'urgent' ? formatClock(quest.timeLeft) : '',
     warm: Math.round(quest.warmth * 10) / 10,

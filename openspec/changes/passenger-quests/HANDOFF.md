@@ -4,11 +4,13 @@
 
 ## Where it stands
 
-_Last update: 2026-11-15, after the variants commit._
+_Last update: 2026-11-15, after the hailing commit._
 
 - **Branch: `passenger-quests`** (local only, not pushed). Local `main` equals `origin/main`.
 - Built and committed: the engine and tests, the core loop, thought bubbles, compass, map pins, sounds, analytics, the Settings toggle, the urgent porta-potty run with its squirm, the mountaintop request, monk-party shared quests, and the docs.
+- Also built after Gary's first read: hailing (people on foot ask and the player stops for them), the ride log, four quest-earned bubble types and mountaintop road guidance (task group 11).
 - Open, in order of value:
+  0. Tasks 11.5 and 11.6: a ride-log page, and a real-GPU look at hailers from a distance.
   1. Task 10.x: Gary plays it on real hardware and judges rewards.
   2. Task 7.3: see a mountaintop request live.
   3. Task 6.3: watch an urgent success (does the rider reach the potty door?) and a failure (do they flee?) on a real GPU.
@@ -32,7 +34,7 @@ node bin/test-passenger-quests
 npm run dev     # http://127.0.0.1:8765/?mute=1
 ```
 
-In the browser console after clicking a mode plank: `__dbg.giveQuest()` (seats a rider if needed), `__dbg.quests()`, `__dbg.questGo()`, then stop the cart. `__dbg.giveQuest('urgent')` forces the porta-potty run and `'summit'` the mountaintop. For monks: `__dbg.summonNutWagon()`, wait for `__dbg.monks().count`, park Zerble within 14 m of them with bubble juice in the tank, and they board and ask on their own; `__dbg.monkQuest()` forces a request once they ride.
+In the browser console after clicking a mode plank: `__dbg.hail()` then `__dbg.hailGo()` to be flagged down and stop for them; `__dbg.giveQuest()` (seats a rider if needed), `__dbg.quests()`, `__dbg.questGo()`, then stop the cart. `__dbg.giveQuest('urgent')` forces the porta-potty run and `'summit'` the mountaintop. For monks: `__dbg.summonNutWagon()`, wait for `__dbg.monks().count`, park Zerble within 14 m of them with bubble juice in the tank, and they board and ask on their own; `__dbg.monkQuest()` forces a request once they ride.
 
 Without a GPU browser, the project's fallback is `bin/verify-headless` (one `--eval`, software WebGL). For multi-step flows the previous agent used a small Playwright script that loads `playwright` from `~/.zerble-verify`, opens `/?mute=1&perf=low&seed=1234`, waits for `#mode-cruisin:not([disabled])`, clicks it, waits for `window.__dbg`, then calls the commands above with waits between them. Festival-goers take up to a minute to appear under software rendering, so retry `giveQuest()` until it stops answering "no free rider". Keep one headless browser alive at a time and close it in `finally`.
 

@@ -1,7 +1,7 @@
 ---
 change: passenger-quests
 status: in_progress
-current_task: "6.3"
+current_task: "11.5"
 blocked_by: null
 open_questions: 3
 started: 2026-11-15
@@ -23,6 +23,8 @@ ref: ROADMAP "Gameplay verbs" passenger quests bullet; .claude/passenger-quests-
 - **D6:** At most three active quests, independent of the eight seats.
 - **D7 (2026-11-15, Gary):** The work moved off `main` onto the `passenger-quests` branch mid-session; local `main` was reset to `origin/main`. Supersedes the branch part of D1. Still no pushes.
 - **D8:** A monk party asks for an ordinary destination (so the bubble and compass show a real place) but speaks through the `monk_party` line bank via the engine's `voice` option, and its toasts are narration without quotes.
+- **D10 (2026-11-15, Gary):** Requests should be visible on people walking around so the player can choose a fare; they must be easy to find without saturating the grounds. Hence two hailers at most, a five-second refill, and an 8% walk-up chance. This replaces the 30% roll and the first-boarder guarantee in D-less design notes and Q1.
+- **D11:** Quest-earned bubbles use existing tint animations and no inner motif, so the special-bubble shader is untouched during the performance freeze.
 - **D9:** The mountaintop drop-off is the point on the district's `mainRoad` nearest its `commons`, read with `access.query(bounds, { request: false })` so a quest never triggers planner work.
 
 ## Assumptions
@@ -58,3 +60,8 @@ ref: ROADMAP "Gameplay verbs" passenger quests bullet; .claude/passenger-quests-
 **Event:** discovery
 **What:** Changing `crowd.onBoard` to pass a handle broke one caller: `groupParticipation.completeBoarding` still passed the private record for each monk, so every monk was offered a solo quest that was cancelled a frame later, and those phantom offers could fill the three-quest cap and block the party's real request. Group boarding now calls `onBoard(handle, { party: true })` and `main.js` skips solo offers for party members. After the fix, seed 1977 showed five monks board, share one request, arrive and leave together for 15 smiles. The urgent squirm and the mountaintop request could not be confirmed visually in this environment (software rendering; no admitted district in range).
 **Refs:** -> D8, -> D9, -> Tasks 7.3, 6.3, 10.x
+
+### 2026-11-15 -- Hailing, ride log, bubbles and mountaintop guidance
+**Event:** decision
+**What:** Built after Gary's first read. On seed 1234 (Low, software WebGL, clean console) a person hailed within seconds, boarded when the cart stopped beside them with the request their bubble showed, and was delivered; a forced urgent run then unlocked Relief Bubbles and the log read two rides after being stored. The hailer's bubble was not caught in a chase-camera screenshot, so its legibility at distance is unverified (task 11.6). The mountaintop waypoint is covered only by the Node test.
+**Refs:** -> D10, -> D11, -> Tasks 11.x

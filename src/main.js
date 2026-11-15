@@ -71,6 +71,7 @@ import { NutWagon } from './nutWagon.js';
 import { QuestRuntime } from './quests/runtime.js';
 import { QuestPresentation } from './quests/presentation.js';
 import { summitDestinations } from './quests/summitSource.js';
+import { createQuestLog } from './quests/questLog.js';
 import { Lurleen } from './lurleen.js';
 import { Birds } from './birds.js';
 import { ChaseCamera } from './camera.js';
@@ -741,7 +742,7 @@ const bubbleChallenges = new ChallengeTracker(bubbleProgress, {
   bandPositions: (fn) => { for (const collider of band.colliders) fn(collider.position.x, collider.position.z); },
   tripActive: () => Trip.isActive(),
   mode: () => RunMode.isFestival() ? 'festival' : 'cruisin',
-}, ['heart', 'music', 'ember', 'firefly', 'rainbow', 'sparkler', 'lantern', 'smile', 'confetti', 'mushroom', 'brass']);
+}, ['heart', 'music', 'ember', 'firefly', 'rainbow', 'sparkler', 'lantern', 'smile', 'confetti', 'mushroom', 'brass', 'hitch', 'relief', 'summit', 'saffron']);
 const kids = withBaselineRandom(()=>new KidGaggle({runtime:people,surfaceAccess:landscapePeople,
   retainedGaggles:DEVICE_CHILD_COHORT==='half-v1'?[0,2,4,6]:null,
   ...((PERFORMANCE_LAB||DEVICE_AUTOPILOT)?{constructionRandom:childConstructionRandom(getSessionSeed())}:{})}),0x43484c44,peopleBaselineCohort);
@@ -906,6 +907,8 @@ const quests = new QuestRuntime({
   toast: (msg, ms) => HUD.toast(msg, ms), sound: Sound, analytics: Analytics,
   deductSmiles: (n) => { Scoring.deduct(n); HUD.setSmiles(Scoring.current); },
   extraDestinations: (origin) => summitDestinations(origin, landscapeRuntime),
+  log: createQuestLog((() => { try { return localStorage; } catch { return null; } })()),
+  onCompleted: (quest, log) => bubbleChallenges.onQuestCompleted(quest.type, log?.total ?? 0),
 });
 // A monk party that boards Zerble shares one destination. The party stays
 // aboard until the quest ends; if it leaves first (dry tank, lost seats) the
@@ -2545,6 +2548,19 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       const quest = quests.onBoard(riders[0], { force: kind });
       return quest ? `${quest.type}: ${quest.label}, ${Math.round(quest.startDist)} m` : `no ${kind === true ? '' : kind + ' '}destination in range here`;
     },
+    // hail(kind?) makes someone nearby flag the cart down now; questLog()
+    // reads the all-time record (questLog('reset') clears it).
+    hail(kind = null) {
+      const hail = quests.startHail({ force: kind });
+      return hail ? `${hail.plan.type}: someone wants ${hail.label}` : 'nobody suitable nearby, no destination in range, or the limit is reached';
+    },
+    hailGo(i = 0) {
+      const hail = quests.hails[i]; const w = {};
+      if (!hail || !crowd.walkerInfo(hail.handle, w)) return 'no one is hailing';
+      this.teleport(w.x + 5, w.z + 3);
+      return 'parked beside them';
+    },
+    questLog(action) { if (action === 'reset') quests.log.reset(); return quests.log.snapshot(); },
     // Force the monk party's shared request (they must already be riding Zerble).
     monkQuest(kind = null) {
       if (monks.status().vehicle !== 'zerble') return 'the monks are not riding Zerble';
@@ -3119,7 +3135,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       const out = [
         'window.__dbg — agent control surface (localhost only). The one door.',
         '  drive:   start() · teleport(x,z) · tod(t 0..1) · setJuice(m) · addSmiles(n) · boostStreak() · photographer() · fillSeats(kind?) · rider(kind)',
-        '  quests:  quests() · giveQuest(kind?|\'urgent\'|\'summit\') · monkQuest(kind?) · questGo(i?)',
+        '  quests:  quests() · giveQuest(kind?|\'urgent\'|\'summit\') · monkQuest(kind?) · questGo(i?) · hail(kind?) · hailGo(i?) · questLog()',
         '  board:   showScoreScreen(mock?) · seedBoard(n?)   (festival-run score screen + local top-10 drills)',
         '  bubbles: upgrades() · unlock(id|all) · relock(id|all) · forceSpecial(id|null) · unlockBurst(id) · lifetimeSmiles(n) · challenges()',
         '  run:     runInfo() · runDay(n) · vibe(v) · strike(n) · sputterLeft(s)   (stakes drills — need localStorage["zerble-mode"]="festival" before start())',

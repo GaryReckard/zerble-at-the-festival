@@ -223,3 +223,30 @@ buttons. Each request SHALL be a pin through `festivalMap.setObjectives`
 
 - **WHEN** the Passenger compass setting is off
 - **THEN** the strip is hidden and bubbles and pins still show
+
+### Requirement: Hailing is the main source of requests
+
+The runtime SHALL keep at most `QUEST.HAIL_MAX` (2) people on foot hailing the cart, chosen from ordinary adults `HAIL_MIN_DIST` to `HAIL_MAX_DIST` (10 to 75 m) away, each with a destination planned from that person's own position. Hails SHALL count toward `MAX_ACTIVE`. A hail SHALL lapse after `HAIL_PATIENCE` seconds or beyond `HAIL_LEASH` metres. An un-hailed boarder SHALL carry a request only with probability `QUEST.CHANCE` (0.08) (`src/quests/runtime.js` `startHail`, `_updateHails`; `src/quests/catalog.js`).
+
+#### Scenario: The player stops for a hailer
+
+- **WHEN** the cart is slower than 0.6 m/s within `HAIL_PICKUP` (14 m) of a hailing person and the tank is not empty
+- **THEN** that person claims a seat and boards, and on sitting down receives exactly the request their bubble showed
+
+### Requirement: Deliveries are logged and can earn bubble types
+
+Each arrival SHALL be recorded in a versioned `localStorage` log holding totals by type and kind and the 20 most recent rides; a missing, corrupt or blocked store SHALL read as empty and never interrupt play (`src/quests/questLog.js`). `ChallengeTracker.onQuestCompleted` SHALL unlock `relief` on an urgent delivery, `summit` on a mountaintop delivery, `saffron` on a party delivery and `hitch` once the all-time total reaches `CHALLENGE.hitchRides` (`src/bubbleChallenges.js`).
+
+#### Scenario: Fifth ride
+
+- **WHEN** the fifth delivery of all time is recorded
+- **THEN** Hitchhiker Bubbles unlock through the ordinary bubble-progress path
+
+### Requirement: A mountaintop request is guided by the road
+
+A summit candidate SHALL carry a `via` waypoint at the end of the district's `mainRoad` farthest from its commons when that end is more than 60 m from the drop-off. The compass SHALL aim at the waypoint until the cart comes within `VIA_RADIUS`, after which it aims at the destination (`src/quests/summitSource.js`, `src/quests/engine.js`, `src/quests/compassMath.js`).
+
+#### Scenario: Reaching the foot of the road
+
+- **WHEN** the cart first comes within 45 m of the waypoint
+- **THEN** a `via` event fires once and the arrow swings to the summit

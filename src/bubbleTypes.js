@@ -22,6 +22,7 @@ export const CHALLENGE = Object.freeze({
   paradeRadius: 20,
   bandRadius: 15,
   lifetimeSmiles: 1000,
+  hitchRides: 5,
   tickSec: 0.5,
 });
 
@@ -64,6 +65,20 @@ export const BUBBLE_TYPES = Object.freeze([
   { id: 'brass', name: 'Brass Bubbles', order: 11, secret: false, hint: 'Roll with the brass band.', earnedLine: null,
     look: look('sphere', 0xd9a520, 'glint', 0.4, [1, 1, 1], pop([0xd9a520, 0xffe39a], 10), 'brass'),
     boost: (ctx) => ctx.nearBand ? 3 : 1 },
+  // Earned by giving people lifts (passenger quests). These reuse existing
+  // tint animations and carry no inner motif, so they add no shader paths.
+  { id: 'hitch', name: 'Hitchhiker Bubbles', order: 12, secret: false, hint: 'Give five festival-goers a lift.', earnedLine: 'Thumbs up from five happy riders.',
+    look: look('sphere', 0x49d9c7, 'pulse', 0.3, [1, 1, 1], pop([0x49d9c7, 0xfff4dc], 10)),
+    boost: () => 1 },
+  { id: 'relief', name: 'Relief Bubbles', order: 13, secret: false, hint: 'Get somebody there just in time.', earnedLine: 'Phew. Made it.',
+    look: look('sphere', 0xf6e27a, 'steady', 0.25, [1, 1.15, 1], pop([0xf6e27a, 0x6ab7ff, 0xffffff], 14, 0.7, 0.9, -0.45)),
+    boost: () => 1 },
+  { id: 'summit', name: 'Summit Bubbles', order: 14, secret: false, hint: 'Carry someone all the way up a mountain.', earnedLine: 'Thin air, big view.',
+    look: look('sphere', 0xcfeaff, 'twinkle', 0.5, [1, 1, 1], pop([0xcfeaff, 0xffffff], 12, 0.7, 1.2)),
+    boost: () => 1 },
+  { id: 'saffron', name: 'Saffron Bubbles', order: 15, secret: false, hint: 'Give a whole travelling party a ride.', earnedLine: 'A blessing from the monks.',
+    look: look('sphere', 0xf29a2e, 'glint', 0.4, [1, 1, 1], pop([0xf29a2e, 0xffd9a0], 10, 0.9, 0.5, 0.2)),
+    boost: () => 1 },
 ]);
 
 const TYPE_BY_ID = new Map(BUBBLE_TYPES.map((type) => [type.id, type]));

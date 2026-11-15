@@ -30,7 +30,16 @@ export function summitDestinations(origin, landscape, reach = QUEST.SUMMIT_MAX) 
   for (const { candidate, state } of records) {
     if (candidate.kind !== 'mountain-top' || state?.status !== 'ready') continue;
     const spot = summitDropOff(state.plan);
-    if (spot) out.push({ kind: 'mountaintop', x: spot.x, z: spot.z, radius: 40, districtId: candidate.id });
+    if (!spot) continue;
+    // The district's main road runs from its entrance up to the commons, so
+    // its end farthest from the commons is where the climb starts. A straight
+    // arrow to the summit can point at a cliff; this gives the compass a
+    // sensible first target.
+    const road = state.plan.mainRoad;
+    const ends = [road[0], road[road.length - 1]];
+    const foot = ends.reduce((a, b) => (Math.hypot(a.x - spot.x, a.z - spot.z) >= Math.hypot(b.x - spot.x, b.z - spot.z) ? a : b));
+    const via = Math.hypot(foot.x - spot.x, foot.z - spot.z) > 60 ? { x: foot.x, z: foot.z } : null;
+    out.push({ kind: 'mountaintop', x: spot.x, z: spot.z, radius: 40, districtId: candidate.id, via });
   }
   return out;
 }

@@ -27,5 +27,6 @@ last_answer: null
 **Context:** The design doc leans 30%. The first boarder of a session always has one so the feature is discovered.
 **Question:** Does that feel right in play?
 **Impact:** One constant. Proceeding with 30%.
+**Update 2026-11-15:** Superseded by hailing (session-log D10). The live questions are now whether two hailers within 75 m and a five-second refill feel right.
 
 ## Answered Questions

@@ -549,6 +549,8 @@ To add a destination kind, add an entry to `DESTINATIONS` in `catalog.js` (label
 
 ---
 
+**Hailing, the ride log and guidance (added later the same day).** Most requests now start on foot: `QuestRuntime.startHail` picks up to two ordinary adults near the cart, plans a destination from where they stand and shows it in a bubble over their head; stopping beside one calls `crowd.hailBoard`, and `onBoard` then hands the engine the very request that was shown. `src/quests/questLog.js` keeps the all-time record in `localStorage`, and `ChallengeTracker.onQuestCompleted` turns deliveries into four bubble types. A destination may carry a `via` waypoint, which the compass aims at first; only the mountaintop source supplies one.
+
 ## Time of day (`timeOfDay.js`)
 
 Single normalized `t ∈ [0, 1)`: `0`=dawn, `0.25`=noon, `0.5`=dusk, `0.75`=midnight. Cycle length is `CYCLE_SECONDS`.
