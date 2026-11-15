@@ -1,0 +1,32 @@
+{
+  "grantedBy": "Gary",
+  "scope": "Run overhead tests and route checks on this Mac for next 20 minutes",
+  "startUtc": "2026-11-15T17:59:13Z",
+  "endUtc": "2026-11-15T18:19:13Z",
+  "knownActivity": "Existing Vite development server left idle; user gallery tab only; Astra read-only investigation and harness preparation before measured runs",
+  "isolation": "Reserved Mac, not proof of thermal or OS isolation",
+  "measurementPlan": {
+    "order": [
+      "basic",
+      "detail",
+      "detail",
+      "basic"
+    ],
+    "tier": "low",
+    "quality": "baseline",
+    "seed": 2404796662,
+    "scenario": "guided autopilot drive",
+    "overheadThreshold": "Mean of the two detailed runs median one-second driving p95 summaries minus mean of the two basic summaries <= max(2ms,10% of basic mean); descriptive window-summary overhead only, not exact-frame calibrated optimization verdict."
+  },
+  "publicationCalibration": {
+    "training": "first detail run B1",
+    "holdout": "second detail run B2",
+    "farFieldDrivingMaxMs": 50,
+    "allowedCellsWithoutPublication": "max(1, B1 maximum sampled pending-cell count + 1)",
+    "supersessionStreak": "max(1, B1 maximum cumulative streak + 1)",
+    "pendingPublishedAgeMs": "max(2000, ceil(B1 maximum sampled pending publication age /1000)*1000 +1000)",
+    "firstRequestPublicationMs": "ceil(B1 first-request latency/1000)*1000 +1000",
+    "finalRequirement": "Final requested and published cell agree, driving actual publication count increases and all 4 checkpoints complete",
+    "limits": "Samples are one-second observations, not continuous per-frame freshness maxima; parked publication age alone is not stale."
+  }
+}

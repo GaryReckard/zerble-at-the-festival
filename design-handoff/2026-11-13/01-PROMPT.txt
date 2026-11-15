@@ -1,0 +1,26 @@
+Redesign the title screen and player-facing menu system for Zerble at the Festival.
+
+You are my game UI and art-direction partner. Use the model selected in this Claude Design session. Read 03-FUNCTIONALITY.txt and 02-SCREEN-GUIDE.txt, then inspect CONTACT-SHEET.jpg and the full-size screenshots. These show the current implementation, not a design direction you must copy.
+
+The game is a playful browser-based 3D festival adventure starring Zerble, a friendly golf cart with large eyes and a purple mustache who spreads bubbles and collects smiles. The tone is warm, odd, colorful, handmade, and welcoming. The line “Bring the bubbles, collect the smiles” is central. Capture the feeling of arriving at a magical outdoor music festival with friends, mountains, camping, string lights, and little discoveries.
+
+I want a cohesive, distinctive title screen and menu system that feels designed for this particular game. Make a substantial creative pass at hierarchy, typography, navigation, illustration, components, spacing, readability, and responsive behavior. You may rethink the existing wooden planks, pixel typography, layout, and menu containers. Preserve Zerble’s recognizable character and the festival identity. The provided artwork is reference material and may be reused, reworked, or replaced as appropriate. Do not simply reskin every panel or lock yourself to the current composition.
+
+First show three genuinely different, concise visual directions using the title screen and one secondary menu as examples. Recommend one direction and explain why it fits, then carry that direction through a complete clickable prototype. If this environment supports only one implemented direction, prioritize a complete coherent prototype and present the alternatives as visual sketches.
+
+The prototype must cover:
+1. The title/main menu with two distinct modes that each start play, optional player name, public-score privacy explanation, secondary navigation, loading, ready, and failed-loading/retry states.
+2. How to Play, with appropriate desktop and touch instructions and a readable explanation of the modes.
+3. Settings, covering Performance, Sound, Accessibility, and How to Play, plus the conditional restart notice and map-reset confirmation.
+4. Festival Passport, covering This visit and All time, statistics, earned/unearned memory stamps, the pre-game state, large totals, and the unavailable-storage message. Make the pause behavior clear.
+5. Bubble Upgrades, covering locked discoveries with clues, earned upgrades with on/off switches, discovery totals, charm benefit, and the unread notification. Hidden discoveries must remain hidden until earned.
+6. Leaderboard and run results, including Local/Today/All-time, populated and empty lists, highlighted player row, run-ending cause, smiles/days/best combo, replay, and return to title.
+7. The in-game menu launchers and the minimap/expanded-map treatment as supporting context. Keep the gameplay legible beneath overlays and preserve the visible play area.
+
+Use the functionality guide as the behavioral contract. Do not invent accounts, currencies, purchases, online sync, extra game modes, or a progression reset. Do not promote developer tools or undiscovered secrets. If you recommend a behavioral change, identify it explicitly rather than quietly treating it as shipped behavior. You may improve grouping and navigation while keeping every existing function reachable.
+
+Design for desktop and compact landscape touch screens, including 1280×720 and 844×390. The current game asks portrait phone users to rotate into landscape; account for that state. Screenshots at 844×390 are desktop viewport captures, so use the touch-control requirements in the guide rather than assuming those images demonstrate real touch behavior. Keep controls comfortable to tap and avoid shrinking all text to fit. Use intentional scrolling and keep close/back and primary actions reachable. Include visible keyboard focus, accessible names and contrast, selected/disabled/locked/error states, and a reduced-motion treatment.
+
+Produce polished screens and an interactive navigation prototype with representative local sample data. Do not attempt to rebuild the 3D game. Use the supplied gameplay image as context where necessary. Make all prototype navigation, tabs, toggles, sliders, close/back actions, and state examples work. Label simulated gameplay, sample scores, and nonfunctional backend actions honestly.
+
+Deliver the chosen art direction, the complete screen flow, responsive examples, a compact reusable component/style system, and implementation notes describing layout, tokens, assets, motion, accessibility, and the meaningful changes from the current UI. Prioritize a strong visual result that another developer can implement without guessing what each control does.

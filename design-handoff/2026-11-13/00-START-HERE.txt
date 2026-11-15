@@ -1,0 +1,21 @@
+ZERBLE MENU REDESIGN HANDOFF | Prepared November 13, 2026
+
+HOW TO USE
+Upload this ZIP to Claude Design, unzip if the interface asks, and paste the contents of 01-PROMPT.txt into the conversation. Select your intended model in Claude Design. No model availability or attachment support is assumed by this packet.
+
+If ZIP ingestion is unavailable, upload 01-PROMPT.txt, 03-FUNCTIONALITY.txt, 02-SCREEN-GUIDE.txt, CONTACT-SHEET.jpg, and the relevant full-size JPGs. Every individual file and the ZIP are below 20,000,000 bytes. The original artwork is optional reference material.
+
+CONTENTS
+01-PROMPT.txt: Ready-to-paste design assignment.
+02-SCREEN-GUIDE.txt: Screenshot inventory, contexts, and limitations.
+03-FUNCTIONALITY.txt: Source-verified functions, flows, and required states.
+04-PROVENANCE.txt: Capture method and source locations.
+CONTACT-SHEET.jpg: Overview of all captures.
+GALLERY.html: Offline screenshot browser, with captions and full-size image links.
+screenshots/: Full-size JPEG captures, numbered to match the guide.
+reference-art/: Existing title artwork layers, logo, bubble, and menu planks.
+
+SCOPE
+The ordinary player-facing title and menus, plus results, map, and in-game launchers. Developer/debug tools and hidden effect-tuning panels are intentionally excluded from the public UI assignment. There is no request to redesign gameplay, replace the game engine, or implement these designs in the repository.
+
+The design should preserve functionality while remaining free to change visual language, grouping, and navigation. Current screenshots are evidence of today’s interface, not a requirement to keep its weaknesses.

@@ -1,11 +1,12 @@
+import { createMenuDialog } from './menuUi.js';
 import { Analytics } from './analytics.js';
 import { CHARM, charmLevel, visibleCatalog } from './bubbleTypes.js';
 
 let progress = null;
 let overlay = null;
 let button = null;
-let previousFocus = null;
 let unread = false;
+let dialog = null;
 const UNREAD_KEY = 'zerble.upgradesUnread';
 
 function saveUnread(on) {
@@ -21,6 +22,8 @@ function render() {
   const level = charmLevel(catalog.found);
   overlay.querySelector('.upgrades-summary').textContent =
     `${catalog.found} of ${catalog.total} found · Bubble charm +${Math.round(level * CHARM.perUpgrade * 100)}%`;
+  const meter = overlay.querySelector('.upgrades-progress');
+  meter.max = Math.max(1, catalog.total); meter.value = catalog.found;
   const list = overlay.querySelector('.upgrades-list');
   list.replaceChildren();
   for (const type of catalog.entries) {
@@ -33,7 +36,8 @@ function render() {
     swatch.className = 'upgrade-swatch';
     swatch.setAttribute('aria-hidden', 'true');
     if (earned) {
-      const hex = `#${type.look.tint.toString(16).padStart(6, '0')}`;
+      const swatches = { heart: '#ff7fb0', music: '#c49bff', ember: '#ff8a4b', firefly: '#b6f06a', rainbow: '#6fb8ff', sparkler: '#ffc65c', lantern: '#ffa05c', smile: '#ffe36e', confetti: '#ffb3cf', brass: '#e0b45a' };
+      const hex = swatches[type.id] || `#${type.look.tint.toString(16).padStart(6, '0')}`;
       swatch.style.setProperty('--upgrade-color', hex);
     }
     card.appendChild(swatch);
@@ -62,7 +66,7 @@ function render() {
       lock.className = 'upgrade-lock';
       lock.setAttribute('role', 'img');
       lock.setAttribute('aria-label', 'Locked');
-      lock.textContent = '🔒';
+      lock.textContent = 'LOCKED';
       card.appendChild(lock);
     }
     list.appendChild(card);
@@ -78,7 +82,7 @@ export const UpgradesMenu = {
     button.id = 'upgrades-btn';
     button.type = 'button';
     button.setAttribute('aria-label', 'Open bubble upgrades');
-    button.innerHTML = '<span aria-hidden="true">♡</span><span class="upgrades-unread" aria-hidden="true"></span>';
+    button.innerHTML = '<span aria-hidden="true">♡</span><span class="launcher-label">Bubbles</span><span class="upgrades-unread" aria-hidden="true"></span>';
     button.classList.toggle('has-unread', unread);
     document.body.appendChild(button);
 
@@ -89,13 +93,18 @@ export const UpgradesMenu = {
     overlay.innerHTML = `
       <div class="upgrades-backdrop"></div>
       <div class="upgrades-panel" role="dialog" aria-modal="true" aria-labelledby="upgrades-heading" tabindex="-1">
-        <button class="upgrades-close" type="button" aria-label="Close bubble upgrades">&times;</button>
+        <header class="sheet-header"><button class="upgrades-close" type="button" aria-label="Close bubble upgrades">&times;</button>
         <div class="settings-accent"></div>
         <h2 id="upgrades-heading">Bubble Upgrades</h2>
         <p class="upgrades-summary"></p>
-        <div class="upgrades-list"></div>
+        <progress class="upgrades-progress" aria-label="Bubble discoveries"></progress>
+        <p class="upgrades-live-note">The festival keeps moving while this is open.</p></header>
+        <div class="sheet-body"><div class="upgrades-list"></div>
+        <p class="upgrades-note">Switching a bubble off only leaves it out of your bubble stream. The discovery and its charm stay.</p></div>
       </div>`;
     document.body.appendChild(overlay);
+    dialog = createMenuDialog(overlay, { focus: '.upgrades-close', shortcut: 'u', close: () => this.close() });
+    this.reflectUnread();
     title?.addEventListener('click', () => this.open());
     button.addEventListener('click', () => this.open());
     overlay.querySelector('.upgrades-close').addEventListener('click', () => this.close());
@@ -125,12 +134,11 @@ export const UpgradesMenu = {
 
   open() {
     if (!overlay || !overlay.classList.contains('hidden')) return;
-    previousFocus = document.activeElement;
     render();
     this.clearUnread();
     overlay.classList.remove('hidden');
     overlay.setAttribute('aria-hidden', 'false');
-    overlay.querySelector('.upgrades-close').focus();
+    dialog.open();
     Analytics.upgradesMenuOpen();
   },
 
@@ -138,23 +146,31 @@ export const UpgradesMenu = {
     if (!overlay || overlay.classList.contains('hidden')) return;
     overlay.classList.add('hidden');
     overlay.setAttribute('aria-hidden', 'true');
-    if (previousFocus?.isConnected) previousFocus.focus();
-    previousFocus = null;
+    dialog.close();
   },
 
   markUnread() {
     if (overlay && !overlay.classList.contains('hidden')) { render(); return; }
     unread = true;
     saveUnread(true);
-    button?.classList.add('has-unread');
+    this.reflectUnread();
   },
 
   clearUnread() {
     unread = false;
     saveUnread(false);
-    button?.classList.remove('has-unread');
+    this.reflectUnread();
   },
 
+  reflectUnread() {
+    button?.classList.toggle('has-unread', unread);
+    const title = document.getElementById('upgrades-open-title');
+    title?.classList.toggle('has-unread', unread);
+    if (title) {
+      title.querySelector('.title-new')?.remove();
+      if (unread) title.insertAdjacentHTML('beforeend', '<span class="title-new">NEW</span>');
+    }
+  },
   refresh() { render(); },
   isOpen() { return !!overlay && !overlay.classList.contains('hidden'); },
   hasUnread() { return unread; },

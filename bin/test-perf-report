@@ -32,3 +32,25 @@ for expected in ('CHECK: quality changed across comparison phases',
                  'CHECK: physical render dimensions changed across comparison phases'):
     assert expected in output, expected
 print('PASS  cross-phase quality and physical render-size contamination')
+
+with tempfile.TemporaryDirectory() as directory:
+    path = Path(directory) / 'detail.json'
+    group = {'phase': 'drive', 'quality': 'pixel-50', 'qualityLevel': 3, 'frames': 10,
+             'sectionMs': {'physics': 5}, 'sectionFrames': {'physics': 10}, 'sectionCalls': {'physics': 20},
+             'workP95': 12, 'outsideBody': {'count': 9, 'sumMs': 90},
+             'outsideCallback': {'count': 9, 'sumMs': 72},
+             'physics': {'frames': 10, 'steps': 20, 'maxSteps': 3, 'meanStepMsSum': 2,
+                         'meanStepMsFrames': 10, 'maxStepMs': 0.4},
+             'programs': {'count': 10, 'first': 10, 'last': 12, 'min': 10, 'max': 12, 'changes': 2}}
+    path.write_text(json.dumps({'samples': [{'phase': 'drive', 'ffApplySuperseded': 3,
+                    'ffPublishedAgeMs': 400, 'ffCellsSincePublication': 2, 'ffUnitMs': 8,
+                    'frame': {'detail': {'groups': [group]}}}]}))
+    detailed = subprocess.check_output([sys.executable, str(root / 'bin/report-perf-playtest'), str(path)], text=True)
+    for expected in ('mean 0.500ms; sum 5.000ms / 10 frames; 20 calls',
+                     'outside complete callback: mean 8.000ms / 9 aligned intervals',
+                     'median per-window work p95 12ms', 'not a whole-phase percentile',
+                     'neither measures GPU time', '20 steps / 10 frames',
+                     'not total physics', '10 -> 12', 'ffApplySuperseded=3',
+                     'ffPublishedAgeMs=400', 'ffCellsSincePublication=2', 'ffUnitMs=8'):
+        assert expected in detailed, expected
+print('PASS detailed phase/rung denominators, residual semantics, physics, programs and horizon health')

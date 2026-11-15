@@ -41,6 +41,49 @@ def latest_report():
     return files[0] if files else None
 
 
+def detailed_summary(samples):
+    groups = defaultdict(list)
+    dropped = 0
+    for sample in samples:
+        detail = (sample.get('frame') or {}).get('detail') or {}
+        dropped += detail.get('droppedGroupFrames', 0)
+        for group in detail.get('groups', []):
+            groups[(group.get('phase'), group.get('quality'), group.get('qualityLevel'))].append(group)
+    if not groups:
+        return
+    print('\nDetailed frame attribution by phase and quality rung (milliseconds):')
+    print('  Work p95 is the median of per-window subgroup p95 values, not a whole-phase percentile.')
+    print('  Outside-body and outside-callback residuals use the preceding frame and its phase/rung; neither measures GPU time.')
+    for (phase, quality, level), rows in groups.items():
+        frames = sum(row['frames'] for row in rows)
+        print(f'  {phase} / {quality} ({level}): {frames} measured frames; median per-window work p95 {number(median(rows, "workP95"))}ms')
+        keys = dict.fromkeys(key for row in rows for key in row.get('sectionMs', {}))
+        for key in keys:
+            count = sum(row.get('sectionFrames', {}).get(key, 0) for row in rows)
+            total = sum(row.get('sectionMs', {}).get(key, 0) for row in rows)
+            calls = sum(row.get('sectionCalls', {}).get(key, 0) for row in rows)
+            print(f'    {key}: mean {total / count:.3f}ms; sum {total:.3f}ms / {count} frames; {calls} calls' if count else f'    {key}: unavailable')
+        for key, label in [('outsideBody', 'outside measured body'), ('outsideCallback', 'outside complete callback')]:
+            count = sum(row.get(key, {}).get('count', 0) for row in rows)
+            total = sum(row.get(key, {}).get('sumMs', 0) for row in rows)
+            print(f'    {label}: mean {total / count:.3f}ms / {count} aligned intervals' if count else f'    {label}: unavailable (0 aligned intervals)')
+        physics = [row.get('physics', {}) for row in rows]
+        count = sum(row.get('frames', 0) for row in physics)
+        steps = sum(row.get('steps', 0) for row in physics)
+        diag_count = sum(row.get('meanStepMsFrames', 0) for row in physics)
+        diag_total = sum(row.get('meanStepMsSum', 0) for row in physics)
+        if count:
+            print(f'    Physics: {steps} steps / {count} frames, mean {steps / count:.3f}, max {max(row.get("maxSteps", 0) for row in physics)} steps/frame')
+        if diag_count:
+            print(f'    Player inner-step diagnostic (not total physics): sampled meanStepMs mean {diag_total / diag_count:.3f}ms / {diag_count} samples; maxStepMs {max(row.get("maxStepMs", 0) for row in physics):.3f}ms')
+        programs = [row['programs'] for row in rows if row.get('programs', {}).get('count')]
+        if programs:
+            print(f'    Shader programs: {programs[0]["first"]} -> {programs[-1]["last"]}; range {min(row["min"] for row in programs)}..{max(row["max"] for row in programs)}; {sum(row["changes"] for row in programs)} changes / {sum(row["count"] for row in programs)} samples')
+        print(f'    Attribution clock reads: {sum(row.get("clockReads", 0) for row in rows)}')
+    if dropped:
+        print(f'  CHECK: {dropped} detail group records omitted by the 64-group window bound.')
+
+
 def summarize(path):
     report = json.loads(path.read_text())
     if report.get('schema') == 'zerble-performance-lab-v1':
@@ -95,6 +138,7 @@ def summarize(path):
                   if all(row.get(key) is not None for key in keys)}
         if len(values) > 1:
             print(f'CHECK: {label} changed across comparison phases: {sorted(map(str, values))}.')
+    print('\nWindow summary: wall p95/p99 columns are medians of per-window percentiles, not whole-phase percentiles.')
     print('\nPhase            n  FPS med  wall p95  wall p99  worst wall  worst work  worst world  worst render  >50ms  draws med')
     for phase, rows in by_phase.items():
         frames = [row.get('frame') or {} for row in rows]
@@ -131,6 +175,17 @@ def summarize(path):
         if shadow_drift:
             print(f'  CHECK: {len(shadow_drift)} sample(s) cast sun shadows while the shadow policy was Off.')
 
+    detailed_summary(samples)
+    health_keys = ('ffApplySuperseded', 'ffPublishedAgeMs', 'ffCellsSincePublication', 'ffUnitMs')
+    if any(key in row for row in samples for key in health_keys):
+        print('\nHorizon health (sampled maxima; cumulative supersession counter is not an interval count):')
+        for phase, rows in by_phase.items():
+            fields = []
+            for key in health_keys:
+                values = [row[key] for row in rows if isinstance(row.get(key), (int, float))]
+                fields.append(f'{key}={max(values) if values else "unavailable"}')
+            print(f'  {phase}: ' + ', '.join(fields))
+
     events = sorted(report.get('frameEvents') or [], key=lambda event: max(event.get('wallMs') or 0, event.get('workMs') or 0), reverse=True)
     if events:
         print(f"\nWorst frames (showing {min(8, len(events))} of {len(events)}; {report.get('droppedFrameEvents', 0)} older events dropped):")
@@ -139,6 +194,10 @@ def summarize(path):
                   f"(previous work {event.get('previousWorkMs', 'n/a')}ms) "
                   f"(world {event.get('worldMs')}, render {event.get('renderMs')}) "
                   f"at {event.get('x')},{event.get('z')} | chunks {event.get('chunkCount')} | programs {event.get('programCount')}")
+            if 'outsideCallbackMs' in event:
+                print(f"    preceding {event.get('previousPhase')} / {event.get('previousQuality')}: "
+                      f"outside body {number(event.get('outsideBodyMs'))}ms; "
+                      f"outside callback {number(event.get('outsideCallbackMs'))}ms")
 
     stages = report.get('chunkStages') or {}
     if any(data.get('count', 0) for data in stages.values()):

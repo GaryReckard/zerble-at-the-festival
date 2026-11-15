@@ -9,11 +9,19 @@ report's date, source baseline, method and limitations before using its result.
 A desktop CPU benchmark is not a phone FPS measurement, and a passing render is
 not physical-device acceptance.
 
+## Interface
+
+- [Lantern Night, November 14](lantern-night/README.md): title/menu implementation, production DOM fixtures, desktop/compact layouts, Low Noon/Midnight smoke test, map transitions, keyboard ownership, Passport pause and remaining physical-device limits. The [November 15 title extension](lantern-night/title-extension/README.md) adds generated scenery margins, retained original subjects, wider/taller framing and the restored bubble plume.
+
+- [Landing forgiveness, November 15](physics/2026-11-15-landing.md): harmless short drops, normal-relative touchdown, retained airborne obstacle damage, native presentation-cadence regressions and browser limits.
+
 ## Player progression
 
 - [Festival Passport, October 25](passport/2026-10-25/README.md): pure/integration checks, Low/Mid boots, settings continuity, paused Festival Run and responsive captures.
 
 ## Temporary activities
+
+- [Cornhole, November 15](cornhole/README.md): strict communal-camp placement, borrowed ordinary NPCs, scored games with physical collection and social endings, idle periods, low board colliders and native tire/cadence/lifecycle evidence.
 
 - [Stage audience, parked-cart clearance, soundboard and road patch, October 28](people/stage-audience.md): shared dance motion, reserved chairs/blankets, production fixture results and the exact reported road regression.
 
@@ -26,6 +34,8 @@ not physical-device acceptance.
 - [Before/after visual](people/architecture.html), [source-grounded diagrams](../openspec/changes/people-npc-architecture/architecture-visual.md) and [extension contract](../openspec/changes/people-npc-architecture/extension-guide.md).
 
 ## Recent investigations
+
+- [iPad frame attribution preparation, November 15](performance/2026-11-15-ipad-attribution/README.md): capture-only sections, horizon publication health, validated four-run controls, real Low capture and Low/Mid smoke checks; the [reserved-Mac follow-up](performance/2026-11-15-ipad-attribution/desktop-window/README.md) passes a descriptive incremental-overhead check, retains a 72.9 ms far-field target miss, and leaves physical-iPad acceptance open.
 
 - [Far-field publication stall, November 11](performance/2026-11-11-far-field-publication/README.md): CPU attribution of the 424 ms iPad far-field interval, byte-identical bounded publication across 120 fingerprinted horizons, offline before/after timing and the pending iPad acceptance run.
 

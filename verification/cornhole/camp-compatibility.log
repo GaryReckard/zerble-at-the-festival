@@ -1,0 +1,8 @@
+PASS 6000 production village layouts: 5-7 sites, planner bounds and shared frontages (physical clearance tested by test-campsite-layout)
+PASS blocked host suppresses dependent satellite pitches
+Observed compact neighborhoods: 4704/6000
+PASS 500 real forest plans (5937 pitches): host filtering, deterministic groups, runtime rejection and center-chunk ownership
+(node:37091) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

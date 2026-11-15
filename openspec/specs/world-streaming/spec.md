@@ -38,17 +38,25 @@ while backdrops stay a constant apparent distance (`world.js:41-144`).
 - **THEN** the sky dome, ground plane, and mountains re-center on the player while
   chunk content stays at its fixed world coordinates
 
-### Requirement: Flat terrain by contract
+### Requirement: World-anchored terrain follows the active terrain policy
 
-`terrainHeight(x, z)` SHALL return 0 (terrain is intentionally flat); the ground mesh
-SHALL still re-sample heights at world coordinates when the player moves past a
-threshold, so any future re-introduction of relief stays world-anchored rather than
-translating with the player (`world.js:115-157`, `rng.js:82-84`).
+The streamed ground SHALL sample `src/worldgen/terrain.js` at world coordinates,
+including its enabled terrain and landscape policy, rather than assume every
+height is zero. When terrain is disabled its sampled vertex heights SHALL remain
+zero. Ground repositioning SHALL resample the world-anchored surface rather than
+translate its relief with the player (`src/world.js`, `resampleGroundSurface`;
+`src/worldgen/terrain.js`, `terrainVertexHeight` and `terrainHeight`). The legacy
+flat helper in `src/rng.js` SHALL NOT define the active streamed-ground contract.
 
-#### Scenario: Ground stays at y=0
+#### Scenario: Enabled relief remains world-anchored
 
-- **WHEN** terrain height is queried anywhere
-- **THEN** it returns 0 and the cart sits at y=0
+- **WHEN** terrain is enabled and the player crosses the ground reposition threshold
+- **THEN** ground heights are resampled at the new world coordinates using the active terrain policy
+
+#### Scenario: Disabled terrain retains flat fallback
+
+- **WHEN** terrain is disabled
+- **THEN** ground height queries return zero
 
 ### Requirement: Chunk lifecycle on an 80m grid
 

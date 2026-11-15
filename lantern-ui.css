@@ -1,0 +1,2067 @@
+/* Lantern Night: one DOM skin for the real menus. World/touch renderers keep
+   their existing owners. Fonts are self-hosted, with OFL notices in assets/fonts. */
+@font-face {
+  font-family:Caprasimo;
+  src:url('assets/fonts/caprasimo-latin.woff2') format('woff2');
+  font-weight:400;
+  font-display:swap
+}
+
+@font-face {
+  font-family:Outfit;
+  src:url('assets/fonts/outfit-latin.woff2') format('woff2');
+  font-weight:100 900;
+  font-display:swap
+}
+
+:root {
+  --night:#14092b;
+  --ledge:#0c0520;
+  --panel:#1e1140;
+  --raised:#2a1a55;
+  --cream:#ffe9c2;
+  --soft:#e4d6f2;
+  --gold:#ffc65c;
+  --teal:#7fe3d0;
+  --pink:#ff7fb0;
+  --coral:#ff8a73;
+  --warm:var(--gold);
+  --paper:var(--cream)
+}
+
+body {
+  font-family:Outfit,system-ui,sans-serif;
+  color:var(--cream)
+}
+
+body button,body input {
+  font-family:Outfit,system-ui,sans-serif
+}
+
+body :is(#title-card,#settings-overlay,#passport-overlay,#upgrades-overlay,#score-screen,.festival-map) :focus-visible,body :is(#settings-gear,#upgrades-btn,#passport-btn):focus-visible {
+  outline:3px solid var(--gold);
+  outline-offset:2px;
+  box-shadow:0 0 0 6px var(--night)
+}
+
+body :is(#title-card,#settings-overlay,#passport-overlay,#upgrades-overlay,#score-screen) button {
+  cursor:pointer;
+  min-height:44px;
+  font-weight:600;
+  transition:background .12s,transform .12s
+}
+
+body :is(#title-card,#settings-overlay,#passport-overlay,#upgrades-overlay,#score-screen) button:disabled {
+  cursor:not-allowed;
+  opacity:.55
+}
+
+body :is(#title-card,#settings-overlay,#passport-overlay,#upgrades-overlay,#score-screen) button:not(:disabled):active {
+  transform:translateY(2px)
+}
+
+body :is(.settings-close,.upgrades-close,.passport-close,#howto-back,#score-close,#boot-retry) {
+  background:var(--cream);
+  color:var(--night);
+  border:2px solid var(--night);
+  border-radius:10px;
+  box-shadow:0 4px 0 var(--ledge);
+  font:600 15px Outfit,system-ui
+}
+
+body :is(.settings-close,.upgrades-close,.passport-close,#howto-back,#boot-retry):hover {
+  background:var(--gold);
+  color:var(--night)
+}
+
+/* Original composition stays registered; painted extensions fill the overscan. */
+body #title-card {
+  display:block;
+  overflow:hidden;
+  padding:0;
+  background:var(--night);
+  backdrop-filter:none;
+  container-type:size
+}
+
+body #title-stage {
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:1280px;
+  height:720px;
+  transform-origin:0 0;
+  transform:var(--title-fit,translate(-50%,-50%));
+  overflow:visible;
+  isolation:isolate;
+  pointer-events:none;
+  background:linear-gradient(#3b1f8f,#a8358c 42%,#ff7a2e 72%,#2a1640)
+}
+
+.title-layer,.title-bubble {
+  position:absolute;
+  pointer-events:none
+}
+
+.title-layer {
+  width:100%;
+  height:100%;
+}
+
+.title-original,.title-extension {
+  position:absolute;
+  width:100%;
+  height:100%;
+  inset:0;
+  object-fit:cover;
+  pointer-events:none
+}
+
+.title-original {
+  z-index:1;
+  mask-image:linear-gradient(to right,transparent,#000 40px,#000 calc(100% - 40px),transparent),linear-gradient(to bottom,transparent,#000 40px,#000 calc(100% - 40px),transparent);
+  mask-composite:intersect;
+  -webkit-mask-image:linear-gradient(to right,transparent,#000 40px,#000 calc(100% - 40px),transparent),linear-gradient(to bottom,transparent,#000 40px,#000 calc(100% - 40px),transparent);
+  -webkit-mask-composite:source-in
+}
+
+.title-extension {
+  inset:-25%;
+  width:150%;
+  height:150%;
+  object-fit:fill;
+  mask:url('assets/title-screen/extension-mask.svg') center/100% 100% no-repeat;
+  -webkit-mask:url('assets/title-screen/extension-mask.svg') center/100% 100% no-repeat
+}
+
+.title-sky {
+  left:-20px;
+  top:-170px;
+  width:1320px;
+  height:760px;
+  z-index:0;
+  animation:title-drift 18s ease-in-out infinite
+}
+
+.title-mountains {
+  left:-12px;
+  top:-12px;
+  width:1304px;
+  height:744px;
+  z-index:1;
+  animation:title-drift 26s ease-in-out infinite reverse
+}
+
+.title-festival {
+  left:150px;
+  top:130px;
+  z-index:2;
+  animation:title-drift 14s ease-in-out infinite
+}
+
+.title-foreground {
+  z-index:4;
+  animation:title-sway 9s ease-in-out infinite
+}
+
+.title-foreground .title-original {
+  mask-image:linear-gradient(to right,transparent,#000 40px,#000 calc(100% - 40px),transparent),linear-gradient(to bottom,transparent 48%,#000 52%,#000 calc(100% - 40px),transparent);
+  -webkit-mask-image:linear-gradient(to right,transparent,#000 40px,#000 calc(100% - 40px),transparent),linear-gradient(to bottom,transparent 48%,#000 52%,#000 calc(100% - 40px),transparent)
+}
+
+.title-foreground .title-extension {
+  mask-image:url('assets/title-screen/foreground-extension-mask.svg');
+  -webkit-mask-image:url('assets/title-screen/foreground-extension-mask.svg')
+}
+
+/* Separate periods preserve the original painted layers' depth and movement. */
+@keyframes title-drift {
+  0%,100% { transform:translateX(0) }
+  50% { transform:translateX(-14px) }
+}
+
+@keyframes title-sway {
+  0%,100% { transform:translateX(0) scale(1.02) }
+  50% { transform:translateX(6px) scale(1.02) }
+}
+
+.title-sr-only {
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  border:0
+}
+
+#start-btn.title-sr-only {
+  display:none
+}
+
+#rotate-phone {
+  display:none
+}
+
+body #title-stage::before {
+  content:"";
+  position:absolute;
+  inset:-25%;
+  z-index:-1;
+  background:linear-gradient(#3b1f8f,#a8358c 42%,#ff7a2e 72%,#2a1640)
+}
+
+body #title-stage::after {
+  content:"";
+  position:absolute;
+  inset:-25%;
+  background:linear-gradient(90deg,rgba(20,10,40,.84),rgba(20,10,40,.5) 34%,transparent 53%);
+  z-index:5
+}
+
+body #title-stage .title-logo {
+  display:none
+}
+
+body #title-ui {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  transform:none;
+  pointer-events:none;
+  container-type:size
+}
+
+body #title-ui .card {
+  position:static;
+  width:auto;
+  max-width:none;
+  height:100%;
+  max-height:none;
+  padding:0;
+  background:none;
+  border:0;
+  box-shadow:none;
+  overflow:visible;
+  transform:none;
+  text-align:left
+}
+
+body #title-page-main {
+  position:absolute;
+  left:3cqw;
+  bottom:3cqh;
+  width:min(44cqw,480px);
+  display:flex;
+  flex-direction:column;
+  gap:clamp(4px,1.4cqh,10px);
+  pointer-events:auto;
+  padding:0
+}
+
+body #title-page-main::before {
+  content:"";
+  position:fixed;
+  left:3cqw;
+  top:2cqh;
+  width:min(42cqw,720px);
+  height:20cqh;
+  background:url('assets/title-screen/title-logo.webp') left top/contain no-repeat;
+  pointer-events:none
+}
+
+/* Tablet-width headers need room for both the logo and hanging navigation. */
+@media(min-width:901px) and (max-width:1199px) {
+  body #title-page-main::before {
+    width:clamp(180px,calc(100cqw - 740px),460px)
+  }
+}
+
+body .title-tagline {
+  font:400 clamp(15px,3.4cqh,25px)/1.1 Caprasimo,serif;
+  color:var(--gold);
+  text-shadow:0 2px 0 var(--night);
+  margin:0
+}
+
+body .title-menu-label {
+  font:600 11px Outfit,sans-serif;
+  letter-spacing:.14em;
+  color:var(--cream);
+  margin:0;
+  text-shadow:none
+}
+
+body #mode-select {
+  display:flex;
+  flex-direction:column;
+  gap:clamp(6px,1.5cqh,12px);
+  width:100%;
+  margin:0
+}
+
+body #mode-select .mode-btn {
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  gap:8px;
+  width:100%;
+  min-height:clamp(52px,12cqh,76px);
+  margin:0 0 6px;
+  padding:clamp(5px,1.4cqh,11px) 10px clamp(5px,1.4cqh,11px) 16px;
+  border:3px solid var(--night);
+  border-radius:16px;
+  color:var(--night);
+  text-align:left;
+  text-shadow:none;
+  filter:none;
+  box-shadow:0 6px 0 var(--night),0 0 28px #7fe3d060;
+  background:linear-gradient(#a5f3e4,#5fd1bd);
+  opacity:1
+}
+
+body #mode-select #mode-festival {
+  background:linear-gradient(#ffb3cf,#ff6fa5);
+  box-shadow:0 6px 0 var(--night),0 0 28px #ff7fb060
+}
+
+body #mode-select .mode-btn:disabled {
+  opacity:.55
+}
+
+body #mode-select .mode-btn::before,body #mode-select .mode-btn::after {
+  display:none
+}
+
+body #mode-select .mode-btn:not(:disabled):hover {
+  transform:translateY(-2px);
+  box-shadow:0 8px 0 var(--night),0 0 40px #ffe9c260
+}
+
+body #mode-select .mode-btn:not(:disabled):active {
+  transform:translateY(4px);
+  box-shadow:0 2px 0 var(--night)
+}
+
+body .mode-text {
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  gap:3px;
+  min-width:0;
+  order:0;
+  padding:0
+}
+
+body .mode-heading {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap
+}
+
+body #mode-select .mode-name {
+  text-transform:none;
+  font:400 clamp(20px,4.6cqh,32px)/1 Caprasimo,serif;
+  color:var(--night);
+  letter-spacing:0;
+  text-shadow:none
+}
+
+body #mode-select .mode-desc {
+  display:block;
+  opacity:1;
+  margin-top:0;
+  text-shadow:none;
+  font:600 clamp(12px,2cqh,15px)/1.2 Outfit,sans-serif;
+  color:var(--night);
+  white-space:normal
+}
+
+body .mode-remembered {
+  font:600 10px Outfit,sans-serif;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  border:2px solid var(--night);
+  border-radius:99px;
+  padding:1px 7px
+}
+
+body .mode-remembered[hidden] {
+  display:none
+}
+
+body .mode-cap {
+  order:1;
+  flex:none;
+  border-radius:99px;
+  background:var(--night);
+  color:var(--teal);
+  padding:12px 13px;
+  font:600 12px Outfit,sans-serif
+}
+
+body #mode-festival .mode-cap {
+  color:var(--pink)
+}
+
+body .mode-btn.is-ready .mode-cap {
+  font-size:0
+}
+
+body .mode-btn.is-ready .mode-cap::after {
+  content:'GO ▸';
+  font-size:12px
+}
+
+body #title-card[data-load=failed] .mode-cap {
+  font-size:0
+}
+
+body #title-card[data-load=failed] .mode-cap::after {
+  content:'×';
+  font-size:16px
+}
+
+body #name-entry {
+  width:100%;
+  margin:0;
+  display:block
+}
+
+body .name-plank {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:var(--panel);
+  border:2px solid var(--cream);
+  border-radius:12px;
+  padding:0 12px;
+  min-height:44px;
+  box-shadow:none
+}
+
+body #name-entry .name-plank label {
+  text-shadow:none;
+  font:600 11px Outfit,sans-serif;
+  color:var(--cream);
+  letter-spacing:.12em
+}
+
+body #player-name {
+  flex:1;
+  text-align:left;
+  width:100%;
+  min-width:0;
+  height:40px;
+  padding:4px;
+  background:transparent;
+  border:0;
+  color:var(--cream);
+  font:600 16px Outfit,sans-serif;
+  text-transform:none;
+  text-shadow:none
+}
+
+body #player-name::placeholder {
+  color:var(--soft);
+  opacity:.8
+}
+
+body #name-entry .name-note {
+  max-width:none;
+  display:block;
+  background:none;
+  padding:0;
+  opacity:1;
+  color:var(--soft);
+  font:400 clamp(12px,1.9cqh,13.5px)/1.35 Outfit,sans-serif;
+  margin-top:6px;
+  text-shadow:0 1px 2px var(--night)
+}
+
+body .title-status {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:34px;
+  flex-wrap:wrap
+}
+
+body #boot-copy {
+  height:auto;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:0;
+  color:var(--cream);
+  font:500 clamp(12px,1.9cqh,13.5px)/1.3 Outfit,sans-serif;
+  max-width:none;
+  text-shadow:none
+}
+
+body #boot-copy::before {
+  content:"";
+  flex:none;
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:var(--gold);
+  box-shadow:0 0 8px var(--gold);
+  animation:lantern-pulse 1s infinite
+}
+
+body #boot-copy.is-done {
+  opacity:1
+}
+
+body #boot-copy.is-done::before {
+  background:var(--teal);
+  animation:none
+}
+
+body #title-card[data-load=failed] #boot-copy::before {
+  background:var(--coral);
+  animation:none
+}
+
+body #boot-retry {
+  font-size:12px;
+  padding:6px 12px
+}
+
+body #boot-retry[hidden] {
+  display:none
+}
+
+body .title-links {
+  position:fixed;
+  flex-direction:row;
+  left:auto;
+  bottom:auto;
+  top:0;
+  right:2cqw;
+  display:flex;
+  align-items:start;
+  gap:clamp(6px,1cqw,14px);
+  width:auto;
+  margin:0;
+  padding:clamp(22px,4cqh,30px) 6px 0;
+  border-top:3px solid var(--cream);
+  border-radius:0;
+  background:none;
+  box-shadow:none;
+  flex-wrap:nowrap
+}
+
+body #title-card .title-links .title-link {
+  position:relative;
+  display:block;
+  width:auto;
+  padding:6px clamp(8px,1.1cqw,14px);
+  background:var(--panel);
+  color:var(--cream);
+  border:2px solid var(--cream);
+  border-radius:10px;
+  font:600 clamp(12px,2.1cqh,15px) Outfit,sans-serif;
+  text-transform:none;
+  text-shadow:none;
+  letter-spacing:0;
+  box-shadow:0 4px 0 var(--ledge);
+  white-space:nowrap;
+  filter:none;
+  transform:none;
+  overflow:visible
+}
+
+body .title-link::before {
+  content:"";
+  position:absolute;
+  width:2px;
+  height:clamp(20px,4cqh,28px);
+  bottom:100%;
+  left:50%;
+  background:var(--cream)
+}
+
+body .title-link::after {
+  content:"";
+  position:absolute;
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  top:-10px;
+  left:calc(50% - 6px);
+  background:var(--gold);
+  box-shadow:0 0 12px 4px var(--gold)
+}
+
+body .title-link:nth-child(2)::after {
+  background:var(--pink);
+  box-shadow:0 0 12px 4px var(--pink)
+}
+
+body .title-link:nth-child(3)::after {
+  background:var(--teal);
+  box-shadow:0 0 12px 4px var(--teal)
+}
+
+body .title-link:nth-child(4)::after {
+  background:#c49bff;
+  box-shadow:0 0 12px 4px #c49bff
+}
+
+body #title-card .title-links .title-link:hover {
+  background:var(--cream);
+  color:var(--night)
+}
+
+body .title-link.has-unread {
+  border-color:var(--pink)
+}
+
+body .title-new {
+  position:absolute;
+  right:-6px;
+  bottom:-12px;
+  padding:2px 7px;
+  background:var(--pink);
+  color:var(--night);
+  border:2px solid var(--night);
+  border-radius:99px;
+  font:700 10px Outfit,sans-serif
+}
+
+/* A single sheet shape, with fixed headers and scrollable content. */
+body :is(#settings-overlay,#passport-overlay,#upgrades-overlay,#score-screen) {
+  transition:none;
+  padding:2vh 2vw;
+  background:none;
+  backdrop-filter:none;
+  align-items:center;
+  justify-content:center
+}
+
+body :is(.settings-backdrop,.passport-backdrop,.upgrades-backdrop) {
+  background:rgba(12,5,32,.55);
+  backdrop-filter:none
+}
+
+body #score-screen {
+  transition:none;
+  background:rgba(12,5,32,.55)
+}
+
+body .settings-card, body .passport-panel, body .upgrades-panel, body #score-screen .card, body #title-page-howto {
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  width:min(96vw,900px);
+  max-width:none;
+  max-height:96dvh;
+  min-height:0;
+  overflow:hidden;
+  padding:0;
+  background:var(--panel);
+  color:var(--cream);
+  border:3px solid var(--gold);
+  border-radius:16px;
+  box-shadow:0 8px 0 #0c052099,0 0 40px #ffc65c40;
+  font:400 clamp(13px,2.2vh,16px)/1.4 Outfit,sans-serif;
+  text-align:left
+}
+
+body .sheet-header,body .howto-header {
+  position:relative;
+  flex:none;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-height:66px;
+  padding:12px 68px 12px 16px;
+  border-bottom:2px dashed #ffe9c259;
+  background:none
+}
+
+body :is(.settings-title,#passport-heading,#upgrades-heading,#score-cause,.howto-title) {
+  margin:0;
+  padding:0;
+  color:var(--gold);
+  background:none;
+  font:400 clamp(19px,4vh,28px)/1.1 Caprasimo,serif;
+  letter-spacing:0;
+  text-transform:none
+}
+
+body :is(.settings-close,.passport-close,.upgrades-close) {
+  position:absolute;
+  right:10px;
+  top:10px;
+  width:44px;
+  height:44px;
+  display:grid;
+  place-items:center;
+  font-size:22px;
+  z-index:2;
+  padding:0
+}
+
+body :is(.sheet-body,.help-scroll,.score-body) {
+  overflow:hidden auto;
+  overscroll-behavior:contain;
+  min-height:0;
+  padding:clamp(10px,2.4vh,20px) clamp(14px,2.2vw,24px)
+}
+
+body :is(.settings-accent,.passport-eyebrow) {
+  display:none
+}
+
+body :is(.settings-hint,.settings-tri-sub,.settings-toggle-sub,.passport-note,.passport-definitions,.passport-storage,.passport-stamp p,.upgrades-note) {
+  font:400 clamp(12px,1.9vh,13.5px)/1.4 Outfit,sans-serif;
+  color:var(--soft)
+}
+
+body :is(.settings-tabs,.passport-tabs,.board-tabs,.controls-scheme) {
+  display:flex;
+  gap:4px;
+  padding:3px;
+  border:2px solid var(--cream);
+  border-radius:12px;
+  background:var(--night);
+  margin:0;
+  flex-wrap:wrap
+}
+
+body :is(.settings-tab-btn,.passport-tabs button,.board-tab,.controls-scheme button) {
+  flex:1;
+  min-height:44px;
+  padding:6px 12px;
+  background:transparent;
+  border:0;
+  border-radius:8px;
+  box-shadow:none;
+  color:var(--cream);
+  font:600 14px Outfit,sans-serif;
+  white-space:nowrap
+}
+
+body :is(.settings-tab-btn.active,.passport-tabs [aria-selected=true],.board-tab.active,.controls-scheme [aria-pressed=true]) {
+  background:var(--cream);
+  color:var(--night);
+  box-shadow:none
+}
+
+body .settings-card .settings-tabs {
+  margin:0 14px 12px;
+  flex:none
+}
+
+body .settings-card .sheet-header {
+  border:0
+}
+
+body .settings-cols {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));
+  gap:16px 28px
+}
+
+body .settings-section {
+  margin:0 0 16px;
+  padding:0;
+  border:0
+}
+
+body .settings-section-label,body .passport-panel h3,body .board-title {
+  font:400 18px Caprasimo,serif;
+  color:var(--cream);
+  margin:0 0 10px;
+  letter-spacing:0;
+  text-transform:none
+}
+
+body .settings-reload-note {
+  color:var(--coral);
+  font:700 10px Outfit,sans-serif;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  display:inline-block
+}
+
+body #set-quality {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px 8px
+}
+
+body .settings-radio {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:60px;
+  border:2px solid var(--cream);
+  border-radius:10px;
+  background:var(--raised);
+  padding:6px 12px;
+  box-shadow:0 4px 0 var(--ledge);
+  color:var(--cream)
+}
+
+body .settings-radio:has(input:checked) {
+  background:var(--cream);
+  color:var(--night)
+}
+
+body .settings-dot {
+  border:2px solid currentColor;
+  width:16px;
+  height:16px;
+  background:none;
+  flex:none
+}
+
+body .settings-radio input:checked+.settings-dot {
+  background:var(--night);
+  box-shadow:inset 0 0 0 3px var(--cream);
+  border-color:var(--night)
+}
+
+body .settings-radio input:focus-visible+.settings-dot {
+  outline:3px solid var(--gold);
+  outline-offset:4px
+}
+
+body .settings-radio-label {
+  font-size:15px;
+  color:inherit;
+  font-weight:700
+}
+
+body .settings-radio-head {
+  display:flex;
+  flex-direction:column;
+  align-items:start;
+  gap:2px
+}
+
+body .settings-chip {
+  background:none;
+  padding:0;
+  color:inherit;
+  font-size:12px;
+  font-weight:400
+}
+
+body .settings-warn {
+  color:inherit;
+  font-size:12px
+}
+
+body .settings-tri-row,body .settings-toggle-row {
+  display:flex;
+  align-items:center;
+  gap:14px;
+  justify-content:space-between;
+  padding:9px 0;
+  border-bottom:1px dashed #ffe9c24d
+}
+
+body .settings-tri-body,body .settings-toggle-body {
+  min-width:0;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:3px
+}
+
+body .settings-tri-label,body .settings-toggle-label {
+  font:700 15px Outfit,sans-serif;
+  color:var(--cream)
+}
+
+body .settings-tri {
+  display:flex;
+  flex:none;
+  gap:3px;
+  border:2px solid var(--cream);
+  background:var(--night);
+  border-radius:10px;
+  padding:2px
+}
+
+body .settings-tri button {
+  background:none;
+  color:var(--cream);
+  border:0;
+  border-radius:7px;
+  min-height:44px;
+  padding:5px 9px;
+  min-width:44px;
+  font:600 13px Outfit,sans-serif
+}
+
+body .settings-tri button.active {
+  background:var(--cream);
+  color:var(--night);
+  box-shadow:none
+}
+
+body .settings-switch {
+  appearance:none;
+  position:relative;
+  flex:none;
+  width:72px;
+  height:44px;
+  border:2px solid var(--cream);
+  border-radius:99px;
+  background:var(--night);
+  box-shadow:0 3px 0 var(--ledge);
+  cursor:pointer;
+  margin:0;
+  transform:none
+}
+
+body .settings-switch::before {
+  content:"";
+  position:absolute;
+  left:4px;
+  top:7px;
+  width:26px;
+  height:26px;
+  border-radius:50%;
+  border:2px solid var(--night);
+  background:var(--cream);
+  transform:none;
+  box-shadow:none
+}
+
+body .settings-switch::after {
+  background:none;
+  width:auto;
+  height:auto;
+  left:auto;
+  border-radius:0;
+  transform:none;
+  content:'OFF';
+  position:absolute;
+  right:5px;
+  top:12px;
+  font:700 11px Outfit,sans-serif;
+  color:var(--cream)
+}
+
+body .settings-switch:checked {
+  background:var(--teal)
+}
+
+body .settings-switch:checked::before {
+  left:38px;
+  transform:none
+}
+
+body .settings-switch:checked::after {
+  content:'ON';
+  left:7px;
+  right:auto;
+  color:var(--night)
+}
+
+body .settings-restart {
+  margin:0;
+  flex:none;
+  padding:12px 16px;
+  background:var(--gold);
+  color:var(--night);
+  display:flex;
+  gap:12px;
+  align-items:center;
+  justify-content:space-between;
+  font-size:13px;
+  border:0;
+  border-radius:0
+}
+
+body .settings-restart.is-hidden,body .settings-tab.is-hidden {
+  display:none
+}
+
+body .settings-restart-text {
+  color:var(--night)
+}
+
+body .settings-apply {
+  background:var(--raised);
+  border:2px solid var(--cream);
+  border-radius:10px;
+  color:var(--cream);
+  font:600 14px Outfit,sans-serif;
+  box-shadow:0 4px 0 var(--ledge);
+  padding:8px 14px
+}
+
+body #set-map-reset {
+  color:var(--coral);
+  border-color:var(--coral);
+  margin:12px 0
+}
+
+body .map-reset-confirm {
+  padding:14px;
+  border:2px solid var(--coral);
+  border-radius:12px;
+  background:var(--raised);
+  margin:12px 0
+}
+
+body .map-reset-confirm[hidden] {
+  display:none
+}
+
+body .map-reset-confirm p {
+  margin-bottom:10px
+}
+
+body #set-map-clear {
+  background:var(--coral);
+  color:var(--night);
+  border-color:var(--night)
+}
+
+body .settings-slider-row {
+  display:grid;
+  grid-template-columns:100px 1fr 50px;
+  align-items:center;
+  gap:14px;
+  margin:0 0 22px
+}
+
+body .settings-slider {
+  width:100%;
+  height:44px;
+  accent-color:var(--gold);
+  background:transparent;
+  appearance:auto
+}
+
+body .settings-slider-label {
+  color:var(--cream);
+  font-size:15px
+}
+
+body .settings-slider-output {
+  color:var(--gold);
+  text-align:right;
+  font-variant-numeric:tabular-nums
+}
+
+/* How-to sheet and its identical settings content. */
+body #title-page-howto {
+  position:fixed;
+  inset:auto;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  pointer-events:auto;
+  z-index:1
+}
+
+body #title-page-howto[hidden],body #title-page-main[hidden] {
+  display:none
+}
+
+body #title-ui.is-howto {
+  background:rgba(12,5,32,.3);
+  pointer-events:auto
+}
+
+body .howto-header {
+  flex-direction:row;
+  align-items:center;
+  padding:10px 16px;
+  gap:18px
+}
+
+body #howto-back {
+  position:static;
+  display:block;
+  padding:8px 14px;
+  min-width:80px;
+  flex:none
+}
+
+body .controls-scheme {
+  align-items:center;
+  max-width:520px;
+  margin:0 0 16px
+}
+
+body .controls-scheme>span {
+  padding:4px 10px;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.06em
+}
+
+body :is(#title-page-howto,.settings-howto) .controls {
+  display:grid;
+  gap:8px;
+  grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));
+  padding:0;
+  margin:0 0 14px;
+  text-align:left;
+  font:400 14px/1.8 Outfit,sans-serif;
+  color:var(--cream)
+}
+
+body :is(#title-page-howto,.settings-howto) .controls>div {
+  border-bottom:1px dashed #ffe9c24d;
+  padding:4px 0
+}
+
+body :is(#title-page-howto,.settings-howto) .controls-touch {
+  display:none
+}
+
+body [data-scheme=touch] .controls-kbd {
+  display:none!important
+}
+
+body [data-scheme=touch] .controls-touch {
+  display:grid!important
+}
+
+body [data-scheme=keyboard] .controls-kbd {
+  display:grid!important
+}
+
+body [data-scheme=keyboard] .controls-touch {
+  display:none!important
+}
+
+body :is(#title-page-howto,.settings-howto) .hint {
+  margin:12px 0;
+  color:var(--cream);
+  font:400 15px/1.5 Outfit,sans-serif;
+  padding:0;
+  text-shadow:none;
+  text-align:left
+}
+
+body :is(#title-page-howto,.settings-howto) .hint strong {
+  display:block;
+  font:400 18px Caprasimo,serif;
+  color:var(--gold);
+  margin-bottom:4px
+}
+
+body :is(#title-page-howto,.settings-howto) :is(kbd,.tag-key) {
+  background:var(--raised);
+  color:var(--cream);
+  border:2px solid var(--cream);
+  border-bottom-width:4px;
+  border-radius:6px;
+  font:600 12px Outfit,sans-serif;
+  padding:2px 7px;
+  box-shadow:none
+}
+
+body .help-modes {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));
+  gap:14px;
+  margin-top:20px
+}
+
+body .help-modes section {
+  background:var(--raised);
+  padding:14px;
+  border:2px solid var(--teal);
+  border-radius:12px
+}
+
+body .help-modes section+section {
+  border-color:var(--pink)
+}
+
+body .help-modes h3 {
+  font:400 18px Caprasimo,serif;
+  color:var(--teal);
+  margin-bottom:6px
+}
+
+body .help-modes section+section h3 {
+  color:var(--pink)
+}
+
+/* Passport */
+body .passport-panel {
+  width:min(96vw,980px)
+}
+
+body #passport-intro,body .passport-pause-note {
+  margin:0;
+  font:400 13px Outfit,sans-serif;
+  color:var(--soft)
+}
+
+body .passport-pause-note {
+  color:var(--teal)
+}
+
+body .passport-body {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(350px,100%),1fr));
+  gap:16px 28px;
+  align-items:start
+}
+
+body .passport-tabs {
+  margin-bottom:10px
+}
+
+body .passport-stats {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+  gap:6px 14px;
+  margin:10px 0
+}
+
+body .passport-stats>div {
+  border-bottom:1px dashed #ffe9c24d;
+  padding:8px 0;
+  min-width:0
+}
+
+body .passport-stats dt {
+  color:var(--soft);
+  font:400 12px Outfit,sans-serif
+}
+
+body .passport-stats dd {
+  color:var(--gold);
+  font:400 clamp(20px,4vh,28px)/1.1 Caprasimo,serif;
+  margin:4px 0;
+  overflow-wrap:anywhere
+}
+
+body .passport-panel h3 {
+  margin:0 0 6px
+}
+
+body .passport-stamp-count {
+  color:var(--soft);
+  font:400 12px Outfit,sans-serif;
+  margin:0 0 12px
+}
+
+body .passport-stamps {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));
+  gap:8px;
+  list-style:none;
+  margin:0;
+  padding:0
+}
+
+body .passport-stamp {
+  position:relative;
+  display:grid;
+  grid-template-columns:44px 1fr;
+  column-gap:10px;
+  align-content:start;
+  border:2px dashed #ffe9c280;
+  padding:8px 10px;
+  border-radius:12px;
+  background:none
+}
+
+body .passport-stamp.is-earned {
+  padding:8px 10px;
+  border:2px solid var(--teal);
+  background:#1f3a4a
+}
+
+body .passport-stamp-icon {
+  position:static;
+  grid-row:1/4;
+  display:grid;
+  place-items:center;
+  border:2px dashed var(--cream);
+  border-radius:50%;
+  width:44px;
+  height:44px;
+  color:var(--cream);
+  font-size:22px;
+  margin:0
+}
+
+body .is-earned .passport-stamp-icon {
+  border:3px double var(--teal);
+  color:var(--teal);
+  box-shadow:0 0 14px 2px #7fe3d060
+}
+
+body .passport-stamp strong {
+  font:700 14px Outfit,sans-serif
+}
+
+body .passport-stamp-status {
+  color:var(--soft);
+  font:700 10px Outfit,sans-serif;
+  text-transform:uppercase
+}
+
+body .is-earned .passport-stamp-status {
+  color:var(--teal)
+}
+
+body .passport-stamp p {
+  grid-column:2;
+  margin:4px 0 0
+}
+
+body .passport-note {
+  border:1px dashed #ffe9c259;
+  padding:10px;
+  border-radius:8px;
+  margin:10px 0
+}
+
+body .passport-storage {
+  flex:none;
+  margin:0;
+  padding:12px 16px;
+  border-top:2px dashed #ffe9c259;
+  background:var(--panel)
+}
+
+body .passport-storage.is-unavailable {
+  background:var(--coral);
+  color:var(--night);
+  font-weight:700
+}
+
+/* Upgrade discovery sheet and non-pausing gameplay drawer. */
+body .upgrades-panel {
+  width:min(96vw,640px)
+}
+
+body .upgrades-summary {
+  color:var(--soft);
+  font:400 13px Outfit,sans-serif;
+  margin:0
+}
+
+body .upgrades-progress {
+  height:8px;
+  width:100%;
+  accent-color:var(--gold);
+  margin:8px 0 0;
+  border:0;
+  border-radius:9px;
+  overflow:hidden
+}
+
+body .upgrades-progress::-webkit-progress-bar {
+  background:var(--ledge)
+}
+
+body .upgrades-progress::-webkit-progress-value {
+  background:var(--gold)
+}
+
+body .upgrades-progress::-moz-progress-bar {
+  background:var(--gold)
+}
+
+body .upgrades-list {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  overflow:visible;
+  max-height:none;
+  padding:0
+}
+
+body .upgrade-card {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-height:64px;
+  border:2px solid var(--cream);
+  border-radius:14px;
+  background:var(--raised);
+  padding:8px 12px
+}
+
+body .upgrade-card.is-locked {
+  background:none;
+  border:2px dashed #ffe9c280;
+  opacity:1
+}
+
+body .upgrade-swatch {
+  width:34px;
+  height:34px;
+  flex:none;
+  border-radius:50%;
+  background:radial-gradient(circle at 32% 30%,#fff 0 14%,var(--upgrade-color) 50%);
+  border:2px solid var(--cream);
+  box-shadow:none
+}
+
+body .upgrade-card:has([aria-checked=true]) .upgrade-swatch {
+  box-shadow:0 0 14px 3px var(--upgrade-color)
+}
+
+body .is-locked .upgrade-swatch {
+  background:none;
+  border:2px dashed var(--cream)
+}
+
+body .upgrade-copy {
+  flex:1;
+  min-width:0
+}
+
+body .upgrade-copy strong {
+  font:700 15px Outfit,sans-serif;
+  color:var(--cream)
+}
+
+body .upgrade-copy span {
+  display:block;
+  font:400 12px/1.4 Outfit,sans-serif;
+  color:var(--soft);
+  margin-top:3px
+}
+
+body .upgrade-lock {
+  font:700 10px Outfit,sans-serif;
+  border:2px dashed var(--cream);
+  border-radius:8px;
+  padding:5px 8px;
+  color:var(--cream);
+  opacity:1
+}
+
+body .upgrade-toggle {
+  position:relative;
+  width:72px;
+  min-width:72px;
+  height:44px;
+  border:2px solid var(--cream);
+  background:var(--night);
+  border-radius:99px;
+  box-shadow:0 3px 0 var(--ledge);
+  padding:3px;
+  color:var(--cream)
+}
+
+body .upgrade-toggle span {
+  position:absolute;
+  left:4px;
+  top:5px;
+  width:30px;
+  height:30px;
+  background:var(--cream);
+  border:2px solid var(--night);
+  border-radius:50%;
+  transform:none
+}
+
+body .upgrade-toggle::after {
+  content:'OFF';
+  position:absolute;
+  right:4px;
+  top:12px;
+  font:700 11px Outfit,sans-serif
+}
+
+body .upgrade-toggle[aria-checked=true] {
+  background:var(--teal);
+  color:var(--night)
+}
+
+body .upgrade-toggle[aria-checked=true] span {
+  left:34px;
+  transform:none
+}
+
+body .upgrade-toggle[aria-checked=true]::after {
+  content:'ON';
+  left:7px;
+  right:auto
+}
+
+body .upgrades-note {
+  margin:14px 0 0
+}
+
+body .upgrades-live-note {
+  display:none;
+  color:var(--teal);
+  font-size:12px;
+  margin:0
+}
+
+body.game-started #upgrades-overlay {
+  justify-content:flex-end;
+  padding:0
+}
+
+body.game-started #upgrades-overlay .upgrades-panel {
+  width:min(360px,100vw);
+  height:100dvh;
+  max-height:100dvh;
+  border-radius:0;
+  border-width:0 0 0 3px
+}
+
+body.game-started #upgrades-overlay .upgrades-backdrop {
+  background:#0c05201f
+}
+
+body.game-started .upgrades-live-note {
+  display:block
+}
+
+/* Results keep primary actions outside the scrolling table. */
+body #score-screen .card {
+  width:min(96vw,540px)
+}
+
+body #score-screen #score-cause {
+  color:var(--pink);
+  -webkit-text-fill-color:var(--pink)
+}
+
+body #score-screen .sheet-header {
+  padding-right:16px
+}
+
+body .score-stats {
+  gap:10px;
+  border:0;
+  padding:0;
+  margin:0 0 18px
+}
+
+body .score-stats .stat {
+  flex:1;
+  text-align:center;
+  background:var(--raised);
+  border:2px solid #ffe9c259;
+  border-radius:12px;
+  padding:10px
+}
+
+body .score-stats .stat-n {
+  font:400 clamp(20px,4vh,28px) Caprasimo,serif;
+  color:var(--gold)
+}
+
+body .score-stats .stat-l {
+  color:var(--soft);
+  font:600 11px Outfit,sans-serif;
+  opacity:1
+}
+
+body .board-tabs {
+  margin-bottom:12px
+}
+
+body #local-board {
+  width:100%;
+  font:400 14px Outfit,sans-serif;
+  border-collapse:separate;
+  border-spacing:0 6px;
+  table-layout:fixed
+}
+
+body #local-board td {
+  padding:10px 7px;
+  border:0;
+  color:var(--cream);
+  background:none;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+
+body #local-board tr:nth-child(even) {
+  background:var(--raised)
+}
+
+body #local-board .rank {
+  width:36px;
+  color:var(--soft)
+}
+
+body #local-board .bscore {
+  width:85px;
+  font:400 18px Caprasimo,serif;
+  color:var(--gold)
+}
+
+body #local-board .bdays {
+  width:64px;
+  color:var(--soft)
+}
+
+body #local-board tr.you {
+  background:#3a2670;
+  outline:2px solid var(--gold)
+}
+
+body .board-you {
+  font:700 10px Outfit,sans-serif;
+  background:var(--gold);
+  color:var(--night);
+  border-radius:99px;
+  padding:2px 5px;
+  margin-left:5px
+}
+
+body .board-empty {
+  border:2px dashed var(--cream);
+  border-radius:12px;
+  padding:18px;
+  text-align:center;
+  color:var(--soft);
+  font:400 14px Outfit,sans-serif
+}
+
+body .score-actions {
+  flex:none;
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  padding:14px 16px;
+  border-top:2px dashed #ffe9c259;
+  margin:0
+}
+
+body #score-again {
+  background:linear-gradient(#ffb3cf,#ff6fa5);
+  color:var(--night);
+  border:2px solid var(--night);
+  border-radius:10px;
+  box-shadow:0 4px 0 var(--ledge),0 0 20px #ff7fb080;
+  padding:8px 18px;
+  font:700 15px Outfit,sans-serif
+}
+
+body #score-close {
+  background:var(--raised);
+  color:var(--cream);
+  border-color:var(--cream);
+  padding:8px 14px
+}
+
+/* Gameplay HUD and menu launchers. Existing controls and data stay in place. */
+body #status-rail {
+  background:var(--panel);
+  border:2px solid var(--cream);
+  border-radius:12px;
+  box-shadow:0 4px 0 var(--ledge);
+  backdrop-filter:none;
+  color:var(--cream)
+}
+
+body #status-rail .hud-chip {
+  border-color:#ffe9c259
+}
+
+body #smiles {
+  font-family:Outfit,system-ui,sans-serif;
+  font-weight:700;
+  font-variant-numeric:tabular-nums lining-nums;
+  letter-spacing:0;
+  text-shadow:none;
+  color:var(--gold)
+}
+
+body #smiles.smile-pulse {
+  animation-name:lantern-smile-score
+}
+
+@keyframes lantern-smile-score {
+  0%,100% { transform:scale(1) }
+  34% { transform:scale(1.12) }
+}
+
+body :is(#juice-fill,#juice-meter .meter-fill) {
+  background:var(--teal)
+}
+
+body :is(#settings-gear,#upgrades-btn,#passport-btn) {
+  width:58px;
+  height:52px;
+  top:max(12px,env(safe-area-inset-top));
+  border:2px solid var(--cream);
+  border-radius:12px;
+  background:var(--panel);
+  color:var(--cream);
+  box-shadow:0 4px 0 var(--ledge);
+  backdrop-filter:none;
+  flex-direction:column;
+  gap:2px;
+  padding:3px;
+  z-index:16
+}
+
+body #settings-gear {
+  right:max(12px,env(safe-area-inset-right))
+}
+
+body #upgrades-btn {
+  right:calc(max(12px,env(safe-area-inset-right)) + 66px)
+}
+
+body #passport-btn {
+  right:calc(max(12px,env(safe-area-inset-right)) + 132px)
+}
+
+body .launcher-label {
+  font:600 9px Outfit,sans-serif;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  color:var(--cream)
+}
+
+body #passport-btn svg {
+  color:var(--teal)
+}
+
+body #upgrades-btn>span:first-child {
+  font-size:23px;
+  line-height:24px;
+  color:var(--pink)
+}
+
+body #settings-gear svg {
+  color:var(--gold)
+}
+
+body :is(#settings-gear,#upgrades-btn,#passport-btn):hover {
+  background:var(--cream);
+  color:var(--night)
+}
+
+body :is(#settings-gear,#upgrades-btn,#passport-btn):hover .launcher-label {
+  color:var(--night)
+}
+
+body .upgrades-unread {
+  display:none;
+  top:-9px;
+  right:-9px;
+  width:auto;
+  height:auto;
+  background:var(--pink);
+  border:2px solid var(--night);
+  border-radius:99px;
+  padding:2px 5px
+}
+
+body .upgrades-unread::after {
+  content:'NEW';
+  font:700 9px Outfit,sans-serif;
+  color:var(--night)
+}
+
+body .has-unread .upgrades-unread {
+  display:block
+}
+
+body #toast {
+  background:var(--cream);
+  color:var(--night);
+  border:2px solid var(--night);
+  border-radius:99px;
+  box-shadow:0 4px 0 var(--ledge);
+  font-family:Outfit,sans-serif
+}
+
+/* The expanded map is a driving overlay, so the original transparent full-
+   viewport geography and input ownership stay in festival-map.css/view.js. */
+body .festival-map:not(.is-expanded):not(.is-morphing) {
+  border:3px solid var(--cream);
+  box-shadow:0 4px 0 var(--ledge)
+}
+
+body .festival-map .map-header {
+  display:none
+}
+
+body .festival-map.is-expanded .map-header {
+  display:flex;
+  position:absolute;
+  right:max(14px,env(safe-area-inset-right));
+  top:78px;
+  z-index:3;
+  align-items:center;
+  gap:6px;
+  padding:6px;
+  border:1px solid #ffe9c280;
+  border-radius:12px;
+  background:#1e1140cc
+}
+
+body .map-header h2 {
+  font:600 15px Outfit,system-ui,sans-serif;
+  margin:0 8px;
+  color:var(--cream)
+}
+
+body .festival-map .map-header button {
+  min-width:44px;
+  min-height:44px;
+  border:1px solid #ffe9c280;
+  border-radius:8px;
+  background:#2a1a55cc;
+  color:var(--cream);
+  font:600 15px Outfit,system-ui,sans-serif
+}
+
+body .festival-map.is-expanded .map-selection,body .festival-map.is-expanded .map-status {
+  background:#1e1140cc;
+  color:var(--cream);
+  border:1px solid #ffe9c280;
+  font-family:Outfit,system-ui,sans-serif;
+  text-shadow:none
+}
+
+/* Keyboard users see only their focused destination, never a wall of pills. */
+body .festival-map.is-expanded .map-pin-options:focus-within {
+  clip-path:none;
+  width:auto;
+  height:auto;
+  left:50%;
+  bottom:80px;
+  transform:translateX(-50%);
+  overflow:visible
+}
+
+body .festival-map .map-pin-options button:not(:focus) {
+  position:absolute;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  clip-path:inset(50%);
+  padding:0;
+  border:0
+}
+
+body .festival-map .map-pin-options button {
+  background:#1e1140e6;
+  border:1px solid var(--cream);
+  color:var(--cream);
+  font-family:Outfit,system-ui,sans-serif
+}
+
+body.is-touch .festival-map:not(.is-expanded):not(.is-morphing) {
+  top:78px;
+  bottom:auto
+}
+
+/* Portrait has an explicit, calm orientation state. */
+@media(orientation:portrait) and (max-width:900px) {
+  body #rotate-phone {
+    position:fixed;
+    z-index:1000;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    display:flex;
+    gap:18px;
+    inset:0;
+    padding:28px;
+    background:var(--night);
+    text-align:center;
+    color:var(--cream);
+    font-family:Outfit,sans-serif
+  }
+
+  body #rotate-phone strong {
+    font:400 34px/1.05 Caprasimo,serif;
+    color:var(--gold)
+  }
+
+  body #rotate-phone span {
+    font:400 17px Outfit,sans-serif;
+    text-transform:none
+  }
+
+  body #rotate-phone small {
+    font:400 13px Outfit,sans-serif;
+    color:var(--soft)
+  }
+
+  body .rotate-device {
+    width:120px;
+    height:64px;
+    border:3px solid var(--cream);
+    border-radius:12px;
+    display:grid;
+    place-items:center;
+    transform:rotate(-8deg);
+    box-shadow:0 0 24px #ffc65c80
+  }
+
+  body .rotate-device img {
+    width:40px;
+    height:40px
+  }
+
+}
+
+@keyframes lantern-pulse {
+  50% {
+    opacity:.35
+  }
+
+}
+
+/* Original curved plume, with small varied sprites rather than a straight column. */
+@keyframes title-puff {
+  0% { transform:translate(0,0) scale(.5); opacity:0 }
+  8% { transform:translate(-14px,-16px) scale(.8); opacity:1 }
+  30% { transform:translate(-90px,-120px) scale(1) }
+  45% { transform:translate(-120px,-200px) scale(1.02) }
+  70% { transform:translate(-112px,-370px) scale(.98) }
+  92% { opacity:.9 }
+  100% { transform:translate(-122px,-560px) scale(1); opacity:0 }
+}
+
+body .title-bubble {
+  animation:title-puff var(--bubble-duration) ease-in-out var(--bubble-delay) infinite;
+  left:740px;
+  top:500px;
+  image-rendering:pixelated;
+  opacity:0
+}
+
+body #title-bubbles {
+  position:absolute;
+  inset:0;
+  z-index:3;
+  pointer-events:none
+}
+
+@media(max-height:500px) and (orientation:landscape) {
+  body #title-page-main {
+    gap:4px;
+    bottom:2vh
+  }
+
+  body #title-page-main::before {
+    height:14vh
+  }
+
+  body #title-card .title-links .title-link {
+    padding:6px 8px;
+    font-size:12px
+  }
+
+  body .mode-remembered {
+    font-size:9px
+  }
+
+  body .mode-heading {
+    gap:4px
+  }
+
+  body .name-note {
+    line-height:1.2;
+    margin-top:4px
+  }
+
+  body .title-status {
+    min-height:24px
+  }
+
+  body .settings-tri-row {
+    flex-wrap:wrap
+  }
+
+  body #status-rail {
+    max-width:calc(100vw - 226px)
+  }
+
+  body .passport-storage {
+    padding:8px 14px
+  }
+
+  body .sheet-header {
+    min-height:60px;
+    padding-top:8px;
+    padding-bottom:8px
+  }
+
+  body .settings-card .settings-tabs {
+    margin-bottom:8px
+  }
+
+}
+
+@media(prefers-reduced-motion:reduce) {
+  body #title-card *,body :is(#settings-overlay,#passport-overlay,#upgrades-overlay,#score-screen,.festival-map) * {
+    animation:none!important;
+    transition:none!important
+  }
+
+  body .title-bubble {
+    display:none
+  }
+
+  body .title-bubble:nth-child(n+8) {
+    display:none
+  }
+
+}
+
+body.reduced-motion #title-card *,body.reduced-motion :is(#settings-overlay,#passport-overlay,#upgrades-overlay,#score-screen,.festival-map) * {
+  animation:none!important;
+  transition:none!important
+}
+
+body.reduced-motion .title-bubble {
+  display:none
+}
+
+body.reduced-motion .title-bubble:nth-child(n+8) {
+  display:none
+}
+
+body .settings-radio + .settings-radio {
+  margin-top:0
+}
+
+body .settings-quality-note {
+  font:400 12px Outfit,sans-serif
+}
+
+body #local-board tr.you .bname::after {
+  content:none
+}
+
+/* Hidden score sections must relinquish layout, unlike the HUD's fading toasts. */
+body #score-screen :is(.score-stats,.board-title,#score-again,.board-empty).hidden {
+  display:none;
+}
+
+body #title-card.hidden * {
+  animation-play-state:paused;
+}
+
+body .festival-map .map-pin-options button[aria-pressed=true]::before {
+  content:'★ ';
+}
+
+

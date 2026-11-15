@@ -1,0 +1,88 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {mulberry32} from '../src/rng.js';
+globalThis.window={innerWidth:1280,innerHeight:720};
+const {CornholeSession,CORNHOLE_WAIT}=await import('../src/people/cornholeSession.js');
+const {CornholeActivity}=await import('../src/people/cornholeActivity.js');
+const {registry}=await import('../src/registry.js');
+const {CORNHOLE_COURT}=await import('../src/cornholePlacement.js');
+assert(Math.hypot(CORNHOLE_WAIT.x,CORNHOLE_WAIT.z)+.3<=CORNHOLE_COURT.radius,'waiting person fits inside the admitted court footprint');
+function fixture(){
+ const people=makePeopleCrowd(),group=new THREE.Group();group.position.set(10,0,20);group.rotation.y=.7;
+ const bags=Array.from({length:8},()=>{const mesh=new THREE.Object3D();group.add(mesh);return mesh;});
+ let resets=0;const court={group,position:group.position,cornhole:{bags,resetBags(){resets++;}}};
+ const handles=[0,1,2,3].map(i=>{const p=group.localToWorld(new THREE.Vector3(i%2?-1:1,0,-5-i));return people.spawnPerson({pos:new Vector(p.x,p.y,p.z)});});
+ for(const n of people.npcs)n.scale=1;
+ // The recording harness supplies joint-local coordinates. Match Crowd's body
+ // matrix here so interrupted bag drops exercise actual world-space hands.
+ const publish=people._writeMatrices;people._writeMatrices=n=>{publish(n);const h=n._activityArmPose?.hand;if(h){const x=h.x,z=h.z,c=Math.cos(n.yaw),s=Math.sin(n.yaw);h.set(n.pos.x+c*x+s*z,n.pos.y+h.y,n.pos.z-s*x+c*z);}};
+ let live=true,now=0;const session=new CornholeSession({people,court,isLive:()=>live,rng:mulberry32(73),now:()=>now});
+ return {people,court,handles,session,get resets(){return resets;},unload(){live=false;},tick(){now+=.05;session.update(.05);}};
+}
+const f=fixture();
+const boardIds=[-4.2,4.2].map(z=>registry.add({kind:'cornhole_board',position:f.court.group.localToWorld(new THREE.Vector3(0,0,z)),collider:{radius:.75},cornholeBoard:{width:.7,length:1.3,yaw:.7}}));
+const oldRandom=Math.random;Math.random=()=>{throw new Error('Cornhole must not consume global randomness.');};assert(f.session.start(...f.handles.slice(0,2)));
+const phases=new Set();let last=f.people.npcs.map(n=>n.pos.clone()),steps=0;
+while(f.session.phase!=='idle'&&steps++<200000){
+ phases.add(f.session.phase);f.tick();
+ for(const npc of f.people.npcs.slice(0,2)){const local=f.court.group.worldToLocal(new THREE.Vector3(npc.pos.x,0,npc.pos.z));for(const z of [-4.2,4.2])assert(Math.hypot(Math.max(0,Math.abs(local.x)-.35),Math.max(0,Math.abs(local.z-z)-.65))>=.3-1e-8,'full game keeps body capsule outside both decks');}
+ if(['aiming','flying','handshake'].includes(f.session.phase))assert(f.people.npcs.slice(0,2).every(n=>!n._reactionPose),'pickup bends must not persist into tossing or handshake');
+ if(f.session.phase==='flying'){const bag=f.session.flying,targetZ=f.session.end===0?4.6:-4.6,d=Math.hypot(bag.point.x,bag.point.z-targetZ);if(bag.points===1)assert(d>=.20,'board bags clear hole including bag radius');if(bag.points===3)assert(d<.095,'hole bags land inside opening');}
+ f.people.npcs.forEach((n,i)=>{assert(Math.hypot(n.pos.x-last[i].x,n.pos.z-last[i].z)<.069,'people walk without teleports');last[i].copy(n.pos);});
+}
+for(const id of boardIds)registry.remove(id);
+Math.random=oldRandom;
+assert(steps<200000,'seeded complete game finishes');assert(f.session.winner!==null);for(const p of ['collecting','crossing','reacting','handshake','tidying'])assert(phases.has(p),p);
+assert.equal(f.people.activityClaims.current.size,0);assert(f.people.npcs.slice(0,2).every(n=>n.state==='walking'&&!n._activityArmPose));assert(f.people.activityCooldown(f.handles[0],'cornhole')>0);
+assert(f.court.cornhole.bags.every(b=>Math.abs(b.position.z)===4.2),'tidy bags at one end');
+for(const reason of ['honk','dodge','fleeing','starpower','person-removed']){
+ const t=fixture();assert(t.session.start(...t.handles.slice(0,2)));const claims=[...t.session.claims];t.people.endPersonActivity(claims[0],{reason});assert.equal(t.session.phase,'idle');assert.equal(t.people.activityClaims.current.size,0);assert(!t.people.writeActivityPose(claims[1],99,0,99));t.session.dispose();
+}
+const route=fixture();route.session.start(...route.handles.slice(0,2));
+const routeView=route.session.views[0],obstacle=registry.add({kind:'tree',position:{x:routeView.x+.8,y:0,z:routeView.z},collider:{radius:.5}});
+assert(!route.session.clearStep(0,routeView.x+.1,routeView.z),'prospective capsule cannot enter collider');
+route.session.move(0,{x:routeView.x+3,z:routeView.z},.05);assert(Math.hypot(route.people.npcs[0].pos.x-(routeView.x+.8),route.people.npcs[0].pos.z-routeView.z)>=.8,'bounded steering stays outside trunk');registry.remove(obstacle);
+const board=registry.add({kind:'cornhole_board',position:{x:10,y:0,z:20},collider:{radius:.75},cornholeBoard:{width:.7,length:1.3,yaw:.7}});
+const side=route.court.group.localToWorld(new THREE.Vector3(.9,0,0));assert(route.session.clearStep(0,side.x,side.z),'oriented board sideline is walkable despite broadphase circle');assert(!route.session.clearStep(0,10,20),'board deck blocks walking');registry.remove(board);route.session.dispose();
+const dropped=fixture();dropped.session.start(...dropped.handles.slice(0,2));
+let dropSteps=0;while(dropped.session.phase!=='flying'&&dropSteps++<10000)dropped.tick();assert.equal(dropped.session.phase,'flying');
+const beforeDrop=dropped.court.cornhole.bags.map(b=>b.position.clone());dropped.people.endPersonActivity(dropped.session.claims[0],{reason:'honk'});
+assert.equal(dropped.resets,0,'interruptions never reset bag piles');
+const {terrainHeight}=await import('../src/worldgen/terrain.js');
+for(let i=0;i<8;i++){const bag=dropped.court.cornhole.bags[i];assert.equal(bag.position.x,beforeDrop[i].x);assert.equal(bag.position.z,beforeDrop[i].z);const world=dropped.court.group.localToWorld(bag.position.clone());assert(Math.abs(world.y-terrainHeight(world.x,world.z)-.025)<1e-8,'carried/flying bags settle onto ground');}
+dropped.people.removePerson(dropped.handles[0]);dropped.people.removePerson(dropped.handles[1]);assert(dropped.session.start(...dropped.handles.slice(2,4)));let gatherSteps=0;while(dropped.session.phase!=='aiming'&&dropped.session.phase!=='idle'&&gatherSteps++<10000)dropped.tick();assert.equal(dropped.session.phase,'aiming','replacement players physically gather dropped bags');dropped.session.dispose();
+const landed=fixture();landed.session.start(...landed.handles.slice(0,2));const landedPositions=landed.court.cornhole.bags.map(b=>b.position.clone());landed.session.finish('honk');landed.court.cornhole.bags.forEach((b,i)=>assert(b.position.equals(landedPositions[i]),'already landed bags remain untouched'));
+const poses=fixture();poses.session.start(...poses.handles.slice(0,2));
+for(const action of ['relaxed','underhand','celebrate','handshake']){poses.session.arms(0,'pickup',1,.05);assert(poses.people.npcs[0]._reactionPose);poses.session.arms(0,action,1,.05);assert.equal(poses.people.npcs[0]._reactionPose,null,`${action} restores upright body`);}
+poses.session.dispose();
+const dead=fixture();dead.session.start(...dead.handles.slice(0,2));dead.people.removePerson(dead.handles[0]);assert.equal(dead.people.activityClaims.current.size,0);assert.equal(dead.session.phase,'idle');
+const u=fixture();u.session.start(...u.handles.slice(0,2));u.unload();u.tick();assert.equal(u.people.activityClaims.current.size,0);assert.equal(u.resets,0,'do not mutate an unloaded model');
+const m=fixture(),runtime=new PeopleRuntime();const id=registry.add({kind:'cornhole_game',...m.court,footprint:0});const activity=new CornholeActivity({people:m.people,runtime});activity.discover();const slot=activity.slots.get(id);assert(slot);slot.nextAvailable=0;
+activity.update(.05,{zerble:{position:new Vector(40,0,20)}});assert.equal(activity.inspect().active,1);const first=[...slot.session.persons];slot.session.finish('completed');assert(activity.inspect().sessions[0].cooldown>=90);assert.equal(activity.inspect().vacant,1);
+slot.nextAvailable=0;activity.clock=1000;activity.scan=0;activity.update(.05,{zerble:{position:new Vector(40,0,20)}});assert.equal(activity.inspect().active,1);assert(slot.session.persons.every(p=>!first.includes(p)),'different people rotate into the next game');
+activity.update(.05,{zerble:{position:new Vector(10,0,20)}});assert.equal(activity.inspect().active,0,'nearby cart clears court');
+for(const handle of m.handles)if(!first.includes(handle))m.people.removePerson(handle);
+slot.lastPlayers=[...first];slot.nextAvailable=0;activity.clock=2000;activity.scan=0;activity.update(.05,{zerble:{position:new Vector(40,0,20)}});assert.equal(activity.inspect().active,1,'previous pair can return after cooldown when no newcomers remain');
+registry.remove(id);activity.update(.05,{npcsFrozen:true});assert.equal(activity.slots.size,0);activity.dispose();runtime.dispose();
+const disposed=fixture();disposed.session.start(...disposed.handles.slice(0,2));disposed.session.dispose();disposed.session.dispose();assert.equal(disposed.people.activityClaims.current.size,0);assert.equal(disposed.people.populationSize,4);
+Math.random=oldRandom;
+console.log(`Full seeded game: ${(steps*.05).toFixed(1)} simulated seconds, ${f.session.round} rounds.`);
+console.log('PASS complete seeded cornhole game, continuous walking, collection, handshake, tidy, real Crowd release, unload, vacancy and player rotation.');
+
+// Clear courts sit outside occupied camp envelopes. Two ordinary people in the
+// surrounding commons must be recruitable even when no one is within 20 m.
+{
+ const remote=fixture(),runtime=new PeopleRuntime();
+ for(const handle of remote.handles.slice(2))remote.people.removePerson(handle);
+ remote.people.npcs.forEach((npc,i)=>{const p=remote.court.group.localToWorld(new THREE.Vector3(i?-1:1,0,-45));npc.pos.set(p.x,p.y,p.z);});
+ const id=registry.add({kind:'cornhole_game',...remote.court,footprint:0});
+ const activity=new CornholeActivity({people:remote.people,runtime});activity.discover();activity.slots.get(id).nextAvailable=0;
+ activity.update(.05,{zerble:{position:new Vector(remote.court.position.x+30,0,remote.court.position.z)}});
+ assert.equal(activity.inspect().active,1,'eligible people can walk in from the surrounding commons');
+ assert.equal(activity.inspect().sessions[0].recruitment.reachable,2);
+ activity.dispose();registry.remove(id);runtime.dispose();
+}
+console.log('PASS recruitment beyond the empty 20m court rim, with two existing people and no extra population.');

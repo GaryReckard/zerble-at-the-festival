@@ -198,6 +198,7 @@ export function createTerrainResidency(adapter, { tileSize = 20, maxTiles = 64, 
       timing: { ...timing }, lastRejection: lastRejection ? { ...lastRejection } : null };
   }
   return Object.freeze({ request, requestSweep: (owner, sweep) => request(owner, sweptTerrainBounds(sweep)), pump, status, release, stats,
+    ownsBody(id) { for(const tile of tiles.values())if(tile.state==='ready'&&tile.id===id)return true;return false; },
     dispose() {
       if (disposed) return;
       for (const tile of tiles.values()){if (tile.state === 'ready') adapter.removeBody(tile.id);tile.release?.();}

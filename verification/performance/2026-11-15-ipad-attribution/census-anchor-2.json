@@ -1,0 +1,278 @@
+{
+  "sceneDraws": 3690,
+  "meshes": 3287,
+  "instancedMeshes": 403,
+  "instancedInstances": 7100,
+  "note": "Ancestor-visible scene-graph census, PRE-frustum. Mesh/material groups and extra render passes can differ from actual calls; composition leads, not device acceptance.",
+  "horizon": {
+    "draws": 7,
+    "instances": 836
+  },
+  "actualSceneDraws": 731,
+  "actualSceneTriangles": 461094,
+  "seed": 2404796662,
+  "tier": "low",
+  "quality": 1,
+  "player": {
+    "x": -377.9969482421875,
+    "z": -628.0029296875
+  },
+  "horizonHealth": {
+    "ffPublishedAgeMs": 8483.700000047684,
+    "ffFirstPublicationMs": 24473.400000095367,
+    "ffAwaitingFirstPublicationMs": null,
+    "ffFirstRequestToPublicationMs": 1768.7999999523163,
+    "ffAwaitingFirstRequestPublicationMs": null,
+    "ffPublishedCell": "-5,-8",
+    "ffRequestedCell": "-5,-8",
+    "ffRequestedCells": 2,
+    "ffCellsSincePublication": 0,
+    "ffPublications": 2,
+    "ffApplySuperseded": 0,
+    "ffPlanSuperseded": 0,
+    "ffSupersededStreak": 0,
+    "ffSupersededStreakMax": 0,
+    "ffUnitMs": 5.299999952316284,
+    "ffUnitKind": "begin-publication",
+    "ffPreparationCallMs": 49.19999980926514,
+    "ffRoadSliceMs": 29.40000009536743,
+    "ffClockReadsTotal": 8237
+  },
+  "topGeometriesByDraws": [
+    {
+      "what": "BoxGeometry·24v·shared·MeshLambertMaterial",
+      "draws": 380,
+      "shared": true
+    },
+    {
+      "what": "CapsuleGeometry·126v·shared·MeshLambertMaterial",
+      "draws": 332,
+      "shared": true
+    },
+    {
+      "what": "CylinderGeometry·52v·shared·MeshLambertMaterial",
+      "draws": 207,
+      "shared": true
+    },
+    {
+      "what": "CylinderGeometry·40v·shared·MeshLambertMaterial",
+      "draws": 185,
+      "shared": true
+    },
+    {
+      "what": "SphereGeometry·49v·shared·MeshLambertMaterial",
+      "draws": 182,
+      "shared": true
+    },
+    {
+      "what": "CylinderGeometry·40v·uniq·MeshLambertMaterial",
+      "draws": 144,
+      "shared": false
+    },
+    {
+      "what": "BoxGeometry·24v·uniq·MeshLambertMaterial",
+      "draws": 139,
+      "shared": false
+    },
+    {
+      "what": "CylinderGeometry·40v·shared·MeshLambertMaterial·INST",
+      "draws": 133,
+      "instances": 1630,
+      "shared": true
+    },
+    {
+      "what": "IcosahedronGeometry·240v·shared·MeshLambertMaterial",
+      "draws": 112,
+      "shared": true
+    },
+    {
+      "what": "CapsuleGeometry·162v·shared·MeshLambertMaterial",
+      "draws": 91,
+      "shared": true
+    },
+    {
+      "what": "IcosahedronGeometry·60v·uniq·MeshLambertMaterial",
+      "draws": 89,
+      "shared": false
+    },
+    {
+      "what": "SphereGeometry·35v·uniq·MeshLambertMaterial",
+      "draws": 64,
+      "shared": false
+    },
+    {
+      "what": "BufferGeometry·624v·shared·MeshLambertMaterial",
+      "draws": 61,
+      "shared": true
+    },
+    {
+      "what": "CylinderGeometry·52v·uniq·MeshLambertMaterial",
+      "draws": 58,
+      "shared": false
+    },
+    {
+      "what": "BoxGeometry·24v·shared·MeshLambertMaterial·INST",
+      "draws": 57,
+      "instances": 450,
+      "shared": true
+    },
+    {
+      "what": "BufferGeometry·3v·uniq·MeshLambertMaterial",
+      "draws": 49,
+      "shared": false
+    },
+    {
+      "what": "ConeGeometry·35v·shared·MeshLambertMaterial",
+      "draws": 46,
+      "shared": true
+    },
+    {
+      "what": "BufferGeometry·6v·uniq·MeshLambertMaterial",
+      "draws": 46,
+      "shared": false
+    },
+    {
+      "what": "BufferGeometry·6v·shared·MeshLambertMaterial·INST",
+      "draws": 45,
+      "instances": 156,
+      "shared": true
+    },
+    {
+      "what": "BufferGeometry·26v·uniq·MeshLambertMaterial",
+      "draws": 44,
+      "shared": false
+    },
+    {
+      "what": "BufferGeometry·50v·uniq·MeshLambertMaterial",
+      "draws": 44,
+      "shared": false
+    },
+    {
+      "what": "BufferGeometry·6v·shared·MeshLambertMaterial",
+      "draws": 36,
+      "shared": true
+    },
+    {
+      "what": "SphereGeometry·63v·uniq·MeshLambertMaterial",
+      "draws": 34,
+      "shared": false
+    },
+    {
+      "what": "BufferGeometry·16v·uniq·MeshLambertMaterial",
+      "draws": 30,
+      "shared": false
+    },
+    {
+      "what": "BufferGeometry·14v·uniq·MeshLambertMaterial",
+      "draws": 30,
+      "shared": false
+    },
+    {
+      "what": "CylinderGeometry·34v·shared·MeshLambertMaterial",
+      "draws": 28,
+      "shared": true
+    },
+    {
+      "what": "SphereGeometry·63v·shared·MeshLambertMaterial",
+      "draws": 27,
+      "shared": true
+    },
+    {
+      "what": "BufferGeometry·4v·uniq·MeshLambertMaterial",
+      "draws": 26,
+      "shared": false
+    },
+    {
+      "what": "BufferGeometry·528v·shared·MeshLambertMaterial",
+      "draws": 24,
+      "shared": true
+    },
+    {
+      "what": "SphereGeometry·99v·shared·MeshLambertMaterial",
+      "draws": 21,
+      "shared": true
+    },
+    {
+      "what": "PlaneGeometry·4v·uniq·MeshLambertMaterial",
+      "draws": 20,
+      "shared": false
+    },
+    {
+      "what": "BufferGeometry·144v·shared·MeshLambertMaterial·INST",
+      "draws": 18,
+      "instances": 457,
+      "shared": true
+    },
+    {
+      "what": "BufferGeometry·120v·shared·MeshLambertMaterial",
+      "draws": 18,
+      "shared": true
+    },
+    {
+      "what": "CylinderGeometry·28v·shared·MeshLambertMaterial",
+      "draws": 18,
+      "shared": true
+    },
+    {
+      "what": "SphereGeometry·49v·uniq·MeshLambertMaterial",
+      "draws": 17,
+      "shared": false
+    },
+    {
+      "what": "BufferGeometry·18v·uniq·MeshLambertMaterial",
+      "draws": 16,
+      "shared": false
+    },
+    {
+      "what": "BufferGeometry·1632v·shared·MeshLambertMaterial",
+      "draws": 16,
+      "shared": true
+    },
+    {
+      "what": "BufferGeometry·102v·shared·MeshLambertMaterial",
+      "draws": 16,
+      "shared": true
+    },
+    {
+      "what": "CylinderGeometry·88v·shared·MeshLambertMaterial",
+      "draws": 16,
+      "shared": true
+    },
+    {
+      "what": "BufferGeometry·180v·shared·MeshLambertMaterial",
+      "draws": 15,
+      "shared": true
+    }
+  ],
+  "topMaterialsByDraws": [
+    {
+      "material": "MeshLambertMaterial",
+      "draws": 3674,
+      "shared": false,
+      "transparent": false
+    },
+    {
+      "material": "MeshBasicMaterial",
+      "draws": 12,
+      "shared": false,
+      "transparent": true
+    },
+    {
+      "material": "ShaderMaterial",
+      "draws": 3,
+      "shared": false,
+      "transparent": true
+    },
+    {
+      "material": "BoostWakeMaterial",
+      "draws": 1,
+      "shared": false,
+      "transparent": true
+    }
+  ],
+  "mergeCandidateUniqueGeosByMaterial": {
+    "MeshLambertMaterial": 90,
+    "MeshBasicMaterial": 7,
+    "ShaderMaterial": 3
+  }
+}

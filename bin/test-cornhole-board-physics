@@ -1,0 +1,78 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Vector3} from 'three';
+import {Registry} from '../src/registry.js';
+import {createRapierAdapter} from '../src/physics/rapierAdapter.js';
+import {createStaticResidency} from '../src/physics/staticResidency.js';
+import {CORNHOLE_BOARD} from '../src/models/cornhole.js';
+const bounds={minX:-3,maxX:3,minZ:-3,maxZ:3};
+const pump=r=>r.pump({deadline:100,now:()=>0,maxCreations:4});
+async function scan(withBoard,yaw=0) {
+ const registry=new Registry(),adapter=await createRapierAdapter({gravity:{x:0,y:0,z:0}});
+ let descriptor;
+ const bridge={addBody:spec=>{if(spec.id.startsWith('static-prop:'))descriptor=spec;return adapter.addBody(spec);},removeBody:adapter.removeBody,readBody:adapter.readBody};
+ const residency=createStaticResidency({registry,adapter:bridge,isDynamic:()=>false});
+ try {
+  const id=registry.add({kind:'cornhole_board',position:new Vector3(0,0,0),footprint:.74,collider:{radius:.74},cornholeBoard:{...CORNHOLE_BOARD,yaw}});
+  if(withBoard){assert(residency.request('cart',bounds).ok);assert.equal(pump(residency).created,1);assert.equal(descriptor.vehicleSupport,true);assert.equal(descriptor.colliders.length,4);}
+  assert(adapter.addBody({id:'ground',type:'fixed',pose:{position:{x:0,y:-.1,z:0}},colliders:[{shape:'cuboid',halfExtents:{x:10,y:.1,z:10}}]}).ok);
+  const chassis=adapter.addBody({id:'chassis',type:'dynamic',pose:{position:{x:0,y:.8,z:0}},colliders:[{shape:'cuboid',halfExtents:{x:.6,y:.1,z:.5},mass:200}]});assert(chassis.ok);
+  const vehicle=adapter.addVehicle({id:'tires',bodyId:'chassis',bodyGeneration:chassis.generation,wheels:[{position:{x:.2,y:0,z:0},radius:.25,restLength:.7},{position:{x:1.2,y:0,z:0},radius:.25,restLength:.7}]});assert(vehicle.ok);
+  adapter.step(1/120);
+  let raised=0,maxRise=0;
+  for(let i=0;i<=80;i++){
+   const z=1-i*.025;
+   adapter.setPose('chassis',{position:{x:Math.sin(yaw)*z,y:.8,z:Math.cos(yaw)*z},rotation:{x:0,y:Math.sin(yaw/2),z:0,w:Math.cos(yaw/2)}});
+   adapter.step(1/120);
+   const tires=adapter.readVehicle(vehicle.token).wheels;
+   assert(tires[1].contact);assert(Math.abs(tires[1].point.y)<.002,'other tire stays on unchanged ground');
+   if(tires[0].contact){maxRise=Math.max(maxRise,tires[0].point.y);if(tires[0].point.y>.03)raised++;}
+  }
+  if(withBoard){assert(raised>35);assert(maxRise>.27&&maxRise<.32,`low native tire contact height ${maxRise}`);
+   const key=residency.status('cart').proxies[0].key;
+   registry.entries.get(id).cornholeBoard.yaw+=.1;residency.request('cart',bounds);pump(residency);
+   assert.notEqual(residency.status('cart').proxies[0].key,key,'orientation invalidates residency signature');
+   assert.equal(adapter.counts().bodies,3,'replacement removes previous board body');
+   residency.removeEntry(id);assert.equal(adapter.counts().bodies,2);assert.equal(adapter.counts().colliders,2,'exact four-piece board unload leaves unrelated ground and chassis');
+  }else assert.equal(raised,0);
+  return {raised,maxRise};
+ }finally{residency.dispose();adapter.dispose();}
+}
+const ground=await scan(false),board=await scan(true),rotated=await scan(true,Math.PI/2);
+console.log('PASS native Rapier tire support crossing versus unchanged ground, one-tire-only bump, world yaw, replacement and exact unload:',{ground,board,rotated});
+
+// Exercise the production player controller, native suspension and free chassis.
+// Only the initial state is authored; no pose correction occurs during the run.
+const {Group}=await import('three');
+const {createPlayerVehicle}=await import('../src/physics/playerVehicle.js');
+const {selectVehicleImpact}=await import('../src/physics/vehicleImpact.js');
+async function drive(withBoard){
+ const registry=new Registry(),adapter=await createRapierAdapter();
+ const residency=createStaticResidency({registry,adapter,isDynamic:()=>false});
+ let vehicle;
+ try{
+  adapter.addBody({id:'floor',type:'fixed',pose:{position:{x:0,y:-.1,z:0}},colliders:[{shape:'cuboid',halfExtents:{x:30,y:.1,z:30}}]});
+  if(withBoard){registry.add({kind:'cornhole_board',position:new Vector3(-1.45,0,0),footprint:.74,collider:{radius:.74},cornholeBoard:{...CORNHOLE_BOARD,yaw:0}});residency.request('cart',bounds);pump(residency);}
+  const root=new Group();root.position.set(0,.02,5);
+  const cart={root,position:root.position,heading:0,speed:0};
+  vehicle=createPlayerVehicle({adapter,cart});
+  let maxHeight=-Infinity,maxRoll=0,boardContacts=0,damage=0;
+  for(let i=0;i<720;i++){
+   const before=adapter.readBody(vehicle.id);
+   vehicle.beforeStep(1/120,{throttle:i<120?0:.3,slow:true});adapter.step(1/120);const state=vehicle.afterStep(1/120);
+   damage+=selectVehicleImpact({state,before,events:adapter.drainEvents().events,step:1/120,
+    isSupport:id=>id==='floor'||residency.isVehicleSupportBody(id),bodyKind:id=>residency.bodyKind(id)??'solid',bodyKind:id=>residency.bodyKind(id)||'solid'}).damage;
+   if(i>=120){maxHeight=Math.max(maxHeight,cart.position.y);maxRoll=Math.max(maxRoll,Math.abs(root.rotation.z));
+    for(const wheel of adapter.readVehicle(vehicle.token).wheels)if(wheel.groundBodyId&&residency.isVehicleSupportBody(wheel.groundBodyId))boardContacts++;
+   }
+  }
+  assert(cart.position.z < -3,`free cart traverses court: ${cart.position.z}`);
+  assert.equal(damage,0,'ordinary board drive produces no vehicle damage');
+  return {maxHeight,maxRoll,boardContacts,damage,z:cart.position.z};
+ }finally{vehicle?.dispose();residency.dispose();assert.equal(adapter.counts().bodies,1);adapter.dispose();}
+}
+const flatDrive=await drive(false),boardDrive=await drive(true);
+assert(boardDrive.boardContacts>0,'production tires encounter small board');
+assert(boardDrive.maxRoll>flatDrive.maxRoll+.005,'single-side board creates natural chassis roll');
+assert(boardDrive.maxHeight>flatDrive.maxHeight+.015&&boardDrive.maxHeight<.5,'board gives small real elevation, never giant launch');
+console.log('PASS production dynamic cart crossing:',{flatDrive,boardDrive});

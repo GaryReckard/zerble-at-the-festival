@@ -1,0 +1,99 @@
+SCREENSHOT GUIDE
+All full-size files are in screenshots/. Numbers correspond to the filenames.
+Default viewport: 1280×720. Compact landscape: 844×390. Portrait: 390×844.
+Captures are original browser JPEGs, not redesigned mockups.
+
+01-title-desktop.jpg | Title / main menu
+Live game, ready state; two direct-start modes and five secondary routes.
+
+02-how-to-play-desktop.jpg | How to Play
+Live title instructions, keyboard controls and gameplay explanation.
+
+03-settings-performance.jpg | Settings: Performance
+Live title overlay; quality tiers, effect overrides, extra lights.
+
+04-settings-sound.jpg | Settings: Sound
+Live title overlay; master, music, and sound-effect levels.
+
+05-settings-accessibility.jpg | Settings: Accessibility
+Live title overlay; minimap, map reset, reduced motion and color cues.
+
+06-settings-how-to-play.jpg | Settings: How to Play
+Live title overlay; shared instruction content.
+
+07-passport-all-time.jpg | Passport: All time
+Live title overlay; browser-local accumulated statistics and mixed stamp states.
+
+08-passport-this-visit.jpg | Passport: This visit, before play
+Live title overlay; empty visit and explanation to choose a mode.
+
+09-bubble-upgrades.jpg | Bubble Upgrades: upper list
+Live title overlay; mixed earned switches and locked discoveries.
+
+10-bubble-upgrades-lower.jpg | Bubble Upgrades: scrolled list
+Live title overlay after scrolling; remaining discovery cards.
+
+11-leaderboard.jpg | Leaderboard: Local
+Live title overlay; local score row and board navigation.
+
+12-leaderboard-today.jpg | Leaderboard: Today
+Live remote range; daily board can be empty.
+
+13-leaderboard-all-time.jpg | Leaderboard: All-time
+Live remote range; scores/names are public board content, not prototype sample data.
+
+14-gameplay-menu-context.jpg | Gameplay and menu launchers
+Live Just Cruisin' game, started with the ready mode button; gear, heart, book, minimap and HUD.
+
+15-expanded-festival-map.jpg | Expanded festival map
+Live game; expanded discovery map. No teleport or map reset performed. Geography is not visible behind the markers in this capture; this is current rendering evidence, not a proposed map design.
+
+16-settings-over-gameplay.jpg | Settings above gameplay
+Live in-game How to Play settings tab, showing the backdrop relationship.
+
+17-run-results-fixture.jpg | Run results
+Production HUD fixture, sample names/scores; a static captured gameplay background replaces a live running world. Fade disabled only in the fixture to capture the settled state. No real score submission.
+
+18-leaderboard-empty-fixture.jpg | Empty leaderboard
+Production HUD fixture with an empty array; title background, no save deletion.
+
+19-passport-saving-unavailable-fixture.jpg | Passport: saving unavailable
+Existing official memory-only passport preview fixture; populated visit and unavailable-storage disclosure, not a real storage failure.
+
+20-title-compact-landscape.jpg | Compact landscape title
+Live ready title, 844×390 desktop viewport; no touch emulation.
+
+21-settings-compact-landscape.jpg | Compact landscape settings
+Live Performance tab, 844×390 desktop viewport; intentional content scrolling.
+
+22-passport-compact-landscape.jpg | Compact landscape passport
+Live All time tab at initial scroll position, 844×390.
+
+23-passport-compact-lower.jpg | Compact passport: lower content
+Live passport after scrolling to stamps and storage disclosure, 844×390.
+
+24-upgrades-compact-landscape.jpg | Compact landscape upgrades
+Live upper upgrade list, 844×390.
+
+25-upgrades-compact-lower.jpg | Compact upgrades: lower content
+Live scrolled upgrade list, 844×390.
+
+26-how-to-play-compact-landscape.jpg | Compact landscape instructions
+Live How to Play, 844×390; keyboard help because this is a desktop browser.
+
+27-results-compact-fixture.jpg | Compact run results
+Same production HUD fixture as 17, sample data/static gameplay background, 844×390.
+
+28-title-loading-fixture.jpg | Title: loading
+Static capture fixture using current markup/styles and loading copy. No game boot; start controls remain disabled.
+
+29-title-load-error-fixture.jpg | Title: load failure / retry
+Static capture fixture using the actual persistent-failure copy and retry control. This does not induce or verify a real download failure.
+
+30-portrait-rotate-message.jpg | Portrait orientation message
+Actual CSS portrait rule rendered over the static fixture, 390×844; not a physical phone capture.
+
+NOT CAPTURED AS SEPARATE IMAGES
+The Settings restart-pending notice and map-reset confirmation are described from source rather than changing saved settings or clearing map history. Other result causes reuse the result template. The relocated passport notice and long-number formatting are described in the functionality guide. Hover/focus/pressed variants and an all-locked upgrade catalogue are required design states, not an exhaustive set of captured interactions.
+Hidden developer tools and undiscovered secrets are outside the public-menu brief.
+Viewport resizing is layout evidence only, not physical-device input, safe-area, or performance acceptance.

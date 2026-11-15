@@ -1,0 +1,47 @@
+[
+  {
+    "anchor": 1,
+    "player": {
+      "x": -230.2969970703125,
+      "z": -691.8028564453125
+    },
+    "submittedDraws": 1133,
+    "preFrustumMeshes": 3250,
+    "horizonPreFrustum": {
+      "draws": 7,
+      "instances": 828
+    },
+    "publishedCell": "-3,-9",
+    "requestedCell": "-3,-9"
+  },
+  {
+    "anchor": 2,
+    "player": {
+      "x": -377.9969482421875,
+      "z": -628.0029296875
+    },
+    "submittedDraws": 731,
+    "preFrustumMeshes": 3690,
+    "horizonPreFrustum": {
+      "draws": 7,
+      "instances": 836
+    },
+    "publishedCell": "-5,-8",
+    "requestedCell": "-5,-8"
+  },
+  {
+    "anchor": 3,
+    "player": {
+      "x": -430.6552734375,
+      "z": -583.5062866210938
+    },
+    "submittedDraws": 898,
+    "preFrustumMeshes": 4149,
+    "horizonPreFrustum": {
+      "draws": 7,
+      "instances": 832
+    },
+    "publishedCell": "-5,-7",
+    "requestedCell": "-5,-7"
+  }
+]

@@ -1,0 +1,1 @@
+PASS: 73 live animation frames follow panel bounds, retain backings through collapse, reverse safely, keep dimming full-screen until it fades, render the framed sheet with opaque geography, and restore the outlined minimap.

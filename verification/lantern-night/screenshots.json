@@ -1,0 +1,112 @@
+[
+  {
+    "file": "drawer-844.jpg",
+    "width": 844,
+    "height": 390
+  },
+  {
+    "file": "failed-844.jpg",
+    "width": 844,
+    "height": 390
+  },
+  {
+    "file": "game-drawer-noon-low.jpg",
+    "width": 1280,
+    "height": 720
+  },
+  {
+    "file": "game-midnight-low.jpg",
+    "width": 1280,
+    "height": 720
+  },
+  {
+    "file": "game-noon-low.jpg",
+    "width": 1280,
+    "height": 720
+  },
+  {
+    "file": "help-844.jpg",
+    "width": 844,
+    "height": 390
+  },
+  {
+    "file": "help-touch-844.jpg",
+    "width": 844,
+    "height": 390
+  },
+  {
+    "file": "leaderboard-844.jpg",
+    "width": 844,
+    "height": 390
+  },
+  {
+    "file": "loading-844.jpg",
+    "width": 844,
+    "height": 390
+  },
+  {
+    "file": "map-1280.jpg",
+    "width": 1280,
+    "height": 720
+  },
+  {
+    "file": "passport-blocked-1280.jpg",
+    "width": 1280,
+    "height": 720
+  },
+  {
+    "file": "passport-midnight-low.jpg",
+    "width": 1280,
+    "height": 720
+  },
+  {
+    "file": "portrait-390.jpg",
+    "width": 390,
+    "height": 844
+  },
+  {
+    "file": "restart-pending-844.jpg",
+    "width": 844,
+    "height": 390
+  },
+  {
+    "file": "results-844.jpg",
+    "width": 844,
+    "height": 390
+  },
+  {
+    "file": "settings-1280.jpg",
+    "width": 1280,
+    "height": 720
+  },
+  {
+    "file": "settings-844.jpg",
+    "width": 844,
+    "height": 390
+  },
+  {
+    "file": "sound-1280.jpg",
+    "width": 1280,
+    "height": 720
+  },
+  {
+    "file": "title-1280.jpg",
+    "width": 1280,
+    "height": 720
+  },
+  {
+    "file": "title-844.jpg",
+    "width": 844,
+    "height": 390
+  },
+  {
+    "file": "unread-1280.jpg",
+    "width": 1280,
+    "height": 720
+  },
+  {
+    "file": "upgrades-844.jpg",
+    "width": 844,
+    "height": 390
+  }
+]

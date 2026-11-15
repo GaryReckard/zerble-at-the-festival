@@ -1,5 +1,8 @@
 import {PERFORMANCE_LAB,DEVICE_AUTOPILOT,DEVICE_CHILD_COHORT,childConstructionRandom} from './performanceLab/config.js';
 import {createWorldTimings} from './worldTimings.js';
+import {createFrameAttribution} from './frameAttribution.js';
+import {attachHorizonCapture} from './horizonCapture.js';
+import {createTitleCadenceEstimate} from './captureEnvironment.js';
 let performanceLab = null;
 import {FESTIVAL_TUNING} from './worldgen/tuning.js';
 import {setLandscapeVersion,landscapeVersion} from './worldgen/landscapeCandidates.js';
@@ -63,6 +66,7 @@ import {PuppetParade} from './people/puppetParade.js';
 import {BrassBand} from './people/brassBand.js';
 import {HulaActivity} from './people/hulaActivity.js';
 import {FrisbeeActivity} from './people/frisbeeActivity.js';
+import {CornholeActivity} from './people/cornholeActivity.js';
 import { PeopleBaseline,captureRenderInventory,withBaselineRandom } from './people/baseline.js';
 import { PeopleFrameTrace, savePeopleFrameTrace } from './people/frameTrace.js';
 import { MonkParty } from './monks.js';
@@ -282,6 +286,10 @@ const LAYOUT_CAPTURE_MODE =
   ['localhost', '127.0.0.1'].includes(location.hostname) &&
   new URLSearchParams(location.search).get('layoutCapture') === '1';
 const PERF_CAPTURE_TIMING = PERFORMANCE_LAB || new URLSearchParams(location.search).get('perfCapture') === '1';
+const _perfFrameParts = new URLSearchParams(location.search).get('perfCapture')==='1' && new URLSearchParams(location.search).get('perfWorld')==='1' ? createFrameAttribution() : null;
+const _perfTitleCadence = PERF_CAPTURE_TIMING ? createTitleCadenceEstimate() : null;
+const _perfPhysicsBefore = _perfFrameParts ? {} : null;
+const _perfPhysicsAfter = _perfFrameParts ? {} : null;
 
 // ---------- Renderer ----------
 // MSAA (renderer-level antialias) is expensive on integrated / mobile GPUs,
@@ -618,6 +626,7 @@ if(landscapeVersion()===2){
   landscapeRuntime.update(zerble,{deadline:performance.now()+PERF.chunkBudgetMs});
 }
 const labWorldOwners=buildWorld(scene, crowd, zerble.position,{landscape:landscapeRuntime});
+const horizonCapture = _perfFrameParts ? attachHorizonCapture(getFarField()) : null;
 // Live physics defaults on. Loading is independent of the synchronous audio
 // unlock gesture; failure falls back to classic driving and prop contacts.
 let physicalWorld=null, physicalLoadError=null, physicalClosing=false;
@@ -675,7 +684,10 @@ if(physicalFlag==='1') {
 }
 if(physicalRequested) {
   import('./physics/liveWorld.js').then(module=>module.createLivePhysics({scene,registry,cart:zerble,camera,people:crowd,landscape:landscapeRuntime,isWet:isPointInLake,drivePlayer:true})).then(world=>{
-    if(physicalClosing)world.dispose();else physicalWorld=world;
+    if(physicalClosing)world.dispose();else {
+      physicalWorld=world;
+      if(_perfFrameParts)for(const name of ['advance','beginRender','endRender'])_perfFrameParts.watch(world,name,'physics');
+    }
   }).catch(error=>{physicalLoadError=error.message;if(physicalReadout)physicalReadout.textContent=`Physics unavailable: ${error.message}`;HUD.toast('Physical driving could not load; classic driving is available.',5000);console.error('Physical driving initialization failed',error);});
 }
 window.addEventListener('pagehide',event=>{if(!event.persisted){physicalClosing=true;physicalWorld?.dispose();}});
@@ -757,6 +769,8 @@ const hoopers = new HulaActivity({people:crowd,runtime:people});
 scene.add(hoopers.group);
 const frisbees = new FrisbeeActivity({people:crowd,runtime:people});
 scene.add(frisbees.group);
+const cornhole = new CornholeActivity({people:crowd,runtime:people});
+scene.add(cornhole.group);
 // Birds — global flock that circles the festival + perches in trees. Built
 // after buildWorld so the registry already has trees to perch in.
 if(landscapeRuntime)landscapeRuntime.getMovers=()=>[lurleen,nutWagon,...oneWheels.riders,...kids.kids,...wooks.wooks,...puppets.puppets,...band.members];
@@ -1196,6 +1210,21 @@ function audioRecover() { if (running) Sound.resume(); }
 window.addEventListener('pointerdown', audioRecover);
 window.addEventListener('touchstart', audioRecover, { passive: true });
 
+// Hook existing synchronous owners only for detailed capture. Ordinary play
+// keeps original methods. Timing Three r160's existing scene traversal adds
+// no scene.updateMatrixWorld invocation (WebGLRenderer.js:1150).
+if (_perfFrameParts) {
+  for (const name of ['beginFrame','run','dispatch']) _perfFrameParts.watch(people,name,'people');
+  _perfFrameParts.watch(registry,'rebuildSpatialIndex','registry');
+  _perfFrameParts.watch(bubbles,'update','bubbles');
+  _perfFrameParts.watch(StarPower,'update','bubbles');
+  _perfFrameParts.watch(chaseCam,'update','camera');
+  _perfFrameParts.watch(composer,'render','render');
+  _perfFrameParts.watch(scene,'updateMatrixWorld','matrices');
+  for (const [name,value] of Object.entries(HUD)) if(typeof value==='function') _perfFrameParts.watch(HUD,name,'hud');
+  window.addEventListener('pagehide',event=>{if(!event.persisted){_perfFrameParts.dispose();horizonCapture?.dispose();}});
+}
+
 // ---------- Game loop ----------
 const clock = new THREE.Clock();
 const _camFwd = new THREE.Vector3();
@@ -1203,11 +1232,13 @@ let _perfLastTick = 0;
 let _perfWorldMs = 0;
 let _perfRenderMs = 0;
 let _perfPreviousWorkMs = 0;
+let _perfPreviousCallbackMs = null;
 const _perfWorldParts = new URLSearchParams(location.search).get('perfCapture')==='1'&&
   new URLSearchParams(location.search).get('perfWorld')==='1'?createWorldTimings():null;
 if (PERF_CAPTURE_TIMING) document.addEventListener('visibilitychange', () => {
   _perfLastTick = 0;
   _perfPreviousWorkMs = 0;
+  _perfPreviousCallbackMs = null;
 });
 
 function tick() {
@@ -1219,21 +1250,34 @@ function tick() {
     _perfRenderMs = 0;
     _perfWorldParts?.reset();
   }
+  _perfFrameParts?.begin(frameStartedAt);
+  if (_perfFrameParts && physicalWorld) physicalWorld.captureStats(_perfPhysicsBefore);
+  _perfTitleCadence?.sample(wallMs,{hidden:document.hidden,running});
   const rawDelta = clock.getDelta();
   const dt = Math.min(rawDelta, 0.05);
   performanceLab?.begin(rawDelta,dt);
   if (shouldRunFrame(dt)) tickBody(dt);
   if (PERF_CAPTURE_TIMING) {
-    const workMs = performance.now() - frameStartedAt;
+    let physicsStats;
+    if (_perfFrameParts && physicalWorld) {
+      physicsStats=physicalWorld.captureStats(_perfPhysicsAfter);
+      physicsStats.frameSteps=physicsStats.steps>=_perfPhysicsBefore.steps?physicsStats.steps-_perfPhysicsBefore.steps:null;
+    }
+    const frameEndedAt = performance.now();
+    const workMs = frameEndedAt - frameStartedAt;
+    _perfFrameParts?.finish(frameEndedAt);
     recordCaptureFrame({
-      ts: Date.now(), wallMs, workMs, previousWorkMs: _perfPreviousWorkMs,
+      ts: Date.now(), wallMs, workMs, previousWorkMs: _perfPreviousWorkMs, previousCallbackMs: _perfPreviousCallbackMs,
       worldMs: _perfWorldMs, renderMs: _perfRenderMs, hidden: document.hidden,
       worldParts:_perfWorldParts?.parts,worldGround:_perfWorldParts?.ground,worldClockReads:_perfWorldParts?.clockReads,
+      frameParts:_perfFrameParts?.parts,frameCalls:_perfFrameParts?.calls,frameClockReads:_perfFrameParts?.clockReads,physicsStats,
     });
     performanceLab?.end(wallMs,workMs);
     _perfPreviousWorkMs = workMs;
   }
   scheduleNext();
+  // Include recorder and scheduling work in the previous callback boundary.
+  if (PERF_CAPTURE_TIMING) _perfPreviousCallbackMs = performance.now() - frameStartedAt;
 }
 
 function tickBody(dt) {
@@ -1533,7 +1577,9 @@ function tickBody(dt) {
     peopleFrameTrace?.mark('stage-performers');
     people.run('late-activities',peopleFrame);
     peopleFrameTrace?.mark('healing-arts');
+    const stageLightTiming = _perfFrameParts?.enter('lights');
     updateStageLightShow(nowS, nightness, zerble.position);
+    _perfFrameParts?.leave(stageLightTiming);
     people.run('place-cooks',peopleFrame);
     peopleFrameTrace?.mark('cooks');
     peopleFrameTrace?.population('late-poses',crowd);
@@ -1617,6 +1663,7 @@ function tickBody(dt) {
     // at night — sound.js gates on nightness); frogs ramp near a lake edge.
     // Scanning the registry every frame for nearest-tree / nearest-edge is
     // wasteful, so throttle to every 6th frame and reuse the last value.
+    const scansTiming = _perfFrameParts?.enter('scans');
     _natureScanTimer -= dt;
     if (_natureScanTimer <= 0) {
       _natureScanTimer = 0.1;
@@ -1785,10 +1832,14 @@ function tickBody(dt) {
       }
     }
 
+    _perfFrameParts?.leave(scansTiming);
+
     // Procedural world expands around Zerble.
     const worldStartedAt = PERF_CAPTURE_TIMING ? performance.now() : 0;
     peopleFrameTrace?.mark('world-before', registry.entries.size);
+    const worldTiming = _perfFrameParts?.enter('world');
     updateWorld(zerble.position, dt, physicalWorld?.prepare, _perfWorldParts);
+    _perfFrameParts?.leave(worldTiming);
     peopleFrameTrace?.mark('world-after', registry.entries.size);
     if (PERF_CAPTURE_TIMING) _perfWorldMs = performance.now() - worldStartedAt;
 
@@ -1803,6 +1854,7 @@ function tickBody(dt) {
     // If something brushes a stationary Zerble, just resolve the overlap silently.
     // Star power = pure ghost mode: the whole resolver short-circuits, so Zerble
     // phases through every collider untouched.
+    const collisionTiming = _perfFrameParts?.enter('collisions');
     let hit=null;
     peopleFrameTrace?.mark('contacts-eligible', zerble.invulnLeft <= 0 && !StarPower.isActive());
     if (!StarPower.isActive()) {
@@ -1883,6 +1935,7 @@ function tickBody(dt) {
     }
 
     peopleFrameTrace?.mark('contacts-end', Scoring.current);
+    _perfFrameParts?.leave(collisionTiming);
     reportPassport();
 
     // Honk ring expansion
@@ -1917,11 +1970,15 @@ function tickBody(dt) {
   // Shack spots, etc). Anything past ~40m from the player is turned off
   // so it doesn't pay the per-fragment lighting cost in the shader. Per
   // threejs-lighting skill's "limit light count" guidance.
+  const contextLightTiming = _perfFrameParts?.enter('lights');
   ContextLights.update(zerble.position, scene);
+  _perfFrameParts?.leave(contextLightTiming);
 
   // Adaptive quality watches frame time and drops bloom / shadows /
   // pixel ratio if the budget slips, ramps back if it recovers.
+  const adaptiveTiming = _perfFrameParts?.enter('adaptive');
   AdaptiveQuality.tick(dt);
+  _perfFrameParts?.leave(adaptiveTiming);
 
   // F1 (perf-pass-4): gate the bloom pass — skip its full-screen multi-tap cost
   // on frames with nothing bright to bloom. This is the SINGLE owner of
@@ -2254,7 +2311,7 @@ if (window.visualViewport) {
 window.__game = {
   camera, zerble, scene, renderer, composer, bloomPass, fxaaPass, crowd, registry, chaseCam, lurleen, nutWagon, monks, oneWheels,
   getTimeOfDay, Trip, StarPower, midi, birds, bubbles, bubbleProgress, bubbleChallenges, playerStats, fireworks,
-  kids, wooks, puppets, band, hoopers, frisbees, smiles,
+  kids, wooks, puppets, band, hoopers, frisbees, cornhole, smiles,
   sound: Sound, layoutCaptureMode: LAYOUT_CAPTURE_MODE,
 };
 if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&['1','subtract'].includes(new URLSearchParams(location.search).get('sceneProbe'))){
@@ -2691,11 +2748,13 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     drawCensus({ top = 20 } = {}) {
       let meshes = 0, instanced = 0, instancedInstances = 0;
       const geo = new Map();   // fingerprint -> { draws, instances, shared, type, verts, mat }
+      const horizon = {draws:0,instances:0};
       const mat = new Map();   // matName    -> { draws, shared, transparent, type }
-      scene.traverse((o) => {
-        if (!o.visible) return;
+      scene.traverseVisible((o) => {
         const isI = o.isInstancedMesh, isM = o.isMesh && !isI;
-        if (!isI && !isM) return;
+        if ((!isI && !isM) || (isI && !o.count) || o.geometry?.drawRange?.count===0) return;
+        if(Array.isArray(o.material)?o.material.every(m=>m?.visible===false):o.material?.visible===false)return;
+        if(o.name?.startsWith('farField:')){horizon.draws++;horizon.instances+=isI?o.count:0;}
         if (isI) { instanced++; instancedInstances += o.count || 0; } else meshes++;
         const g = o.geometry, m = Array.isArray(o.material) ? o.material[0] : o.material;
         const verts = g?.attributes?.position?.count ?? 0;
@@ -2717,7 +2776,11 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       for (const [, v] of geo) if (!v.shared && v.draws === 1) mergeByMat[v.mat] = (mergeByMat[v.mat] || 0) + 1;
       const result = {
         sceneDraws: meshes + instanced, meshes, instancedMeshes: instanced, instancedInstances,
-        note: 'scene-graph census, PRE-frustum (over-counts vs renderer.info). Ratios, not exact.',
+        note: 'Ancestor-visible scene-graph census, PRE-frustum. Mesh/material groups and extra render passes can differ from actual calls; composition leads, not device acceptance.',
+        horizon, actualSceneDraws:sceneInfo.calls, actualSceneTriangles:sceneInfo.triangles,
+        seed:getSessionSeed(),tier:PERF.name,quality:AdaptiveQuality.getLevel(),
+        player:{x:zerble.position.x,z:zerble.position.z},
+        horizonHealth:getFarField()?.captureProbe?.snapshot()??null,
         topGeometriesByDraws: topGeo,
         topMaterialsByDraws: topMat,
         mergeCandidateUniqueGeosByMaterial: Object.fromEntries(
@@ -3118,7 +3181,7 @@ installDebug({
   scene, camera, renderer, composer, bloomPass, chaseCam,
   zerble, crowd, people, bubbles, smiles, registry,
   puppets, band, kids, wooks,
-  hoopers, frisbees,
+  hoopers, frisbees, cornhole,
   nutWagon, monks, oneWheels,           // live encounter teleport destinations
   lurleen,                              // teleport menu uses .position
   getRunning: () => running,
@@ -3131,6 +3194,9 @@ installDebug({
   stopCaptureCart:()=>{if(!physicalClosing)physicalWorld?.setSpeed(0);zerble.speed=0;},
   getTimeOfDay,
   getFarField,                          // perf samples record horizon counters
+  captureTitleCadence:()=>_perfTitleCadence?.snapshot()??null,
+  captureDrawCensus:()=>window.__dbg?.drawCensus({top:40})??null,
+  onTeleport:()=>{physicalWorld?.reset('teleport');playerStats.relocate();},
   getLandscapeRuntime,
   Scoring,                              // perf samples record the organic smile rate
   Trip, StarPower,

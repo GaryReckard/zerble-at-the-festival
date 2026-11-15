@@ -17,16 +17,20 @@ export class FestivalMap {
     this.backdrop=document.createElement('div');this.backdrop.className='festival-map-backdrop';
     this.backdrop.hidden=true;this.backdrop.setAttribute('aria-hidden','true');
     this.host=document.createElement('section');this.host.className='festival-map';this.host.hidden=true;this.host.id='festival-map';
-    this.host.setAttribute('aria-label','Festival map');
-    this.host.innerHTML=`<canvas class="map-geography" aria-hidden="true"></canvas><canvas class="map-markers" aria-hidden="true"></canvas>
+    this.host.setAttribute('aria-label','Festival map');this.host.setAttribute('role','region');
+    this.host.innerHTML=`<header class="map-header"><h2>Festival map</h2><button type="button" class="map-zoom-out" aria-label="Zoom out">−</button><button type="button" class="map-zoom-in" aria-label="Zoom in">+</button><button type="button" class="map-close" aria-label="Close festival map">Close</button></header><canvas class="map-geography" aria-hidden="true"></canvas><canvas class="map-markers" aria-hidden="true"></canvas>
       <button class="map-expand" aria-label="Expand festival map" aria-expanded="false"><span>MAP</span><span>↗</span></button>
       <div class="map-pin-options" role="group" aria-label="Map destinations"></div>
       <div class="map-footer"><span class="map-selection"></span><span class="map-status" role="status"></span></div>`;
     document.body.append(this.backdrop,this.host);this.background=this.host.querySelector('.map-geography');this.overlay=this.host.querySelector('.map-markers');
     this.pinOptions=this.host.querySelector('.map-pin-options');this.selectionText=this.host.querySelector('.map-selection');this.statusText=this.host.querySelector('.map-status');
     const listen=(target,event,fn,opts={})=>target.addEventListener(event,fn,{...opts,signal:this.scope.signal});
+    listen(this.host.querySelector('.map-close'),'click',()=>this.setExpanded(false));
+    listen(this.host.querySelector('.map-zoom-in'),'click',()=>this.changeZoom(1.25));
+    listen(this.host.querySelector('.map-zoom-out'),'click',()=>this.changeZoom(.8));
     listen(this.host.querySelector('.map-expand'),'click',()=>this.setExpanded(true));
     listen(this.pinOptions,'click',event=>{const id=event.target.closest('[data-map-pin]')?.dataset.mapPin;if(id)this.togglePin(id);});
+    listen(this.pinOptions,'wheel',event=>event.stopPropagation(),{passive:true});
     listen(this.pinOptions,'focusin',event=>{this.focusedPin=event.target.dataset.mapPin||null;});
     listen(this.pinOptions,'focusout',event=>{if(!this.pinOptions.contains(event.relatedTarget))this.focusedPin=null;});
     listen(this.host,'wheel',e=>{e.preventDefault();e.stopPropagation();if(this.expanded)this.changeZoom(e.deltaY<0?1.15:1/1.15);},{passive:false});
@@ -81,11 +85,11 @@ export class FestivalMap {
     this.readViewport();this.lastBackground=0;
   }
   readViewport(){
-    const rect=this.host.getBoundingClientRect();
+    const rect=this.overlay.getBoundingClientRect?.()||this.host.getBoundingClientRect();
     this.width=rect.width||(this.expanded?innerWidth:this.compactDiameter);
     this.height=rect.height||(this.expanded?innerHeight:this.compactDiameter);
     const travel=innerWidth-this.compactDiameter;
-    this.roundness=travel>0?Math.max(0,Math.min(1,(innerWidth-this.width)/travel)):(this.expanded?0:1);
+    this.roundness=this.expanded?0:travel>0?Math.max(0,Math.min(1,(innerWidth-this.width)/travel)):(this.expanded?0:1);
   }
   finishTransition(){
     if(!this.transitioning)return;
@@ -103,6 +107,9 @@ export class FestivalMap {
     document.body.classList.toggle('festival-map-expanded',this.expanded);
     this.host.querySelector('.map-expand').setAttribute('aria-expanded',String(this.expanded));
     this.host.hidden=false;this.measure();
+    // This is a driving aid, not a modal: new and held driving keys must keep
+    // reaching Input. Only move focus when its compact launcher becomes hidden.
+    if(on&&document.activeElement===this.host.querySelector('.map-expand'))this.host.querySelector('.map-close').focus({preventScroll:true});
     if(!this.transitioning)this.host.hidden=!this.expanded&&!this.compact;
     if(!on&&this.compact&&this.host.contains(document.activeElement))this.host.querySelector('.map-expand').focus({preventScroll:true});
   }
@@ -116,6 +123,7 @@ export class FestivalMap {
     if(!marker)return;
     this.selected=this.selected===id?null:id;
     this.selectedMarker=this.selected?marker:null;
+    this.pinOptions.querySelectorAll('button').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.mapPin===this.selected)));
   }
   pick(x,y){
     const r=this.overlay.getBoundingClientRect();let best=null,dist=25;
@@ -187,7 +195,7 @@ export class FestivalMap {
     this.pinOptions.replaceChildren();
     for(const m of shown){
       const button=document.createElement('button');button.type='button';button.dataset.mapPin=m.id;
-      button.textContent=m.label;button.setAttribute('aria-label',`${m.label}, ${textDistance(Math.hypot(m.x-this.player.x,m.z-this.player.z))} away`);
+      button.textContent=m.label;button.setAttribute('aria-pressed',String(m.id===this.selected));button.setAttribute('aria-label',`${m.label}, ${textDistance(Math.hypot(m.x-this.player.x,m.z-this.player.z))} away`);
       this.pinOptions.append(button);
     }
   }

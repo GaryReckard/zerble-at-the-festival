@@ -1,0 +1,354 @@
+{
+  "scope": "Descriptive guided-window incremental detail overhead on this reserved Mac; not calibrated exact-frame optimization acceptance or iPad evidence.",
+  "runs": [
+    {
+      "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/guided/20261115-130324-guided-basic-c14a6653",
+      "mode": "basic",
+      "app": "590669372277ba6df5941d2d86b23755a1df7ad18c062c21287912b887357e60",
+      "build": "b9b9d6c4fc41554077f150dfd9040ed7226deec3ac24070d0865b3a9e52ee9cc",
+      "harness": "dab061784be3278ab0ebe6932ffd9e80a30337b1a3eba29a92d8525a1b3be1ff",
+      "drivingMedianWindowP95Ms": 17.6,
+      "drivingWorstWindowP95Ms": 40.5,
+      "driveWindows": 45,
+      "route": {
+        "checkpointCount": 4,
+        "checkpoints": [
+          {
+            "seconds": 6.932600000143051,
+            "segment": 0,
+            "x": -322.05975341796875,
+            "z": -657.8007202148438
+          },
+          {
+            "seconds": 19.4815,
+            "segment": 1,
+            "x": -457.64837646484375,
+            "z": -546.829345703125
+          },
+          {
+            "seconds": 29.265600000143053,
+            "segment": 2,
+            "x": -365.7821044921875,
+            "z": -548.5514526367188
+          },
+          {
+            "seconds": 44.815700000047684,
+            "segment": 3,
+            "x": -233.06814575195312,
+            "z": -689.1135864257812
+          }
+        ],
+        "complete": true,
+        "control": {
+          "boost": false,
+          "brake": true,
+          "distance": 4.046835076993988,
+          "steer": 0,
+          "throttle": 0
+        },
+        "frames": 2629,
+        "maxCorridorMetres": 5.457980109622371,
+        "reason": null,
+        "routePolicy": "road-follow-v2",
+        "seed": 2404796662,
+        "segment": 4,
+        "start": {
+          "heading": 2.358,
+          "x": -230.3,
+          "z": -691.8
+        },
+        "state": "completed",
+        "travelMetres": 640.9923168047852,
+        "version": "device-road-follow-v1"
+      },
+      "childPopulation": 50,
+      "adultPopulation": 155,
+      "sectionMeanMs": {},
+      "freshness": null
+    },
+    {
+      "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/guided/20261115-130538-guided-detail-77c4096f",
+      "mode": "detail",
+      "app": "590669372277ba6df5941d2d86b23755a1df7ad18c062c21287912b887357e60",
+      "build": "b9b9d6c4fc41554077f150dfd9040ed7226deec3ac24070d0865b3a9e52ee9cc",
+      "harness": "dab061784be3278ab0ebe6932ffd9e80a30337b1a3eba29a92d8525a1b3be1ff",
+      "drivingMedianWindowP95Ms": 17.9,
+      "drivingWorstWindowP95Ms": 49.3,
+      "driveWindows": 45,
+      "route": {
+        "checkpointCount": 4,
+        "checkpoints": [
+          {
+            "seconds": 6.847200000047684,
+            "segment": 0,
+            "x": -322.1796875,
+            "z": -657.807373046875
+          },
+          {
+            "seconds": 19.697299999952318,
+            "segment": 1,
+            "x": -457.591796875,
+            "z": -546.8569946289062
+          },
+          {
+            "seconds": 29.530599999904634,
+            "segment": 2,
+            "x": -365.80780029296875,
+            "z": -548.5562744140625
+          },
+          {
+            "seconds": 45.34829999995232,
+            "segment": 3,
+            "x": -233.04364013671875,
+            "z": -689.1380004882812
+          }
+        ],
+        "complete": true,
+        "control": {
+          "boost": false,
+          "brake": true,
+          "distance": 4.012247521190418,
+          "steer": 0,
+          "throttle": 0
+        },
+        "frames": 2614,
+        "maxCorridorMetres": 5.4366308518333595,
+        "reason": null,
+        "routePolicy": "road-follow-v2",
+        "seed": 2404796662,
+        "segment": 4,
+        "start": {
+          "heading": 2.358,
+          "x": -230.3,
+          "z": -691.8
+        },
+        "state": "completed",
+        "travelMetres": 641.1278008989358,
+        "version": "device-road-follow-v1"
+      },
+      "childPopulation": 50,
+      "adultPopulation": 147,
+      "sectionMeanMs": {
+        "adaptive": 0.0011098353834477048,
+        "bubbles": 0.21438959372075544,
+        "camera": 0.014887103348274684,
+        "collisions": 0.02189054664322758,
+        "hud": 0.016953692689874462,
+        "lights": 0.01683888187182164,
+        "matrices": 0.9731343269713117,
+        "other": 0.6741293606245331,
+        "people": 4.389590502332738,
+        "physics": 0.4482969749580614,
+        "registry": 0.290088021431305,
+        "render": 4.107462688738753,
+        "scans": 0.02973593727546864,
+        "world": 0.8464982734983834
+      },
+      "freshness": {
+        "maxSampledCells": 1,
+        "maxStreak": 0,
+        "maxSampledPendingAgeMs": 7713.799999952316,
+        "firstRequestMs": 1877.9000000953674,
+        "maxFarFieldDrivingMs": 72.9,
+        "publicationsDuringDrive": 10,
+        "finalCellAgrees": true
+      }
+    },
+    {
+      "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/guided/20261115-130753-guided-detail-092fdafb",
+      "mode": "detail",
+      "app": "590669372277ba6df5941d2d86b23755a1df7ad18c062c21287912b887357e60",
+      "build": "b9b9d6c4fc41554077f150dfd9040ed7226deec3ac24070d0865b3a9e52ee9cc",
+      "harness": "dab061784be3278ab0ebe6932ffd9e80a30337b1a3eba29a92d8525a1b3be1ff",
+      "drivingMedianWindowP95Ms": 17.6,
+      "drivingWorstWindowP95Ms": 45.9,
+      "driveWindows": 45,
+      "route": {
+        "checkpointCount": 4,
+        "checkpoints": [
+          {
+            "seconds": 6.782599999904632,
+            "segment": 0,
+            "x": -322.07452392578125,
+            "z": -657.8016967773438
+          },
+          {
+            "seconds": 19.4,
+            "segment": 1,
+            "x": -457.6214294433594,
+            "z": -546.8381958007812
+          },
+          {
+            "seconds": 29.2825,
+            "segment": 2,
+            "x": -365.7711181640625,
+            "z": -548.5496215820312
+          },
+          {
+            "seconds": 44.79939999985695,
+            "segment": 3,
+            "x": -233.0993194580078,
+            "z": -689.08203125
+          }
+        ],
+        "complete": true,
+        "control": {
+          "boost": false,
+          "brake": true,
+          "distance": 4.091299500783611,
+          "steer": 0,
+          "throttle": 0
+        },
+        "frames": 2651,
+        "maxCorridorMetres": 5.390612398173833,
+        "reason": null,
+        "routePolicy": "road-follow-v2",
+        "seed": 2404796662,
+        "segment": 4,
+        "start": {
+          "heading": 2.358,
+          "x": -230.3,
+          "z": -691.8
+        },
+        "state": "completed",
+        "travelMetres": 641.2408595393774,
+        "version": "device-road-follow-v1"
+      },
+      "childPopulation": 50,
+      "adultPopulation": 150,
+      "sectionMeanMs": {
+        "adaptive": 0.001018867942522157,
+        "bubbles": 0.19018867366718797,
+        "camera": 0.013094340360389565,
+        "collisions": 0.018264149359936983,
+        "hud": 0.006981131805563872,
+        "lights": 0.0155849042028751,
+        "matrices": 0.8566792451210742,
+        "other": 0.5093584966659546,
+        "people": 3.9154339670685103,
+        "physics": 0.38490565686855677,
+        "registry": 0.34883018700581675,
+        "render": 3.4786792474422814,
+        "scans": 0.026000000575803362,
+        "world": 0.6630188665749892
+      },
+      "freshness": {
+        "maxSampledCells": 1,
+        "maxStreak": 0,
+        "maxSampledPendingAgeMs": 2410,
+        "firstRequestMs": 1863.2000000476837,
+        "maxFarFieldDrivingMs": 46.9,
+        "publicationsDuringDrive": 10,
+        "finalCellAgrees": true
+      }
+    },
+    {
+      "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/guided/20261115-131005-guided-basic-e4193acf",
+      "mode": "basic",
+      "app": "590669372277ba6df5941d2d86b23755a1df7ad18c062c21287912b887357e60",
+      "build": "b9b9d6c4fc41554077f150dfd9040ed7226deec3ac24070d0865b3a9e52ee9cc",
+      "harness": "dab061784be3278ab0ebe6932ffd9e80a30337b1a3eba29a92d8525a1b3be1ff",
+      "drivingMedianWindowP95Ms": 17.5,
+      "drivingWorstWindowP95Ms": 47.3,
+      "driveWindows": 45,
+      "route": {
+        "checkpointCount": 4,
+        "checkpoints": [
+          {
+            "seconds": 6.733200000047684,
+            "segment": 0,
+            "x": -322.06719970703125,
+            "z": -657.8012084960938
+          },
+          {
+            "seconds": 19.249799999952316,
+            "segment": 1,
+            "x": -457.5117492675781,
+            "z": -546.893798828125
+          },
+          {
+            "seconds": 28.999700000047685,
+            "segment": 2,
+            "x": -365.93133544921875,
+            "z": -548.5833740234375
+          },
+          {
+            "seconds": 44.565700000047684,
+            "segment": 3,
+            "x": -233.0988311767578,
+            "z": -689.08251953125
+          }
+        ],
+        "complete": true,
+        "control": {
+          "boost": false,
+          "brake": true,
+          "distance": 4.090609034958049,
+          "steer": 0,
+          "throttle": 0
+        },
+        "frames": 2646,
+        "maxCorridorMetres": 5.438568751470383,
+        "reason": null,
+        "routePolicy": "road-follow-v2",
+        "seed": 2404796662,
+        "segment": 4,
+        "start": {
+          "heading": 2.358,
+          "x": -230.3,
+          "z": -691.8
+        },
+        "state": "completed",
+        "travelMetres": 640.7916525642721,
+        "version": "device-road-follow-v1"
+      },
+      "childPopulation": 50,
+      "adultPopulation": 150,
+      "sectionMeanMs": {},
+      "freshness": null
+    }
+  ],
+  "overhead": {
+    "basicMs": 17.55,
+    "detailMs": 17.75,
+    "incrementalMs": 0.1999999999999993,
+    "thresholdMs": 2,
+    "accepted": true,
+    "basicRepeatSpreadMs": 0.10000000000000142
+  },
+  "frozenPublicationThresholds": {
+    "training": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/guided/20261115-130538-guided-detail-77c4096f",
+    "thresholds": {
+      "farFieldDrivingMaxMs": 50,
+      "allowedCells": 2,
+      "allowedStreak": 1,
+      "pendingAgeMs": 9000,
+      "firstRequestMs": 3000
+    }
+  },
+  "heldOutB2": {
+    "checks": {
+      "duration": true,
+      "cells": true,
+      "supersession": true,
+      "pendingAge": true,
+      "firstRequest": true,
+      "progress": true
+    },
+    "accepted": true
+  },
+  "allDetailedDurationCheck": {
+    "thresholdMs": 50,
+    "observedMs": [
+      72.9,
+      46.9
+    ],
+    "accepted": false
+  },
+  "limits": [
+    "One-second summaries are not a pooled frame p95.",
+    "Sampled freshness can miss shorter excursions.",
+    "This is a four-run check, not a fresh calibrated statistical holdout.",
+    "Separate driver and new telemetry costs remain included in both arms as applicable."
+  ]
+}

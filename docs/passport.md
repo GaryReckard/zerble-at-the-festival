@@ -4,7 +4,7 @@
 
 The title-menu link, in-game book button and `P` open a read-only record of this visit and all-time memories. Gameplay pauses while it is open, including movement, pickups, juice consumption, collisions and Festival Run clocks. Closing clears held keyboard and touch actions, restores focus and resumes without catching up elapsed wall time.
 
-The desktop view places statistics beside the achievement cards in a panel up to 1,080px wide. Smaller screens stack the sections and scroll when necessary. The centered close icon retains a 44px hit target, and keyboard focus remains contained within the dialog.
+The Lantern Night view places statistics beside the memory cards in a panel up to 980px wide. Its header, close button and storage footer stay visible while the body scrolls; narrow screens stack the sections. Earned memories display “✓ Lit”, while their stored stamp IDs and earning rules remain unchanged. Counts of 1,000 or more use compact formatting with exact accessible values. The close icon retains a 44px hit target, and keyboard focus remains contained within the dialog.
 
 ## Measurements and persistence
 

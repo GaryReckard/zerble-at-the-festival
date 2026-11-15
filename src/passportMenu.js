@@ -2,7 +2,7 @@ import { PASSPORT_STAMPS } from './playerStats.js';
 
 const integer = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 const compact = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
-const formatCount = n => n >= 1e9 ? compact.format(n) : integer.format(n);
+const formatCount = n => n >= 1000 ? compact.format(n) : integer.format(n);
 export function formatPassportDistance(n) {
   return n >= 1000 ? `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(n / 1000)} km` : `${integer.format(Math.floor(n))} m`;
 }
@@ -14,6 +14,8 @@ export function createPassportMenu() {
   const isOpen = () => !!overlay && !overlay.hidden;
   function render() {
     if (!stats || !overlay) return;
+    overlay.querySelector('.passport-pause-note').textContent = document.body.classList.contains('game-started')
+      ? 'Paused. The festival waits while your passport is open.' : 'Gameplay pauses while your passport is open.';
     const state = stats.snapshot(), selected = scope === 'visit' ? state.visit : state.allTime;
     overlay.querySelectorAll('[data-scope]').forEach(button => {
       button.setAttribute('aria-selected', String(button.dataset.scope === scope));
@@ -45,6 +47,7 @@ export function createPassportMenu() {
       : scope === 'visit'
         ? 'A fresh game starts a new visit. A settings restart keeps this one.'
         : 'Saved in this browser. Earlier smiles are included; other memories begin with your passport.';
+    overlay.querySelector('.passport-storage').classList.toggle('is-unavailable', !state.storageOK);
     overlay.querySelector('.passport-storage').textContent = state.storageOK
       ? 'Your memories stay in this browser. Clearing site data clears the passport; it does not sync between devices.'
       : 'Saving is unavailable. These memories last until this page closes; enable browser storage to keep them.';
@@ -62,11 +65,11 @@ export function createPassportMenu() {
       const icon = document.createElement('span');
       icon.className = 'passport-stamp-icon'; icon.textContent = stamp.icon; icon.setAttribute('aria-hidden', 'true');
       const name = document.createElement('strong'); name.textContent = stamp.name;
-      const status = document.createElement('span'); status.className = 'passport-stamp-status'; status.textContent = earned ? 'Stamped' : 'Still to discover';
+      const status = document.createElement('span'); status.className = 'passport-stamp-status'; status.textContent = earned ? '✓ Lit' : 'Still to discover';
       const hint = document.createElement('p'); hint.textContent = stamp.hint;
       card.append(icon, name, status, hint); stampList.append(card);
     }
-    overlay.querySelector('.passport-stamp-count').textContent = `${count} of ${PASSPORT_STAMPS.length} memories stamped · All time`;
+    overlay.querySelector('.passport-stamp-count').textContent = `${count} of ${PASSPORT_STAMPS.length} memories lit · All time`;
   }
   function close() {
     if (!isOpen()) return;
@@ -91,7 +94,7 @@ export function createPassportMenu() {
     overlay.hidden = false;
     document.body.classList.add('passport-reading');
     options.onToggle?.(true);
-    overlay.querySelector('.passport-panel').focus();
+    overlay.querySelector('.passport-close').focus();
     options.onOpen?.();
   }
   return {
@@ -102,17 +105,18 @@ export function createPassportMenu() {
       button.id = 'passport-btn'; button.type = 'button'; button.setAttribute('aria-label', 'Open Festival Passport');
       button.title = 'Festival Passport (P)';
       button.innerHTML = '<svg viewBox="0 0 24 24" width="23" height="23" aria-hidden="true"><path d="M5 3h13v18H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z M6 3v18 M10 8h5 M10 12h5 M10 16h3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+      button.insertAdjacentHTML('beforeend', '<span class="launcher-label">Passport</span>');
       document.body.append(button);
       overlay = document.createElement('div'); overlay.id = 'passport-overlay'; overlay.hidden = true;
       overlay.innerHTML = `
         <div class="passport-backdrop"></div>
         <section class="passport-panel" role="dialog" aria-modal="true" aria-labelledby="passport-heading" aria-describedby="passport-intro" tabindex="-1">
-          <button class="passport-close" type="button" aria-label="Close Festival Passport"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+          <header class="sheet-header"><button class="passport-close" type="button" aria-label="Close Festival Passport"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
           <p class="passport-eyebrow">A little record of a lovely time</p>
           <h2 id="passport-heading">Festival Passport</h2>
           <p id="passport-intro">The places you wandered. The smiles you brought.</p>
           <p class="passport-pause-note">Gameplay pauses while your passport is open.</p>
-          <div class="passport-body"><div class="passport-records">
+          </header><div class="sheet-body"><div class="passport-body"><div class="passport-records">
           <div class="passport-tabs" role="tablist" aria-label="Passport statistics">
             <button type="button" id="passport-tab-visit" role="tab" data-scope="visit" aria-controls="passport-stat-panel">This visit</button>
             <button type="button" id="passport-tab-allTime" role="tab" data-scope="allTime" aria-controls="passport-stat-panel">All time</button>
@@ -123,7 +127,7 @@ export function createPassportMenu() {
           </div><div class="passport-memories">
           <h3>Festival memories</h3><p class="passport-stamp-count"></p><ul class="passport-stamps"></ul>
           </div></div>
-          <p class="passport-storage" role="status"></p>
+          </div><p class="passport-storage" role="status"></p>
         </section>`;
       document.body.append(overlay);
       button.addEventListener('click', open);

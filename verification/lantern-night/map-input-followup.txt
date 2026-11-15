@@ -1,0 +1,1 @@
+PASS: real touch stick held across expansion/zoom/close, release, new keyboard throttle/steering through map controls, non-modal semantics, music action separation, Space isolation.

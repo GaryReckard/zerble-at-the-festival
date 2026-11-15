@@ -23,6 +23,7 @@ import { getSessionSeed } from './rng.js';
 import { PEAK_CENTER } from './trip.js';
 import { chunkGenStats } from './chunks.js';
 import { FrameTelemetry, PLAYTEST_SCENARIOS } from './perfTelemetry.js';
+import {readCaptureEnvironment} from './captureEnvironment.js';
 import {DEVICE_AUTOPILOT,DEVICE_CHILD_COHORT} from './performanceLab/config.js';
 import {createDeviceAutopilot,DEVICE_ROUTE} from './deviceAutopilot.js';
 import {Input} from './input.js';
@@ -188,6 +189,7 @@ export function recordCaptureFrame(frame) {
   state.frameTelemetry.record({
     ...frame,
     phase: state.perfPhase,
+    quality: getLevelName(), qualityLevel: getLevel(),
     x: h?.zerble ? Math.round(h.zerble.position.x) : null,
     z: h?.zerble ? Math.round(h.zerble.position.z) : null,
     chunkCount: chunkGenStats.count,
@@ -317,6 +319,17 @@ function locateLandmark(kind, excluded = new Set()) {
   }
 
   switch (kind) {
+    case 'cornhole_game': {
+      let best=null;
+      for(const id of h.registry.byKind.get('cornhole_game')??[]){
+        const entry=h.registry.entries.get(id);if(!entry||excluded.has(`cornhole:${id}`))continue;
+        const d=Math.hypot(entry.position.x-zx,entry.position.z-zz);
+        if(!best||d<best.d)best={entry,d};
+      }
+      if(!best)return null;const p=best.entry.position,yaw=best.entry.group.rotation.y;
+      const x=p.x+Math.cos(yaw)*9,z=p.z-Math.sin(yaw)*9;
+      return {x,z,heading:Math.atan2(x-p.x,z-p.z),targetKey:`cornhole:${best.entry.id}`,label:'Cornhole court'};
+    }
     // ── v2 festival landmarks ──
     case 'hub': {
       const heart = nearestMajorHeart(zx, zz, 28, heart=>{const stage=festivalPlan(heart).find(p=>STAGE_KINDS.has(p.kind));return stage&&!excluded.has(landmarkKey(stage.x,stage.z));});
@@ -464,10 +477,12 @@ function teleportLandmark(kind) {
   teleportTrips.set(kind,trip);
   if(!h.zerble.surfaceBinding)h.zerble.position.set(dest.x,pos.y,dest.z);h.zerble.speed=0;
   if(Number.isFinite(dest.heading))h.zerble.heading=dest.heading;
+  h.onTeleport?.();
   return dest;
 }
 
 const COMMAND_TARGETS = {
+  cornhole:'cornhole_game',
   camp: USE_WORLDGEN_V2?'woodland_camp':'campsite_forest', woodland:'woodland_camp',
   village:'camp_village', stage:'stage', hub:'hub', healing:'healing_arts',
   drum:'drum_circle', food:'food_court', arch:'arch', bubble:'bubble',
@@ -475,7 +490,7 @@ const COMMAND_TARGETS = {
   monks:'monks', wagon:'nut_wagon', forest:'any_forest', campsite:'campsite',
 };
 const COMMAND_DESCRIPTIONS = {
-  camp:'Woodland campground',woodland:'Woodland campground',village:'Camp village',
+  cornhole:'Cornhole court',camp:'Woodland campground',woodland:'Woodland campground',village:'Camp village',
   stage:'Music stage',hub:'Major festival hub',healing:'Healing Arts tent',drum:'Drum circle',
   food:'Food court',arch:'Entrance arch',bubble:'Bubble vendor',lake:'Lake shore',
   lurleen:'Lurleen',spawn:'Spawn point',rider:'One-wheel rider',monks:'Monk group',
@@ -628,9 +643,14 @@ function api() {
   const h = state.hooks;
   return {
     teleport(x = 0, z = 0) {
-      if(h.zerble.surfaceBinding)return h.zerble.relocateOnSurface(x,z);
-      h.zerble.position.set(x, h.zerble.position.y, z);
-      h.zerble.speed = 0;
+      if(h.zerble.surfaceBinding){
+        if(!h.zerble.relocateOnSurface(x,z))return false;
+      }else{
+        h.zerble.position.set(x, h.zerble.position.y, z);
+        h.zerble.speed = 0;
+      }
+      h.onTeleport?.();
+      return true;
     },
     locate(kind = 'food_court') {
       return teleportLandmark(kind);
@@ -821,6 +841,10 @@ function buildPanel() {
     setTimeout(() => { statsCopyBtn.textContent = 'copy snapshot'; }, 1300);
   });
   statsCopyRow.appendChild(statsCopyBtn);
+  if (state.hooks.captureDrawCensus) statsCopyRow.appendChild(mkMiniBtn('draw census', () => {
+    const result=state.hooks.captureDrawCensus();
+    if(state.perfOut){state.perfOut.style.display='block';state.perfOut.value=JSON.stringify(result,null,2);}
+  }));
   statsContent.appendChild(statsCopyRow);
   el.appendChild(statsWrapper);
 
@@ -933,6 +957,7 @@ function buildPanel() {
     ['bubble',       'Bubble vendor (refuel)'],
     ['camp_village', 'Camp village'],
     ['woodland_camp', 'Woodland campground'],
+    ['cornhole_game', 'Cornhole court (loaded)'],
     ['one_wheel', 'One-wheel rider (active)'],
     ['nut_wagon',    'Nut Wagon (active)'],
     ['monks',        'Monks (active group)'],
@@ -968,9 +993,6 @@ function buildPanel() {
   tpContent.querySelector('#dbg-tp-go').addEventListener('click', () => {
     const dest = teleportLandmark(tpSelect.value);
     if (dest) {
-      state.hooks.zerble.position.set(dest.x, state.hooks.zerble.position.y, dest.z);
-      state.hooks.zerble.speed = 0;
-      if (typeof dest.heading === 'number') state.hooks.zerble.heading = dest.heading;
       tpStatus.textContent = `→ ${dest.label}`;
     } else {
       tpStatus.textContent = tpSelect.value === 'nut_wagon' ? 'No Nut Wagon has spawned yet.'
@@ -2139,6 +2161,7 @@ function collectPerfSample() {
       const ff = h?.getFarField?.();
       if (!ff || !ff.enabled || ff.disposed) return { ffActive: null };
       return {
+        ...ff.captureProbe?.snapshot(),
         ffActive: ff.stats.active,
         ffCold: r1(ff.stats.maxColdStepMs),
         // Longest single slice of publishing a planned snapshot, and how many
@@ -2479,6 +2502,8 @@ function buildDeviceCaptureReport(reason, sampleTail = null) {
     session: {
       seed: getSessionSeed(),
       scenario: DEVICE_SCENARIO || 'free',
+      environment:{...readCaptureEnvironment(DEVICE_CAPTURE_PARAMS.toString()),titleCadence:hooks?.captureTitleCadence?.()??null},
+      frameAttribution:DEVICE_CAPTURE_PARAMS.get('perfWorld')==='1'?'exclusive-sync-v1':null,
       autopilot:state.deviceAutopilot?.snapshot()||null,
       childCohort:DEVICE_AUTOPILOT?DEVICE_CHILD_COHORT:null,
       childPopulation:hooks?.kids?.populationSize??null,

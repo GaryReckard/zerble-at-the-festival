@@ -1,0 +1,60 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+const listeners = new Set(), deferred = [];
+const document = { activeElement: null,
+  addEventListener(type, fn, capture) { assert.equal(capture, undefined, 'targets must receive their tab/radio keys before the document guard'); listeners.add(fn); },
+  removeEventListener(type, fn) { listeners.delete(fn); },
+};
+let cleared = 0;
+const context = vm.createContext({ document, Input: { clear() { cleared++; } }, requestAnimationFrame: fn => deferred.push(fn) });
+const source = readFileSync(new URL('../src/menuUi.js', import.meta.url), 'utf8').replace(/^import .*;$/gm, '').replaceAll('export function ', 'function ');
+vm.runInContext(source + '\nglobalThis.dialogFactory = createMenuDialog;', context);
+const control = name => ({ name, tabIndex: 0, isConnected: true, getClientRects: () => [1], closest: () => null, matches: () => false, focus() { document.activeElement = this; } });
+const opener = control('opener'), first = control('close'), last = control('last');
+const skipped = control('inactive tab'); skipped.tabIndex = -1;
+const root = { querySelector: () => first, querySelectorAll: () => [first, last, skipped], contains: el => el === first || el === last };
+let escaped = 0, confirm = false, dialog;
+dialog = context.dialogFactory(root, { focus: '.close', close() { escaped++; dialog.close(); }, beforeEscape() { if (confirm) { confirm = false; return true; } return false; } });
+function key(key, extra = {}) {
+  const event = { key, target: document.activeElement, preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; }, ...extra };
+  for (const fn of [...listeners]) fn(event);
+  return event;
+}
+document.activeElement = opener; dialog.open(); assert.equal(document.activeElement, first); assert.equal(cleared, 1);
+dialog.open(); assert.equal(listeners.size, 1, 'opening twice does not capture the opener twice');
+document.activeElement = last; assert(key('Tab').prevented); assert.equal(document.activeElement, first);
+assert(key('Tab', { shiftKey: true }).prevented); assert.equal(document.activeElement, last);
+confirm = true; key('Escape'); assert.equal(escaped, 0, 'first Escape cancels pending destructive confirmation');
+key('Escape'); assert.equal(escaped, 1); assert.equal(document.activeElement, opener); assert.equal(listeners.size, 0); assert.equal(cleared, 2);
+let closed = false;
+const result = context.dialogFactory(root, { focus: '.close', dismissible: false, close() { closed = true; } });
+result.open(); key('Escape'); assert.equal(closed, false, 'results cannot be dismissed by Escape'); result.close();
+const beforeMap = cleared;
+let map;
+map = context.dialogFactory(root, { focus: '.close', shortcut: 'm', clearInput: false, close: () => map.close() });
+map.open(); key('m', { ctrlKey: true }); assert.equal(listeners.size, 1, 'modified map shortcut does not close the map');
+key('m'); assert.equal(listeners.size, 0); assert.equal(cleared, beforeMap, 'non-clearing helper option preserves held input');
+// A delayed focus callback may not revive a closed dialog.
+const hiddenFirst = { ...first, focus() {} }, hiddenRoot = { ...root, querySelector: () => hiddenFirst };
+document.activeElement = opener;
+const delayed = context.dialogFactory(hiddenRoot, { focus: '.close' }); delayed.open(); delayed.close();
+for (const fn of deferred) fn(); assert.equal(document.activeElement, opener);
+console.log('PASS menu focus ownership, wrap/return, confirmation Escape, undismissable results, modifier-safe shortcuts and the non-clearing helper option');
+
+// Leaving Accessibility cannot retain an invisible destructive confirmation.
+const settings = readFileSync(new URL('../src/settings.js', import.meta.url), 'utf8');
+const tabMethod = settings.slice(settings.indexOf('  _setTab(name) {'), settings.indexOf('  // Reflect live/persisted state'));
+const confirmation = { hidden: false }, reset = { setAttribute(name, value) { this[name] = value; } };
+const tabs = ['performance', 'sound', 'accessibility', 'howto'].map(tab => ({ dataset: { tab }, classList: { toggle() {} }, setAttribute() {} }));
+const panels = tabs.map(tab => ({ ...tab, classList: { toggle() {} } }));
+const tabOwner = vm.runInNewContext(`({${tabMethod}})`, { $overlay: {
+  querySelector: selector => selector === '#set-map-confirm' ? confirmation : reset,
+  querySelectorAll: selector => selector === '.settings-tab-btn' ? tabs : panels,
+} });
+tabOwner._setTab('sound');
+assert.equal(confirmation.hidden, true); assert.equal(reset['aria-expanded'], 'false');
+assert.equal(tabs[1].tabIndex, 0); assert.equal(tabs[2].tabIndex, -1);
+console.log('PASS changing settings tabs cancels hidden reset confirmation and maintains a single tab stop');

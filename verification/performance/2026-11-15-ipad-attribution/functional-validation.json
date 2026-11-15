@@ -1,0 +1,26 @@
+{
+  "captureValid": true,
+  "reason": "complete",
+  "scope": "Functional integration only. No quiet reservation or overhead qualification.",
+  "groups": 62,
+  "frames": 3624,
+  "maxPartitionErrorMs": 0.0,
+  "physicsSteps": 3632,
+  "horizonPublications": 1,
+  "errors": [],
+  "environment": {
+    "deviceModel": "DesktopFunctionalSmoke",
+    "lowPowerMode": "unknown",
+    "charging": "unknown",
+    "batteryPercent": null,
+    "thermalNote": null,
+    "titleCadence": {
+      "sampleCount": 120,
+      "maxSamples": 120,
+      "intervalP10Ms": 14.5,
+      "estimatedHz": 69,
+      "method": "Reciprocal of the nearest-rank p10 of the first 120 valid visible title callback intervals (4\u2013100 ms); at least 20 samples required.",
+      "limitation": "Title callback cadence includes loading, scheduling and display pacing. This is not a measured hardware refresh rate."
+    }
+  }
+}

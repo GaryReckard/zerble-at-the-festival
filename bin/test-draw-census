@@ -1,0 +1,23 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import * as THREE from 'three';
+const source=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+const start=source.indexOf('    drawCensus({ top = 20 } = {}) {');
+const end=source.indexOf('\n    // Shader-program leak finder.',start);
+assert(start>0&&end>start);
+const scene=new THREE.Scene(),geometry=new THREE.BoxGeometry(),material=new THREE.MeshBasicMaterial();
+scene.add(new THREE.Mesh(geometry,material));
+const hidden=new THREE.Group();hidden.visible=false;hidden.add(new THREE.Mesh(geometry,material));scene.add(hidden);
+const hiddenMaterial=material.clone();hiddenMaterial.visible=false;scene.add(new THREE.Mesh(geometry,hiddenMaterial));
+const horizon=new THREE.InstancedMesh(geometry,material,5);horizon.count=2;horizon.name='farField:canopy';scene.add(horizon);
+const unused=new THREE.InstancedMesh(geometry,material,5);unused.count=0;unused.name='farField:unused';scene.add(unused);
+const census=new Function('scene','sceneInfo','getSessionSeed','PERF','AdaptiveQuality','zerble','getFarField','console',`return ({${source.slice(start,end)}}).drawCensus;`)(
+  scene,{calls:17,triangles:100},()=>1977,{name:'low'},{getLevel:()=>0},{position:{x:1,z:2}},()=>null,{log(){},table(){}});
+const result=census();
+assert.equal(result.sceneDraws,2,'Hidden ancestor/material and zero-instance pool cannot inflate composition');
+assert.deepEqual(result.horizon,{draws:1,instances:2});
+assert.equal(result.actualSceneDraws,17,'Actual submitted frame calls stay separate from pre-frustum composition');
+assert.equal(result.seed,1977);assert.equal(result.tier,'low');assert.equal(result.note.includes('PRE-frustum'),true);
+geometry.dispose();material.dispose();hiddenMaterial.dispose();
+console.log('PASS actual census: ancestor/material visibility, empty pools, named horizon share and separately labeled submitted draws');

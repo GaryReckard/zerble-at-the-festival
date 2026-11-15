@@ -2543,11 +2543,16 @@ export class Crowd {
 
   writeActivityArmPose(claim,action,amount=0,dt=.05) {
     if(!this.activityClaims.canWrite(claim))return false;
-    if((action!=='relaxed'&&action!=='catch'&&action!=='throw')||!Number.isFinite(amount)||amount<0||amount>1||!Number.isFinite(dt)||dt<0||dt>.05)throw new TypeError('Invalid activity arm pose.');
+    if((!['relaxed','catch','throw','celebrate','pout','handshake','pickup','underhand'].includes(action))||!Number.isFinite(amount)||amount<0||amount>1||!Number.isFinite(dt)||dt<0||dt>.05)throw new TypeError('Invalid activity arm pose.');
     const npc=this.peopleHandles.resolve(claim.person);
     if(npc._activityBinding?.hidden||npc.party)return false;
     const pose=npc._activityArmPose??={claim,hand:new THREE.Vector3()};
     const target=sampleThrowPose(action,amount,this._armTarget??={}),alpha=1-Math.exp(-14*dt);
+    if(action==='underhand'){target.x=amount<.55?-.7*amount/.55:-.7+1.6*(amount-.55)/.45;target.z=.08;target.elbow=-.08;}
+    else if(action==='celebrate'){target.z=2.65*amount;target.leftZ=-2.65*amount;target.elbow=-.20*amount;}
+    else if(action==='pout'){target.x=.28*amount;target.z=.04;target.leftZ=-.04;}
+    else if(action==='handshake'){target.x=1.15*amount;target.z=.12;target.elbow=-.3*amount;}
+    else if(action==='pickup'){target.x=-.32*amount;target.z=.05;target.elbow=0;}
     if(pose.x===undefined){pose.x=target.x;pose.z=target.z;pose.elbow=target.elbow;pose.leftZ=target.leftZ;}
     else {pose.x+=(target.x-pose.x)*alpha;pose.z+=(target.z-pose.z)*alpha;pose.elbow+=(target.elbow-pose.elbow)*alpha;pose.leftZ+=(target.leftZ-pose.leftZ)*alpha;}
     pose.claim=claim;this._publishPerson(npc);return true;

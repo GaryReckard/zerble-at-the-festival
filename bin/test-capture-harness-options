@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+"""Exercise launcher -> server -> printed/opened URLs without starting any process or socket."""
+import contextlib
+import importlib.util
+import io
+import runpy
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+from urllib.parse import parse_qs, urlsplit
+
+root = Path(__file__).resolve().parent.parent
+spec = importlib.util.spec_from_file_location('capture_server_test', root / '.claude/serve_nocache.py')
+server = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(server)
+
+
+def query(url):
+    return parse_qs(urlsplit(url).query)
+
+
+def launch(options):
+    with patch('sys.argv', ['playtest-perf', *options]), patch('os.chdir'), patch('os.execv') as execute:
+        runpy.run_path(str(root / 'bin/playtest-perf'), run_name='__main__')
+        return execute.call_args.args[1]
+
+
+def serve(command, addresses=()):
+    fake = MagicMock()
+    fake.server_port = 8770
+    output = io.StringIO()
+    # Block every external action, including the build and browser open. Exercise
+    # the real server main and capture_url call sites with a fake bound server.
+    with patch('sys.argv', command[1:]), patch('os.chdir'), \
+            patch('http.server.ThreadingHTTPServer', return_value=fake), \
+            patch('subprocess.run') as subprocess_run, patch('subprocess.Popen'), \
+            patch('socket.socket', side_effect=OSError('no network in test')), \
+            patch('socket.getaddrinfo', return_value=[(None, None, None, None, (address, 0)) for address in addresses]), \
+            patch('secrets.token_urlsafe', return_value='test token&=+#?'), contextlib.redirect_stdout(output):
+        runpy.run_path(str(root / '.claude/serve_nocache.py'), run_name='__main__')
+    fake.server_close.assert_called_once()
+    return output.getvalue(), subprocess_run
+
+
+base = ['drive', '--autopilot', '--world-detail', '--tier', 'low', '--seed', '2404796662']
+default = query(server.capture_url('127.0.0.1', 8770, 'drive'))
+assert not ({'physics', 'farField'} & default.keys())
+assert not any(key.startswith('perfDevice') for key in default)
+metadata = ['--device-model', 'iPad Pro & model=A/B', '--low-power-mode', 'off', '--charging', 'on',
+            '--battery-percent', '0', '--thermal-note', 'Case on; warm + sun? #1']
+command = launch([*base, '--desktop', '--far-field', 'off', '--physics', 'off', *metadata])
+output, calls = serve(command)
+url = next(line.split('URL: ', 1)[1] for line in output.splitlines() if line.startswith('desktop playtest URL: '))
+params = query(url)
+assert params['farField'] == ['0'] and params['physics'] == ['0']
+assert params['perfDeviceModel'] == ['iPad Pro & model=A/B']
+assert params['perfDeviceLowPowerMode'] == ['off'] and params['perfDeviceCharging'] == ['on']
+assert params['perfDeviceBatteryPercent'] == ['0']
+assert params['perfDeviceThermalNote'] == ['Case on; warm + sun? #1']
+assert params['perf'] == ['low'] and params['perfAutopilot'] == ['road-follow-v1'] and params['perfWorld'] == ['1']
+assert calls.call_args.args[0][-1] == url, 'browser must open the exact printed URL'
+# No addresses available exercises the LAN fallback, including token encoding.
+output, _ = serve(launch([*base, '--no-qr', '--far-field', 'off', *metadata]))
+url = next(line.split('Open ', 1)[1] for line in output.splitlines() if line.startswith('LAN mode is active. Open '))
+assert query(url)['captureToken'] == ['test token&=+#?']
+assert query(url)['farField'] == ['0'] and query(url)['perfDeviceModel'] == params['perfDeviceModel']
+output, _ = serve(launch([*base, '--no-qr', '--physics', 'off', *metadata]), addresses=['192.168.1.7'])
+url = next(line.strip() for line in output.splitlines() if line.startswith('  http://'))
+assert urlsplit(url).hostname == '192.168.1.7'
+assert query(url)['captureToken'] == ['test token&=+#?']
+assert query(url)['physics'] == ['0'] and query(url)['perfDeviceModel'] == params['perfDeviceModel']
+for battery in (0, 100):
+    assert query(server.capture_url('localhost', 8770, 'drive', battery_percent=battery))['perfDeviceBatteryPercent'] == [str(battery)]
+for options in ([ '--battery-percent', '-1'], ['--battery-percent', '101'], ['--battery-percent', '1.5'],
+                ['--charging', 'yes'], ['--low-power-mode', 'yes'], ['--physics', 'maybe'],
+                ['--far-field', 'false'], ['--device-model', ' '], ['--thermal-note', 'a\nb'],
+                ['--device-model', 'x' * 161], ['--thermal-note', 'x' * 501], ['--arbitrary', 'physics=0']):
+    with contextlib.redirect_stderr(io.StringIO()):
+        try:
+            launch([*base, *options])
+            raise AssertionError(f'accepted invalid metadata: {options}')
+        except SystemExit as error:
+            assert error.code == 2
+for options in ({'far_field': 'off'}, {'physics': 'off'}, {'device_model': 'iPad'}, {'battery_percent': 2}):
+    try:
+        server.capture_url('localhost', 8770, **options)
+        raise AssertionError('unguided capture accepted controls')
+    except ValueError:
+        pass
+# Server rejects invalid metadata before building or binding, even when invoked directly.
+with patch('sys.argv', ['serve_nocache.py', '--battery-percent', '101']), patch('subprocess.run') as build, \
+        patch('http.server.ThreadingHTTPServer') as bind, contextlib.redirect_stderr(io.StringIO()):
+    try:
+        runpy.run_path(str(root / '.claude/serve_nocache.py'), run_name='__main__')
+        raise AssertionError('invalid direct server invocation accepted')
+    except SystemExit as error:
+        assert error.code == 2
+    build.assert_not_called()
+    bind.assert_not_called()
+print('Capture harness options: PASS (launcher, server URL propagation, defaults, controls, metadata, token encoding)')

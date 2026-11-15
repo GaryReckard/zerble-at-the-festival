@@ -1,0 +1,280 @@
+[
+  {
+    "key": "crowd",
+    "slots": [
+      "adults",
+      "star-love"
+    ],
+    "capabilities": [
+      "honk",
+      "colliders",
+      "nearby",
+      "cheer"
+    ],
+    "capabilityOrder": {
+      "nearby": 70,
+      "colliders": 70,
+      "honk": 10
+    },
+    "details": {
+      "population": 79,
+      "disposed": false,
+      "claims": 50
+    }
+  },
+  {
+    "key": "place-performers",
+    "slots": [
+      "place-performers"
+    ],
+    "capabilities": [],
+    "capabilityOrder": {},
+    "details": {
+      "displayOnly": true,
+      "population": 0,
+      "displays": 3,
+      "disposed": false
+    }
+  },
+  {
+    "key": "place-cooks",
+    "slots": [
+      "place-cooks"
+    ],
+    "capabilities": [],
+    "capabilityOrder": {},
+    "details": {
+      "displayOnly": true,
+      "population": 0,
+      "displays": 1,
+      "disposed": false
+    }
+  },
+  {
+    "key": "healing-arts-places",
+    "slots": [
+      "late-activities"
+    ],
+    "capabilities": [],
+    "capabilityOrder": {},
+    "details": {
+      "places": 0
+    }
+  },
+  {
+    "key": "lurleen",
+    "slots": [
+      "relationship"
+    ],
+    "capabilities": [
+      "nearby"
+    ],
+    "capabilityOrder": {
+      "nearby": 90
+    },
+    "details": {
+      "population": 1,
+      "physicsOwner": "vehicle",
+      "disposed": false
+    }
+  },
+  {
+    "key": "nut-wagon",
+    "slots": [
+      "vehicles"
+    ],
+    "capabilities": [],
+    "capabilityOrder": {},
+    "details": {
+      "active": false,
+      "state": "absent",
+      "speed": 0,
+      "gear": "forward",
+      "waitReason": null,
+      "stopRemaining": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "passengers": 0,
+      "capacity": 0,
+      "tuning": {
+        "worldScale": 1.6,
+        "speed": 0.75,
+        "stopSeconds": 24,
+        "cruiseSeconds": 48,
+        "minCruiseSeconds": 32,
+        "stallSeconds": 8,
+        "encounterSeconds": 45,
+        "normalChance": 0.08,
+        "tripChance": 0.8,
+        "spawnMin": 65,
+        "spawnMax": 145,
+        "despawnDistance": 245
+      }
+    }
+  },
+  {
+    "key": "one-wheels",
+    "slots": [
+      "vehicles"
+    ],
+    "capabilities": [
+      "nearby"
+    ],
+    "capabilityOrder": {
+      "nearby": 80
+    },
+    "details": {
+      "population": 0,
+      "disposed": false,
+      "collisionPublication": "registry"
+    }
+  },
+  {
+    "key": "puppet-parade",
+    "slots": [
+      "formations"
+    ],
+    "capabilities": [
+      "parkedHonk",
+      "colliders",
+      "nearby"
+    ],
+    "capabilityOrder": {
+      "nearby": 10,
+      "parkedHonk": 1,
+      "colliders": 10
+    },
+    "details": {
+      "population": 8,
+      "formations": 6,
+      "disposed": false
+    }
+  },
+  {
+    "key": "brass-band",
+    "slots": [
+      "formations"
+    ],
+    "capabilities": [
+      "parkedHonk",
+      "colliders",
+      "nearby"
+    ],
+    "capabilityOrder": {
+      "nearby": 20,
+      "parkedHonk": 2,
+      "colliders": 20
+    },
+    "details": {
+      "population": 7,
+      "disposed": false,
+      "music": true
+    }
+  },
+  {
+    "key": "children",
+    "slots": [
+      "children"
+    ],
+    "capabilities": [
+      "honk",
+      "colliders",
+      "nearby"
+    ],
+    "capabilityOrder": {
+      "nearby": 30,
+      "colliders": 30,
+      "honk": 20
+    },
+    "details": {
+      "population": 55,
+      "disposed": false
+    }
+  },
+  {
+    "key": "wooks",
+    "slots": [
+      "roaming"
+    ],
+    "capabilities": [
+      "parkedHonk",
+      "colliders",
+      "nearby"
+    ],
+    "capabilityOrder": {
+      "nearby": 40,
+      "parkedHonk": 0,
+      "colliders": 40
+    },
+    "details": {
+      "population": 5,
+      "disposed": false,
+      "approaching": 0
+    }
+  },
+  {
+    "key": "hoopers",
+    "slots": [
+      "roaming"
+    ],
+    "capabilities": [],
+    "capabilityOrder": {},
+    "details": {
+      "active": 7,
+      "flow": 3,
+      "classic": 4,
+      "hoops": 3,
+      "paired": false,
+      "envelopes": 3,
+      "disposed": false
+    }
+  },
+  {
+    "key": "frisbees",
+    "slots": [
+      "roaming"
+    ],
+    "capabilities": [],
+    "capabilityOrder": {},
+    "details": {
+      "active": 0,
+      "disposed": false
+    }
+  },
+  {
+    "key": "cornhole",
+    "slots": [
+      "roaming"
+    ],
+    "capabilities": [],
+    "capabilityOrder": {},
+    "details": {
+      "active": 1,
+      "vacant": 0,
+      "sessions": [
+        {
+          "courtId": 2462,
+          "phase": "collecting",
+          "score": [
+            0,
+            5
+          ],
+          "round": 1,
+          "winner": null,
+          "nextAvailable": 0,
+          "cooldown": 0,
+          "recruitment": {
+            "nearby": 5,
+            "eligible": 3,
+            "reachable": 3,
+            "eligibleWithin60": 3
+          }
+        }
+      ],
+      "disposed": false
+    }
+  }
+]

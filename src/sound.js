@@ -4104,6 +4104,7 @@ const COLLISION_SOUNDS = {
   forest_tree: (c, d) => { thump(c, d, 65, 0.45, 0.55); woodKnock(c, d); },
   firepit:     (c, d) => { thump(c, d, 50, 0.5, 0.55); thump(c, d, 75, 0.3, 0.4); },
   bench_ring:  (c, d) => woodKnock(c, d),
+  cornhole_board: (c, d) => woodKnock(c, d),
   // Porta-potty — hollow plastic knock + a sloshy descending squawk. Reads as
   // "you bonked a plastic box with liquid in it," not a solid clang.
   porta_potty: (c, d) => { thump(c, d, 90, 0.18, 0.4); boop(c, d, 300, 130, 0.2, 0.22, 'square'); },

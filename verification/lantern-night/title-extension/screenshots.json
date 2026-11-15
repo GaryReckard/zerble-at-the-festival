@@ -1,0 +1,74 @@
+[
+  {
+    "file": "title-16-9-live.jpg",
+    "label": "16:9 \u00b7 real game title",
+    "captureDimensions": [
+      1280,
+      720
+    ]
+  },
+  {
+    "file": "title-4-3.jpg",
+    "label": "4:3 \u00b7 tablet viewport fixture",
+    "captureDimensions": [
+      1440,
+      1080
+    ]
+  },
+  {
+    "file": "title-16-10.jpg",
+    "label": "16:10 \u00b7 desktop viewport fixture",
+    "captureDimensions": [
+      1440,
+      900
+    ]
+  },
+  {
+    "file": "title-21-9.jpg",
+    "label": "21:9 \u00b7 ultrawide viewport fixture",
+    "captureDimensions": [
+      1920,
+      810
+    ]
+  },
+  {
+    "file": "title-32-9.jpg",
+    "label": "32:9 \u00b7 ultrawide viewport fixture",
+    "captureDimensions": [
+      1920,
+      540
+    ]
+  },
+  {
+    "file": "title-portrait-tablet.jpg",
+    "label": "3:4 \u00b7 portrait tablet fixture",
+    "captureDimensions": [
+      1024,
+      1359
+    ]
+  },
+  {
+    "file": "title-phone-landscape.jpg",
+    "label": "844\u00d7390 \u00b7 phone landscape fixture",
+    "captureDimensions": [
+      844,
+      390
+    ]
+  },
+  {
+    "file": "game-noon.jpg",
+    "label": "Real game \u00b7 Noon \u00b7 Low",
+    "captureDimensions": [
+      1280,
+      720
+    ]
+  },
+  {
+    "file": "game-midnight.jpg",
+    "label": "Real game \u00b7 Midnight \u00b7 Low",
+    "captureDimensions": [
+      1280,
+      720
+    ]
+  }
+]

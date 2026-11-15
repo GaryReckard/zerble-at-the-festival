@@ -52,6 +52,10 @@ in [ROADMAP.md](ROADMAP.md).
 
 Open `http://127.0.0.1:8765/player-driving.html?mute=1` for the real dynamic chassis on repeatable surface, ridge, creek, lake and tree fixtures. Use the course selector, drive or replay, and inspect wheel contact, depth, damage and solver timing in the readout. The course supports Noon/Midnight, pause and reset; it owns and disposes its physics world. `node bin/test-player-vehicle`, `node bin/test-player-handling`, `node bin/test-driving-surface`, `node bin/test-vehicle-condition` and `node bin/test-player-driving-live` cover deterministic behavior and live ownership. In the real game, `?physics=1&mute=1` exposes the player and reservation diagnostics alongside prop staging. A course pass is not a substitute for the normal title-plank/game smoke test.
 
+## Menu design preview
+
+Open `/menu-preview.html?screen=settings&mute=1` on the local Vite development or preview server for the production menu components without the 3D world. Other `screen` values are `passport`, `upgrades`, `results`, `loading` and `failed`; `locked=1`, `empty=1`, `blocked=1` and `new=1` exercise state variants. Passport and upgrades use memory-only progress, while Settings uses real preferences, so restore changes made during inspection. This page is outside the guided LAN allowlist. [Usage, evidence and limits](verification/lantern-night/README.md).
+
 ## Festival Passport preview
 
 Open `http://127.0.0.1:8765/passport-preview.html?case=populated&mute=1` on the loopback Vite server. Fixtures `empty`, `populated`, `migrated`, `long` and `blocked` use the production menu with memory-only progress, without GA or WebGL. This preview is intentionally outside the LAN page allowlist. Test the live title and book buttons or `P` for integration; `__dbg.passport()` reads the live snapshot and `__dbg.passport(true)` opens it. A passport pauses gameplay, including Festival Run resource/timer changes, while preserving rendering.
@@ -500,6 +504,27 @@ steady-state cost — for that, read the live budget markers instead).
   overlay while you play.
 
 ### Phone/iPad performance capture over the same Wi-Fi
+
+Detailed captures (`perfCapture=1&perfWorld=1`, or the launcher's `--world-detail`)
+also report exclusive frame sections in `samples[].frame.detail.groups`, split
+by phase and quality rung. Section values are window sums with frame/count
+denominators; do not add them to the existing inclusive `worldMs`/`renderMs`.
+The `matrices` section times the renderer's existing scene traversal without
+calling it again. `outsideCallback` subtracts the preceding complete callback
+from its start-to-start interval, including recorder/scheduling overhead, and
+belongs to that preceding phase/rung. It is not a GPU timer. Initial and
+interrupted intervals remain unavailable. The title cadence estimate is not a
+hardware refresh-rate measurement.
+
+Capture-only horizon fields include actual publication age, requested/published
+cells, plan/apply supersession, longest atomic unit, separately labeled yielding
+preparation/road-call durations and observer clock counts. The Stats panel's
+**draw census** button exposes named pre-frustum composition and the horizon
+share in the existing JSON output box, alongside actual submitted scene calls.
+Hidden ancestors/materials and empty instance pools are excluded. A census is
+not an exact multi-pass render-call count. See the
+[implementation and measurement gates](verification/performance/2026-11-15-ipad-attribution/README.md)
+and [four-run device procedure](docs/performance-playtests.md#four-run-ipad-attribution-session).
 
 Use the [guided desktop and phone performance playtests](#desktop-and-phone-performance-playtests)
 for a comparable drive or Trip capture. The lower-level
@@ -972,3 +997,10 @@ keeps actual tier snapshots and their device/performance limitations.
 ## Repeatable performance lab
 
 See [the lab guide](docs/performance-lab.md) for verified runner/analyzer commands, explicit browser ownership and the completed two-scenario desktop acceptance bundle. Do not launch its foreground Chrome profiles until Gary explicitly assigns a quiet-Mac window. Contract and mocked runtime/process/HTTP tests do not substitute for real-game, route or device performance evidence.
+
+
+### Cornhole development views
+
+Open `/sandbox.html?entity=cornhole&mute=1` for the idle boards, or `/sandbox.html?entity=cornhole_activity&mute=1` for the production session on real Crowd rigs. Start, interrupt, unload and revisit controls exercise lifecycle paths. Advance one round and Finish game use bounded simulation steps without changing points or the winning score; Show celebration and Show handshake pause the corresponding real phases for visual inspection. Resume game lets participants tidy and return to ordinary walking.
+
+In the game, `/inspect people` includes the `cornhole` controller's active/vacant courts, scores, phases and availability timers. `/tp cornhole` visits a loaded court when one exists. The clear seed-4 campsite fixture starts at `/?seed=4&x=57&z=-107&mute=1`; a neighboring-chunk-first start can legitimately reject that court because trees already occupy its clearing. [Current evidence](verification/cornhole/README.md).

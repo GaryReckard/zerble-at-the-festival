@@ -1,0 +1,115 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { Registry } from '../src/registry.js';
+import { setSessionSeed } from '../src/rng.js';
+import { buildCornholeAt, tryPlaceCornhole, cornholeSiteClear, courtInsideParent, CORNHOLE_COURT } from '../src/cornholePlacement.js';
+const flat={sample:()=>({height:0,grade:0,traversable:true,surfaceClass:'grass'}),point:()=>({noBuild:false}),road:()=>({dist:100}),clearance:()=>false};
+const p={x:0,z:0,yaw:Math.PI/4}, empty=new Registry();
+assert(cornholeSiteClear(p,empty,flat));
+for(const environment of [
+  {...flat,sample:()=>({height:0,grade:0,traversable:false,surfaceClass:'riverbed'})},
+  {...flat,sample:()=>({height:0,grade:.06,traversable:true,surfaceClass:'grass'})},
+  {...flat,sample:(x,z)=>({height:z*.03,grade:.03,traversable:true,surfaceClass:'grass'})},
+  {...flat,point:()=>({noBuild:true})}, {...flat,road:()=>({dist:3})},
+  {...flat,clearance:()=>true},
+]) assert(!cornholeSiteClear(p,empty,environment));
+for(const kind of ['tent','chair','rock','stage_front','path_node','cornhole_game']) {
+  const world=new Registry();world.add({kind,position:new THREE.Vector3(0,0,0),footprint:1});
+  assert(!cornholeSiteClear(p,world,flat),kind);
+}
+const world=new Registry(), group=new THREE.Group(), ctx={key:'court-test',group,registry:world,rng(){throw new Error('Parent RNG must remain untouched');}};
+const venue=buildCornholeAt(ctx,{x:200,z:200,yaw:.7,seed:42,sourceKind:'camp_village',sourceKey:'test'});
+assert.equal(group.children.length,1);assert.equal(world.entries.size,3);
+const boards=[...world.entries.values()].filter(e=>e.kind==='cornhole_board');
+assert.equal(boards.length,2);assert.equal(boards[0].cornholeBoard.yaw,.7);assert.equal(boards[1].cornholeBoard.yaw,.7+Math.PI);
+assert(Math.abs(boards[0].position.distanceTo(boards[1].position)-8.4)<1e-7);
+assert(boards.every(b=>b.collider.radius===.75&&b.cornholeBoard.backHeight===.3&&b.chunkKey==='court-test'));
+assert.equal(venue.group.parent,group);world.removeChunk('court-test');assert.equal(world.entries.size,0);
+assert.equal(tryPlaceCornhole(ctx,{kind:'woodland',x:0,z:0,communitySize:10}),null);
+assert.equal(tryPlaceCornhole(ctx,{kind:'camp_village',x:0,z:0,communitySize:1}),null);
+let built=0, skipped=0;
+for(let seed=0;seed<12;seed++) {
+  setSessionSeed(seed);
+  for(let i=0;i<12;i++) {
+    const parent={kind:i%2?'vendor_row':'camp_village',x:300+i*97,z:200+seed*93,yaw:.3,envelope:60,communitySize:8};
+    const run=()=>{const registry=new Registry(),group=new THREE.Group();const result=tryPlaceCornhole({...ctx,registry,group},parent);return {result,registry};};
+    const a=run(),b=run();
+    assert.deepEqual(a.result?.position.toArray(),b.result?.position.toArray(),'rebuilding the parent preserves placement');
+    if(!a.result){skipped++;continue;}
+    built++;
+    const placement={x:a.result.position.x,z:a.result.position.z,yaw:a.result.group.rotation.y};
+    assert(courtInsideParent(placement,parent));
+    assert(cornholeSiteClear(placement,new Registry()),'real terrain, road and water checks pass over the full court');
+    assert.equal(a.result.sourceKind,parent.kind);
+    assert.equal(tryPlaceCornhole({...ctx,registry:a.registry},parent),null,'at most one court per parent');
+    assert.equal(a.registry.entries.size,3);
+  }
+}
+assert(built>0&&skipped>0,'seed census exercises accepted and declined placements');
+assert.equal(CORNHOLE_COURT.attempts,24);
+assert(!courtInsideParent({x:12.8,z:0,yaw:0},{kind:'vendor_row',x:0,z:0,yaw:0}),
+  'a court rectangle that fits backstage is rejected when its registry circle would protrude');
+assert(!courtInsideParent({x:55,z:0,yaw:0},{kind:'camp_village',x:0,z:0,envelope:60}),
+  'the full circular reservation, not just the oriented lane, must fit the parent');
+console.log(`PASS cornhole clearance, terrain/water/road exclusions, parent containment, real board registration/unload and private RNG; ${built} built / ${skipped} skipped in 144 deterministic parent fixtures.`);
+
+// Completed production parents, with real furniture and Crowd RNG consumption.
+// Canvas painting/event registration are the only browser stubs; no renderer runs.
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:720,__perfProfile:'low'};
+globalThis.document={addEventListener(){},createElement:()=>({getContext:()=>new Proxy({measureText:()=>({width:100}),
+  createLinearGradient:()=>({addColorStop(){}}),createRadialGradient:()=>({addColorStop(){}})},
+  {get:(o,k)=>k in o?o[k]:()=>{}})})};
+const {buildHubPreview,disposeChunkByKey}=await import('../src/chunks.js');
+const {Crowd}=await import('../src/crowd.js');
+const {registry}=await import('../src/registry.js');
+const {heartInCell}=await import('../src/worldgen/hearts.js');
+const {setTerrainEnabled}=await import('../src/worldgen/terrain.js');
+const {setLandscapeVersion,landscapeCandidateInCell}=await import('../src/worldgen/landscapeCandidates.js');
+const {LandscapeRuntime}=await import('../src/landscape/runtime.js');
+const {LandscapePlanner}=await import('../src/landscape/planner.js');
+const {computeLandscapeTask}=await import('../src/worldgen/landscapeTask.js');
+const {CONFIG}=await import('../src/worldgen/constants.js');
+const {FESTIVAL_TUNING}=await import('../src/worldgen/tuning.js');
+setLandscapeVersion(2);setTerrainEnabled(true);
+// Prime the in-process worker's settings before runtime captures its epoch.
+setSessionSeed(11);
+const prime=landscapeCandidateInCell(0,0);
+computeLandscapeTask({id:0,key:'prime',version:2,seed:11,candidateId:prime.id,cx:0,cz:0,
+  fingerprint:JSON.stringify(prime),config:structuredClone(CONFIG),tuning:structuredClone(FESTIVAL_TUNING)});
+const workerFactory=()=>({postMessage(data){queueMicrotask(()=>this.onmessage?.({data:computeLandscapeTask(data)}));},terminate(){}});
+const census=[],sources=new Set();
+for(const seed of [0,1,2,3,4]) {
+  setSessionSeed(seed);
+  const scene=new THREE.Scene(),crowd=new Crowd({spawn(){},spawnLost(){}});
+  const planner=new LandscapePlanner({workerFactory}),runtime=new LandscapeRuntime(scene,{planner});
+  let hub;
+  try {
+    const heart=heartInCell(0,0);
+    await runtime.prepare({minX:heart.x-480,minZ:heart.z-480,maxX:heart.x+480,maxZ:heart.z+480});
+    runtime.installPolicy();
+    hub=buildHubPreview(scene,heart,{crowd});
+    const games=[...registry.entries.values()].filter(e=>e.kind==='cornhole_game');
+    census.push({seed,courts:games.length,locations:games.map(game=>({x:game.position.x,z:game.position.z,yaw:game.group.rotation.y,source:game.sourceKind}))});
+    for(const game of games) {
+      sources.add(game.sourceKind);
+      const [parentX,parentZ]=game.sourceKey.split(':')[1].split(',').map(Number);
+      if(game.sourceKind==='camp_village')assert(Math.hypot(game.position.x-parentX,game.position.z-parentZ)+game.footprint<=60,
+        'registered circle never extends outside the admitted parent');
+      const own=new Set([game.id]);
+      for(const entry of registry.entries.values())if(entry.kind==='cornhole_board'&&entry.group.parent===game.group)own.add(entry.id);
+      assert.equal(own.size,3);
+      const others={};
+      for(const method of ['generationFootprintsNear','generationCollidersNear'])
+        others[method]=(x,z,r,visit)=>registry[method](x,z,r,e=>{if(!own.has(e.id))visit(e);});
+      assert(cornholeSiteClear({x:game.position.x,z:game.position.z,yaw:game.group.rotation.y},others),
+        `seed ${seed} completed ${game.sourceKind} court clears ALL final hub furniture, roads and terrain`);
+    }
+  } finally {
+    if(hub)disposeChunkByKey(scene,hub.group,hub.key,crowd);
+    crowd.dispose();runtime.dispose();
+  }
+  assert.equal(registry.entries.size,0,'real hub unload removes every registry entry');
+}
+assert(sources.has('camp_village'),'real completed communal camp builders admit courts');
+console.log(`PASS completed production hub census with elevated terrain and prepared landscape v2 access policy: ${JSON.stringify(census)}`);

@@ -1,0 +1,32 @@
+[
+  {
+    "file": "title-large-followup.jpg",
+    "width": 2560,
+    "height": 1431
+  },
+  {
+    "file": "map-midnight-followup.jpg",
+    "width": 1280,
+    "height": 720
+  },
+  {
+    "file": "title-compact-followup.jpg",
+    "width": 844,
+    "height": 390
+  },
+  {
+    "file": "map-driving-followup.jpg",
+    "width": 1280,
+    "height": 720
+  },
+  {
+    "file": "map-noon-followup.jpg",
+    "width": 1280,
+    "height": 720
+  },
+  {
+    "file": "map-compact-followup.jpg",
+    "width": 844,
+    "height": 390
+  }
+]

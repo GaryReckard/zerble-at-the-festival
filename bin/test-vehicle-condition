@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {VehicleCondition,impactDamageFor} from '../src/vehicleCondition.js';
 import {engineDemand} from '../src/engineDemand.js';
+import {landingNormalSpeed,selectVehicleImpact} from '../src/physics/vehicleImpact.js';
 for(const hz of [30,60,120]){
   const c=new VehicleCondition();
   for(let i=0;i<hz*3;i++){c.impact(1,i/hz,'parked');c.step(1/hz,.6);}
@@ -61,3 +62,29 @@ for(const festival of [false,true])for(const cause of ['wrecked','submerged']){
 }
 assert.match(main,/HUD.onScoreClose[^\n]*RunState.over\|\|vehicleGameOver/);
 console.log('PASS actual game terminal adapter: damage/water exactly once in both modes, Cruisin stays off Festival reporting, close restarts either mode.');
+
+// These call the selector shared by production and the driving sandbox.
+{
+ const before={mass:320,linearVelocity:{x:0,y:-12,z:0}};
+ const select=(state,events=[],options={})=>selectVehicleImpact({state,before,events,step:1/60,isSupport:id=>id==='ground',...options});
+ const force=(body,direction={x:0,y:1,z:0})=>({type:'contact-force',a:'live-cart',b:body,maxForceDirection:direction,totalForceMagnitude:320*60*12});
+ for(const landingAirTime of [0,1/60,.25,.49]){
+   assert.equal(select({landingAirTime,landingSpeed:12},[force('ground')]).damage,0,'brief support loss is harmless through both damage paths');
+ }
+ for(const speed of [0,4,7.99,8])assert.equal(select({landingAirTime:1,landingSpeed:speed}).damage,0,'gentle impact after long flight is harmless');
+ assert(select({landingAirTime:.5,landingSpeed:12}).damage>0,'serious flight retains wheel-touchdown damage');
+ assert(select({landingAirTime:1,landingSpeed:0},[force('ground')]).damage>0,'serious terrain chassis impact retains damage');
+ const collisionBefore={mass:320,linearVelocity:{x:12,y:0,z:0}};
+ assert(select({landingAirTime:.1,landingSpeed:0},[force('tree',{x:1,y:0,z:0})],{before:collisionBefore}).damage>0,'airborne tree collision bypasses landing forgiveness');
+ assert(select({landingAirTime:.1,landingSpeed:0},[force('ground',{x:1,y:0,z:0})],{before:collisionBefore}).damage>0,'terrain cliff face remains a collision');
+ const normal={x:0,y:Math.SQRT1_2,z:Math.SQRT1_2};
+ assert.equal(landingNormalSpeed({x:0,y:-12,z:12},[{contact:true,normal}]),0,'fast descent tangent to a slope is not a landing impact');
+ assert(Math.abs(landingNormalSpeed({x:0,y:-12,z:-12},[{contact:true,normal}])-12*Math.SQRT2)<1e-10);
+ const c=new VehicleCondition();assert.equal(c.impact(8,0,'chassis','landing'),0);
+ assert.equal(c.impact(18,.1,'chassis','tree'),20,'harmless touchdown cannot consume a collision cooldown');
+ assert.equal(c.impact(18,.2,'chassis','landing'),0,'damaging landings share the chassis episode cooldown');
+ assert.equal(impactDamageFor(100,'landing'),25,'serious landing retains the per-impact cap');
+}
+console.log('PASS shared landing policy: brief-flight and soft-impact immunity, normal-relative touchdown, terrain force events, airborne obstacles, and cooldown preservation.');
+
+assert.equal(impactDamageFor(18,'cornhole_board'),impactDamageFor(18,'chair'),'small wooden board has lightweight side-impact damage');

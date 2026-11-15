@@ -22,7 +22,7 @@ document.getElementById('drive').onclick=()=>driving=!driving;
 document.getElementById('jump').onclick=()=>{player.x+=1200;};
 document.getElementById('objective').onclick=()=>{map.setObjectives([{id:'fixture:objective',x:player.x+900,z:player.z-800,label:'Passenger destination'}]);map.track('fixture:objective');};
 document.getElementById('reset').onclick=()=>void map.reset();
-window.addEventListener('keydown',e=>{if(e.target.closest('select,button'))return;held.add(e.key.toLowerCase());if(e.key.toLowerCase()==='m'&&!e.repeat)map.toggle();});
+window.addEventListener('keydown',e=>{if(e.target.closest('input,textarea,select,[contenteditable]')||e.metaKey||e.ctrlKey||e.altKey)return;held.add(e.key.toLowerCase());if(e.key.toLowerCase()==='m'&&!e.repeat)map.toggle();});
 window.addEventListener('keyup',e=>held.delete(e.key.toLowerCase()));
 window.addEventListener('blur',()=>held.clear());
 let proofAt=0,raf;

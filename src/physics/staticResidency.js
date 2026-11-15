@@ -5,7 +5,7 @@ const HARD_CAPACITY = 512;
 const MAX_BOUNDS_SPAN = 256;
 const DEFAULT_KINDS = new Set([
   'arch', 'bench_ring', 'chair', 'camp_chair', 'camp_cooler', 'camp_loveseat', 'camp_tent', 'camp_torch', 'campfire',
-  'drum_circle', 'firepit', 'forest_drum_circle', 'forest_tree', 'hammock', 'info_kiosk', 'lake_edge', 'lamppost',
+  'cornhole_board', 'drum_circle', 'firepit', 'forest_drum_circle', 'forest_tree', 'hammock', 'info_kiosk', 'lake_edge', 'lamppost',
   'picnic', 'picnic_table', 'porta_potty', 'soundboard', 'stage', 'stage_front', 'tent', 'tree', 'truck',
 ]);
 const DYNAMIC_KINDS = new Set(['kid', 'lurleen', 'nut_wagon', 'one_wheel', 'person', 'puppet', 'wook']);
@@ -37,6 +37,36 @@ function stableNumber(value, name) {
   return Object.is(value, -0) ? 0 : value;
 }
 
+// Four thin sloping pieces keep the target opening clear and admit real tire
+// support. The square opening conservatively encloses the visual circular hole.
+function boardDescriptor(entry) {
+  if (entry.kind !== 'cornhole_board') return null;
+  const source = entry.cornholeBoard;
+  if (!source) throw new TypeError('Cornhole board dimensions are required');
+  const board = {};
+  for (const key of ['width', 'length', 'frontHeight', 'backHeight', 'thickness', 'holeRadius', 'holeZ', 'yaw']) {
+    board[key] = stableNumber(source[key], `cornholeBoard.${key}`);
+  }
+  const b = board;
+  if (b.width <= 0 || b.length <= 0 || b.thickness <= 0 || b.frontHeight < b.thickness || b.backHeight < b.frontHeight ||
+    b.width > 2 || b.length > 3 || b.backHeight > .6 || b.holeRadius <= 0 || b.holeRadius >= b.width / 2 ||
+    Math.abs(b.holeZ) + b.holeRadius >= b.length / 2) throw new TypeError('Invalid low cornhole board dimensions');
+  return board;
+}
+function boardBody(proxy) {
+  const b = proxy.board, slope = (b.backHeight - b.frontHeight) / b.length, angle = Math.atan(slope);
+  const centerY = (b.frontHeight + b.backHeight) / 2 - b.thickness / 2;
+  const piece = (minX, maxX, minZ, maxZ) => ({ shape: 'cuboid',
+    position: { x: (minX + maxX) / 2, y: centerY - (minZ + maxZ) / 2 * slope, z: (minZ + maxZ) / 2 },
+    rotation: { x: Math.sin(angle / 2), y: 0, z: 0, w: Math.cos(angle / 2) },
+    halfExtents: { x: (maxX - minX) / 2, y: b.thickness * Math.cos(angle) / 2, z: (maxZ - minZ) / (2 * Math.cos(angle)) },
+    friction: .8, restitution: 0 });
+  const w = b.width / 2, l = b.length / 2, r = b.holeRadius;
+  return { id: proxy.bodyId, type: 'fixed', vehicleSupport: true,
+    pose: { position: { x: proxy.x, y: proxy.y, z: proxy.z }, rotation: { x: 0, y: Math.sin(b.yaw / 2), z: 0, w: Math.cos(b.yaw / 2) } },
+    colliders: [piece(-w, -r, -l, l), piece(r, w, -l, l), piece(-r, r, -l, b.holeZ - r), piece(-r, r, b.holeZ + r, l)] };
+}
+
 function snapshot(entry) {
   const id = entry?.id;
   if (!Number.isSafeInteger(id) || id < 0) throw new TypeError('Static collider entries need a nonnegative safe integer id');
@@ -49,11 +79,12 @@ function snapshot(entry) {
   // Layered colliders such as bridge rails carry their own vertical interval;
   // anchoring those to the creek bed makes a rail block boats while leaving the
   // cart free to drive off the deck. Legacy entries still use ground datum.
+  const board = boardDescriptor(entry);
   const explicit=entry.collider.minY!==undefined;
-  const y = explicit ? stableNumber(entry.position.y+entry.collider.minY,'solid bottom') : stableNumber(terrainHeight(x,z),'terrainHeight');
+  const y = board ? stableNumber(entry.position.y, 'board ground datum') : explicit ? stableNumber(entry.position.y+entry.collider.minY,'solid bottom') : stableNumber(terrainHeight(x,z),'terrainHeight');
   const halfHeight = explicit ? Math.max(.005,(entry.collider.maxY-entry.collider.minY)/2) : Math.max(.5,radius);
-  const signature = JSON.stringify([id, kind, x, y, z, radius, halfHeight]);
-  return { key: signature, entryId: id, kind, x, y, z, radius, halfHeight,
+  const signature = JSON.stringify([id, kind, x, y, z, radius, halfHeight, ...(board ? [board] : [])]);
+  return { key: signature, entryId: id, kind, x, y, z, radius, halfHeight, board,
     bounds: { minX: x - radius, maxX: x + radius, minZ: z - radius, maxZ: z + radius } };
 }
 
@@ -66,7 +97,8 @@ function copyProxy(proxy) {
 
 /**
  * Bounded mirror of nearby static registry colliders for live physics movers.
- * Each source collider becomes a cylinder with its registered horizontal radius.
+ * Cornhole boards retain their low slope and opening as compound tire supports.
+ * Other source colliders become cylinders with their registered horizontal radius.
  * Explicit vertical intervals are preserved; other entries use the terrain
  * datum and a conservative 2×radius extent (minimum 1 m). This intentionally
  * approximates source shapes, rotations, and detailed meshes.
@@ -233,7 +265,7 @@ export function createStaticResidency({ registry, adapter, isDynamic, kinds = DE
       const unitStart = readTime();
       let result;
       try {
-        result = adapter.addBody({ id: proxy.bodyId, type: 'fixed', vehicleSupport:false,
+        result = adapter.addBody(proxy.board ? boardBody(proxy) : { id: proxy.bodyId, type: 'fixed', vehicleSupport:false,
           pose: { position: { x: proxy.x, y: proxy.y + proxy.halfHeight, z: proxy.z } },
           colliders: [{ shape: 'cylinder', halfHeight: proxy.halfHeight, radius: proxy.radius, friction: .8, restitution: 0 }] });
       } catch (error) { result = { ok: false, reason: 'static-proxy-create-failed', message: error.message }; }
@@ -286,10 +318,11 @@ export function createStaticResidency({ registry, adapter, isDynamic, kinds = DE
     }
     return { disposed, proxies: proxies.size, ready, pending, failed, cleanupPending, owners: owners.size, rejections,
       capacities: { proxies: maxProxies, owners: maxOwners, queued: maxQueued, candidates: maxCandidates },
-      approximation: 'ground-anchored cylinder; registered radius; half-height max(0.5 m, radius)',
+      approximation: 'cornhole: low sloping compound with square target opening; others: ground-anchored cylinder, registered radius, half-height max(0.5 m, radius)',
       timing: { ...timing }, lastRejection: lastRejection ? { ...lastRejection } : null };
   }
   return Object.freeze({ request, pump, status, release, removeEntry, stats,
+    isVehicleSupportBody(id) { for (const proxy of proxies.values()) if (proxy.bodyId === id) return !!proxy.board; return false; },
     bodyKind(id) { for(const proxy of proxies.values())if(proxy.bodyId===id)return proxy.kind;return null; },
     dispose() {
       if (disposed) return;

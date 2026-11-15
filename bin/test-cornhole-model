@@ -1,0 +1,29 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { buildCornholeGame } from '../src/models/cornhole.js';
+const first = buildCornholeGame({seed:17}), second = buildCornholeGame({seed:17});
+assert.equal(first.name,'CornholeGame');
+const data=first.userData.cornhole;
+assert.equal(data.boards.length,2); assert.equal(data.bags.length,8);
+first.updateMatrixWorld(true);
+for(const [index,b] of data.boards.entries()) {
+  assert.equal(b.position.z,index===0?-4.2:4.2);
+  const nose=b.group.localToWorld(new THREE.Vector3(0,0,.65));
+  assert(Math.abs(nose.z)<Math.abs(b.position.z),'low nose faces court');
+  const ray=new THREE.Raycaster(new THREE.Vector3(0,2,0),new THREE.Vector3(0,-1,0));
+  ray.ray.origin.copy(b.group.localToWorld(new THREE.Vector3(0,2,b.holeZ)));
+  assert.equal(ray.intersectObject(b.group.children[0]).length,0,'hole is actually open geometry');
+  ray.ray.origin.copy(b.group.localToWorld(new THREE.Vector3(.2,2,b.holeZ)));
+  assert(ray.intersectObject(b.group.children[0]).length>0,'deck surrounds open hole');
+  const bounds=new THREE.Box3().setFromObject(b.group);
+  assert(bounds.max.y<=.31&&bounds.min.y>=-.001,'small board remains below 31 cm');
+}
+let meshes=0,triangles=0;
+first.traverse(node=>{if(node.isMesh){meshes++;triangles+=(node.geometry.index?.count??node.geometry.attributes.position.count)/3;assert(node.geometry.userData.shared);assert(node.material.userData.shared);assert.equal(node.castShadow,false);}});
+assert.equal(data.boards[0].group.children[0].geometry,second.userData.cornhole.boards[0].group.children[0].geometry);
+const initial=data.bags.map(b=>b.position.toArray());
+data.bags[0].position.set(100,100,100);data.bags[0].visible=false;data.resetBags();
+assert.deepEqual(data.bags.map(b=>b.position.toArray()),initial); assert(data.bags[0].visible);
+assert.deepEqual(initial,second.userData.cornhole.bags.map(b=>b.position.toArray()));
+console.log(`PASS cornhole model: actual holes, inward noses, low profile, deterministic reset, shared resources; ${meshes} meshes / ${triangles} triangles per court.`);

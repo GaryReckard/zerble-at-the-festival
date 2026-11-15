@@ -465,6 +465,7 @@ Anthropomorphic golf cart. The default live path uses one dynamic Rapier chassis
 
 - Grounded throttle/braking use bounded contact-plane impulses; lateral grip and a target-yaw torque pair own steering while native wheel lateral friction is negligible, avoiding competing controllers. Native wheels retain suspension and visual spin, with front-wheel steering presented separately. Assistance fades with partial/steep support and water, and never writes a pose. Throttle, braking, steering and boost drive the physical vehicle; cached `drivingSurface.js` queries distinguish asphalt, dirt, grass, bridge and riverbed contacts. Wheel suspension has finite reach, so momentum and gravity carry the chassis off ridges. Signed forward speed and the full velocity/rotation are published separately.
 - `vehicleCondition.js` accumulates impact severity once per short contact episode. Lightweight chairs use 6% of solid-obstacle damage, capped at three meter points per incident; static proxies and adopted dynamic chairs both retain their source kind. Simultaneous contacts select the greatest resulting damage so a chair cannot soften a tree or landing. A full meter or sustained water over the engine ends either mode. `restore()` is available for a future repair interaction. Water uses native-grid lake beds or stream cuts; submerged propulsion and `engineDemand.js` audio follow the same threshold.
+- `physics/vehicleImpact.js` selects consequences for both the live world and driving sandbox. Wheel touchdown speed is measured into the averaged wheel-contact normal, with completed flight duration retained for a 0.25-second touchdown episode so delayed chassis contact shares the policy. Landings require at least 0.5 seconds airborne and exceed an 8 m/s dead zone; terrain ownership plus an upward-facing contact distinguishes them from cliff faces and obstacle collisions. Harmless impacts do not consume the shared 0.75-second chassis cooldown. `landingAirTime` and `landingSpeed` remain inspectable on vehicle state.
 - The player reserves bounded terrain and scenery before optional props. Missing collision support blocks the next physics step rather than creating a false fall. Bridge rails retain their authored vertical intervals, wheel rays exclude scenery, and Star Power suppresses obstacle contacts until clearance is proven on re-entry. See [driving verification](verification/driving/2026-11-02/README.md).
 - Boosting above the streak threshold feeds `BoostStreaks`, a fixed eight-instance pool of cart-sized golden torus wake rings. They spawn beyond the rear bumper, remain in world space as Zerble moves away, expand, then return to zero-scale matrices. The immutable geometry is shared, while each pool owns its one material so sandbox teardown cannot invalidate a later preview. Reduced motion stops emission; bloom quality does not gate this geometric effect. Its additive material uses the transparent queue with one instanced pass, and the update path creates no per-frame objects.
 - Visible parts: red body, gold roof, blue seat, glowing cyan eyes, purple mustache, four wheels.
@@ -681,14 +682,18 @@ be summed. A random `quality_run_id` identifies each game start for grouping tho
 
 ---
 
-## HUD (`hud.js`, `styles.css`)
+## HUD and menus (`hud.js`, `menuUi.js`, `lantern-ui.css`)
 
 Vanilla DOM, no framework.
 
 - Compact status rail with current smiles, a de-emphasized best persisted to `localStorage` as `zerble-best-smiles`, bubble juice, the live day/night dial, and a conditional Lurleen-following heart. Score increases restart a warm CSS pulse, while the first saved-best increase in a session fires one bounded DOM confetti burst. Reduced motion suppresses the moving confetti and holds the score cue to a static color change.
 - Toast strip — short status messages with a fade timer.
 - Hit flash — red vignette pulse on damage.
-- Title card — full-screen overlay before start. Its static HTML keeps Start and Settings disabled while an inline bubble-pressure loader runs independently of the slow module graph; `HUD.onStart` installs the trusted-gesture handler, marks the loader ready, restores the Start/Resume label, and only then enables the controls. The ready loader holds for 1.1 seconds, then fades and collapses out of the title layout.
+- Title card — full-screen overlay before start. Its static HTML keeps Start and Settings disabled while an inline bubble-pressure loader runs independently of the slow module graph; `HUD.onStart` installs the trusted-gesture handler, marks the loader ready, restores the Start/Resume label, and only then enables the controls. Lantern Night keeps the ready status in a reserved row so the layout does not shift. The title uses the original artwork with self-hosted Caprasimo/Outfit type, two direct-start lantern buttons, a name disclosure and hanging navigation. The original synchronous audio-unlock start callback is preserved.
+
+The shared sheet skin is in `lantern-ui.css`; `menuUi.js` contains keyboard focus ownership and return without pausing the simulation. Help and settings support keyboard/touch instructions, and settings restart notices stay outside the scroll body. Bubble Upgrades becomes a non-pausing drawer in game. Scores retain their existing data and replay behavior while keeping the result actions visible. The renderer-free `menu-preview.html` imports real index markup and menu modules, with memory-only progress fixtures. See [implementation and evidence](verification/lantern-night/README.md).
+
+`titleScene.js` owns the shared production/preview framing and original deterministic 24-sprite bubble setup. The four title-layer groups keep their original coordinates, each pairing the original WebP with a masked scenery extension. The foreground uses the extended canopy and original lower core, retaining Zerble; the festival's central original retains the gate. Their masks feather scenery joins without exposing generated replacements for those subjects. Sky, mountains, festival, bubbles and foreground have explicit stacking order, placing the curved bubble plume below Zerble. The stage can display overscan beyond 1280×720, and adaptive framing reserves motion margins and keeps the subjects in view across tablet and ultrawide ratios. [Artwork, prompts and coverage](verification/lantern-night/title-extension/README.md).
 
 ---
 
@@ -698,7 +703,7 @@ The main accepted game tick owns discovery and live marker updates. `model.js` c
 
 `geography.js` owns one module worker with a numeric seed/config/mode handshake, bounded tile requests, 64 cached responses, and failure isolation without synchronous fallback. The worker reads pure worldgen; it never touches gameplay RNG state. `view.js` uses cached Canvas geography and discovery masks plus a live marker layer, with a capped backing size and 64 raster entries. It adds no Three.js objects. Keep map world/version namespaces in sync with incompatible layout changes, and never mutate generator-owned arrays.
 
-Compact, expanded, hidden, suspended and disposed states have different ownership. Hiding the UI stops map geography/render admissions but retains exploration during gameplay. Expanded is centered and zoomable without pausing, panning, or clearing driving input. Touch controls sit above the bottom-right map. See [the change](openspec/changes/festival-map/README.md) and [verification](verification/festival-map/README.md) for contracts and remaining device acceptance.
+Compact, expanded, hidden, suspended and disposed states have different ownership. Hiding the UI stops map geography/render admissions but retains exploration during gameplay. Expanded is a full-screen translucent driving overlay with a small indigo zoom/close toolbar, selected-destination label and keyboard-accessible clipped destination list. It is a region rather than a modal, and sits beneath HUD/touch controls without capturing driving keys. Opening does not pause or clear held driving input; both held and newly pressed throttle/steering keys remain live. The Canvas viewport follows the full screen while retaining the existing discovery/render owners. The compact touch map sits below the top-right menu launchers. See [the change](openspec/changes/festival-map/README.md) and [verification](verification/festival-map/README.md) for contracts and remaining device acceptance.
 
 ## Festival Passport (`playerStats.js`, `passportMenu.js`)
 
@@ -1036,6 +1041,36 @@ owner/planning state and worst construction/water phases.
 
 ## Opt-in performance lab
 
+Guided `perfCapture=1&perfWorld=1` attribution uses `frameAttribution.js` only
+inside the measured synchronous callback. Capture-only instance hooks and
+explicit inline scopes form an exclusive partition, including nested HUD and
+the renderer's existing scene-matrix traversal; frozen module namespaces are
+never assigned and no extra traversal is requested. Lightweight physics scalars
+avoid the full diagnostic population census. `perfTelemetry.js` aggregates
+section sums/counts by phase and quality rung, while start-to-start intervals
+and outside-callback residuals belong to the preceding callback. Periodic sample
+collection is inside measured `other`; per-frame recording and scheduling are
+inside the complete-callback boundary. Neither residual measures GPU time.
+
+`horizonCapture.js` attaches only for detailed capture, observes actual
+publication rather than planner completion, and records freshness/supersession
+without changing source arrays, pool contents or RNG draws. Atomic unit timing
+is distinct from yielding preparation/road-call durations. `captureEnvironment.js`
+keeps manual device/power fields unknown when absent and estimates title callback
+cadence from bounded supplied intervals without claiming hardware refresh rate.
+The [iPad attribution change](openspec/changes/ipad-performance-strategy/README.md)
+separates functional collection checks, observer-overhead qualification and
+physical-device acceptance.
+
 Local `performanceLab=1` sessions install their diagnostic hooks after ordinary module startup and before the agent starts measurement. Publication guards and fixed quality resolve before the real title gesture, which retains synchronous audio initialization. The lab uses the existing tick and normal controller, an exclusive input owner, bounded exact-frame storage and separate wall/accepted/physics progress. It observes owner-published loaded chunks without changing streaming ownership or production RNG. Heavy attribution remains separate from ordinary timing.
 
 The host supervisor owns a disposable full-Chrome profile and bounded control worker, with exact resource cleanup independent of page JavaScript. The offline contract/analyzer separates semantic content from implementation cost and requires acknowledged payload integrity. Both scenarios passed real hardware ownership/failure cleanup, tier integration, overhead/calibration/fresh holdouts and comparable injected sensitivity. The explicit `live-festival-v2` fixture supplies a private child-construction RNG before boot without replacing global randomness or freezing live behavior. See the [lab guide](docs/performance-lab.md) and [current evidence](verification/performance/2026-11-03-lab/README.md).
+
+
+### Cornhole courts and borrowed players
+
+`cornholePlacement.js` admits a court only after a communal parent has been built, with a private salted RNG and a conservative 6.21 m registered circle wholly inside that parent's reservation. It checks canonical furniture geometry, the complete playing/access lane, terrain and road/water clearance. Current vendor backstage strips cannot fit that circle and decline. Actual admission can also decline when an already-generated neighboring tree occupies the clearing; this is not a promise of identical court availability across different streaming orders.
+
+`models/cornhole.js` owns two shared-resource boards and eight bag meshes; `staticResidency.js` mirrors each board as a low sloping four-piece support with an open target area. Upward board contacts use the same landing policy as ground/decks, while side contacts use lightweight-prop damage. Court and board registry entries belong to the origin chunk.
+
+`CornholeActivity` registers at the existing people `roaming` barrier, discovers live court entries and borrows two eligible ordinary adults through validated activity claims. `CornholeSession` owns approaches, underhand throws, visible retrieval, winner/loser reactions, handshake and tidy; `CornholeRules` implements complete eight-bag rounds and cancellation scoring. It never owns person lifetimes or adds a separate population. Honk/cart approach, person removal, blocked routes and court removal release claims; interrupted bags settle where they are for the next pair to retrieve. Court rests and individual cooldowns preserve vacant play opportunities. See [verification](verification/cornhole/README.md).

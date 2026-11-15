@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { PLAYTEST_SCENARIOS } from '../src/perfTelemetry.js';
+import { readCaptureEnvironment } from '../src/captureEnvironment.js';
 
 const source = readFileSync(new URL('../src/debug.js', import.meta.url), 'utf8');
 const lifecycle = source.slice(source.indexOf('function captureElapsedSeconds()'), source.indexOf('function deviceRendererInfo()'));
@@ -195,6 +196,7 @@ for (const policy of ['auto', 'baseline', 'sustained']) {
       deviceCapturePhaseEvents: [], deviceCaptureMarks: [], deviceCaptureVisibility: [], deviceCaptureErrors: [],
       deviceCaptureQualityLocked: policy === 'baseline' },
     DEVICE_CAPTURE_PARAMS: new URLSearchParams(`?perfCapture=1&perfScenario=parked&perfQuality=${policy}&captureToken=secret`),
+    readCaptureEnvironment,
     DEVICE_SCENARIO: 'parked', CAPTURE_QUALITY_POLICY: policy, DEVICE_AUTOPILOT:false, DEVICE_CHILD_COHORT:'full-v1',
     chunkGenStats: { stages: {}, count: 0 }, captureElapsedSeconds: () => 60,
     PERF: { name: 'low', crowdMax: 180, shadows: false, chunkLoadRadius: 1, chunkUnloadRadius: 2, bubblePoolMax: 200 },
@@ -205,6 +207,9 @@ for (const policy of ['auto', 'baseline', 'sustained']) {
   });
   vm.runInContext(reportSource, context);
   const report = vm.runInContext('buildDeviceCaptureReport("complete")', context);
+  assert.equal(report.session.environment.lowPowerMode,'unknown');
+  assert.equal(report.session.environment.deviceModel,null);
+  assert.equal(report.session.environment.titleCadence,null);
   assert.equal(report.session.postprocessPreparation.status, 'ready');
   assert.equal(report.session.childCohort,null);
   context.DEVICE_AUTOPILOT=true;context.DEVICE_CHILD_COHORT='half-v1';

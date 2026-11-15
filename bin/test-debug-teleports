@@ -64,10 +64,13 @@ console.log('PASS contextual autocomplete: command and argument discovery, prefi
 // selected-support cart must reject an unsupported jump without moving first.
 const apiStart=source.indexOf('function api()'),member=source.slice(source.indexOf('    teleport(x =',apiStart),source.indexOf('    locate(kind',apiStart));
 const supportContext=vm.createContext({state:{hooks}}),teleport=vm.runInContext('(()=>{const h=state.hooks;return ({'+member+'}).teleport;})()',supportContext);
-hooks.zerble.surfaceBinding={};let allowed=false,relocations=0;
+hooks.zerble.surfaceBinding={};let allowed=false,relocations=0,physicsResets=0;
+hooks.onTeleport=()=>physicsResets++;
 hooks.zerble.relocateOnSurface=(x,z)=>{relocations++;if(!allowed)return false;position.set(x,12,z);hooks.zerble.speed=0;return true;};
 position.set(8,3,9);assert.equal(teleport(90,100),false);assert.equal(position.x,8);assert.equal(position.y,3);
-allowed=true;assert.equal(teleport(90,100),true);assert.equal(position.x,90);assert.equal(position.y,12);assert.equal(relocations,2);
+assert.equal(physicsResets,0,'blocked relocation cannot reset physics');
+allowed=true;assert.equal(teleport(90,100),true);assert.equal(physicsResets,1,'successful relocation resets physical authority');assert.equal(position.x,90);assert.equal(position.y,12);assert.equal(relocations,2);
 allowed=false;seed++;position.set(0,3,0);districts.push(...saved);assert.equal(context.tp('woodland_camp'),null);assert.equal(position.x,0,'blocked landmark relocation cannot bypass support');
 delete hooks.zerble.surfaceBinding;delete hooks.zerble.relocateOnSurface;
+teleport(25,35);assert.equal(physicsResets,2);assert.equal(position.x,25);assert.equal(position.z,35);
 console.log('PASS overlay and landmark teleports retain selected-support admission, refuse before position mutation and preserve existing ordinary teleport behavior.');

@@ -1,0 +1,10 @@
+{
+  "training": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/guided/20261115-130538-guided-detail-77c4096f",
+  "thresholds": {
+    "farFieldDrivingMaxMs": 50,
+    "allowedCells": 2,
+    "allowedStreak": 1,
+    "pendingAgeMs": 9000,
+    "firstRequestMs": 3000
+  }
+}

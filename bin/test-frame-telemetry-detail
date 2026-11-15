@@ -1,0 +1,68 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {FrameTelemetry} from '../src/perfTelemetry.js';
+import {createFrameAttribution} from '../src/frameAttribution.js';
+const telemetry = new FrameTelemetry({hitchMs: 5});
+const parts = {physics: 0, people: 0}, calls = {physics: 1};
+const physics = {frameSteps: 2, meanStepMs: 0.2, maxStepMs: 0.4};
+const frame = {wallMs: 16, workMs: 8, worldMs: 1, renderMs: 2, previousWorkMs: 8,
+  previousCallbackMs: 10, phase: 'parked', quality: 'baseline', qualityLevel: 0,
+  frameParts: parts, frameCalls: calls, frameClockReads: 4, physicsStats: physics, programCount: 10};
+// Coarse clock readings must count every measured zero, with no rounding per frame.
+for (let i = 0; i < 10; i++) { parts.physics = i % 2; telemetry.record(frame); }
+parts.physics = 100; calls.physics = 100; physics.frameSteps = 100;
+let detail = telemetry.takeWindow().detail;
+let group = detail.groups[0];
+assert.equal(group.sectionMs.physics, 5);
+assert.equal(group.sectionFrames.physics, 10);
+assert.equal(group.sectionCalls.physics, 10);
+assert.equal(group.outsideCallback.count, 9);
+assert.equal(group.wallFrames, 9);
+assert.equal(group.outsideCallback.sumMs, 54);
+assert.equal(group.physics.steps, 20);
+assert.equal(telemetry.events[0].frameParts.physics, 0);
+assert.equal(telemetry.events[0].frameCalls.physics, 1);
+assert.equal(telemetry.events[0].physicsStats.frameSteps, 2);
+assert.equal(telemetry.events[0].previousCallbackMs, null);
+assert.equal(telemetry.events[0].outsideCallbackMs, null);
+// The boundary interval belongs to the old rung, despite the new frame/window.
+telemetry.record({...frame, phase: 'drive', quality: 'pixel-50', qualityLevel: 3, programCount: 12});
+detail = telemetry.takeWindow().detail;
+assert.equal(detail.groups[0].quality, 'baseline');
+assert.equal(detail.groups[0].frames, 0);
+assert.equal(detail.groups[0].outsideCallback.count, 1);
+assert.equal(detail.groups[1].outsideCallback.count, 0);
+assert.equal(detail.groups[1].wallFrames, 0);
+assert.equal(detail.groups[0].wallFrames, 1);
+assert.equal(detail.groups[1].programs.changes, 1);
+assert.equal(telemetry.events.at(-1).previousQuality, 'baseline');
+assert.equal(telemetry.events.at(-1).previousPhase, 'parked');
+assert.equal(telemetry.events.at(-1).outsideCallbackMs, 6);
+telemetry.record({hidden: true});
+telemetry.record(frame);
+assert.equal(telemetry.takeWindow().detail.groups[0].outsideCallback.count, 0);
+telemetry.record({...frame, previousCallbackMs: null});
+assert.equal(telemetry.takeWindow().detail.groups[0].outsideBody.count, 0);
+telemetry.reset(); telemetry.record(frame);
+assert.equal(telemetry.takeWindow().detail.groups[0].outsideCallback.count, 0);
+telemetry.reset();
+for (let i = 0; i < 100; i++) telemetry.record({...frame, phase: String(i)});
+detail = telemetry.takeWindow().detail;
+assert.equal(detail.groups.length, 64);
+assert.ok(detail.droppedGroupFrames > 0);
+assert.ok(detail.groups.every(group => !('walls' in group) && !('works' in group)));
+// Nested coarse-clock instrumentation is disjoint and sums to total body time.
+let time = 0;
+const timer = createFrameAttribution(() => Math.floor(time));
+const owner = {inner() { time += 0.6; }, outer() { time += 0.6; this.inner(); time += 0.6; }};
+timer.watch(owner, 'inner', 'physics'); timer.watch(owner, 'outer', 'people');
+timer.begin(0); owner.outer(); timer.finish(Math.floor(time));
+assert.equal(Object.values(timer.parts).reduce((a,b) => a+b, 0), Math.floor(time));
+assert.equal(timer.calls.physics, 1); assert.equal(timer.calls.people, 1);
+telemetry.reset();
+telemetry.record({...frame, frameParts: timer.parts, frameCalls: timer.calls, workMs: Math.floor(time)});
+group = telemetry.takeWindow().detail.groups[0];
+assert.equal(group.workSumMs, Math.floor(time));
+assert.equal(Object.values(group.sectionMs).reduce((sum, value) => sum + value, 0), group.workSumMs);
+timer.dispose();
+console.log('PASS detailed section sums, denominators, copied events, continuity, rung ownership, bounded groups and coarse-clock nesting');

@@ -1,0 +1,29 @@
+CAPTURE AND SOURCE PROVENANCE
+Prepared November 13, 2026, America/New_York.
+Repository: Zerble at the Festival
+Branch: main
+HEAD: c8ce9a199221f55a704fc0da7ce98a805a8f3a83
+The repository was clean before creating this handoff. No runtime product files were changed.
+
+The source was inspected locally. Live screenshots came from the local Vite game at http://127.0.0.1:8765/?mute=1 using the in-app browser, with session mute enabled. Browser-owned loops were closed after capture; the temporary local server was stopped. No standalone headless WebGL process was started.
+
+Live gameplay was entered with a ready mode-button click. This capture session therefore accumulated a small amount of ordinary local play progress. Saved settings, upgrades, passport history, and explored map were not cleared, and no fake leaderboard entries were saved. Public global boards were read through the game's existing UI. Results/empty/loading/error fixtures did not submit a run. Their exact scope is identified per image in 02-SCREEN-GUIDE.txt.
+
+The official passport-preview.html memory-only fixture supplied the unavailable-storage case. A temporary page copied current title markup/CSS and imported the actual HUD for the sample results and empty board. Result fixtures used screenshot 14 as a static backdrop and disabled the score-overlay fade for settled capture. It was removed after capture and is not a new product route.
+
+The guide distinguishes implemented behavior from suggested design improvements. It does not claim a physical mobile-device test, an audio test, a full gameplay regression, a performance benchmark, or a backend acceptance test. No game code changed, so a full build/test suite was not required for this artifact-only task.
+
+SOURCE MAP
+index.html:157 main title and artwork; :171 modes/name/routes; :211 help; :244 results; :267 stage fit; :310 loading/retry.
+src/hud.js:49 player name; :89 mode selection; :104 help navigation; :161 leaderboard rows; :186 remote fallback; :269 start gesture; :393 results.
+src/settings.js:89 dialog markup; :177 actions; :240 map reset; :248 restart; :290 conditional restart state.
+src/passportMenu.js:14 stats/stamps; :72 close; :81 open; :99 markup; :136 keyboard.
+src/upgradesMenu.js:18 card rendering; :72 entry points; :114 keyboard; :126 open; :145 unread.
+src/bubbleTypes.js:16 charm; :207 hidden catalogue filtering.
+src/main.js:967 settings resume; :989 passport coordination; :1240 passport pause; :1369 map/music; :2062 result stats; :2068 end causes; :2082 replay behavior.
+src/festivalMap/view.js:17 shell; :32 wheel; :55 Escape; :95 expand; :189 destination pins.
+src/touch.js:1 drive/camera; :19 music and pinch input.
+styles.css:2540 portrait; :2565 compact landscape.
+passport-preview.html: memory-only cases.
+
+The original title WebP assets are copied into reference-art/ for design reference. They are existing project assets, not new generated art. The packet contains no credentials, environment configuration, local storage dump, private analytics, or repository internals.

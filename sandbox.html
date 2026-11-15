@@ -222,6 +222,8 @@
             <option value="potty_activity">Bathroom (production visit / interruption / unload)</option>
             <option value="porta_potty">Porta-potty (demo: door + occupied + stink cycle)</option>
             <option value="porta_potty_bank">Porta-potty bank (5 — staggered use cycle)</option>
+            <option value="cornhole">Cornhole boards (idle)</option>
+            <option value="cornhole_activity">Cornhole (production NPC game / collection / vacancy)</option>
             <option value="picnic_activity">Picnic (production visit / interruption / unload)</option>
             <option value="picnic_table">Picnic table</option>
             <option value="info_kiosk">Info kiosk (welfare board + pennant)</option>
@@ -576,6 +578,8 @@ import {buildShrub} from './src/models/shrub.js';
     import {HulaHoopers} from './src/people/hoopers.js';
     import {HoopWorkshop} from './src/people/hoop/workshop.js';
     import {Frisbees} from './src/people/frisbees.js';
+    import {buildCornholeGame} from './src/models/cornhole.js';
+    import {createCornholePreview} from './src/cornholePreview.js';
     import {buildBandMember, tickBandMember} from './src/models/bandMember.js';
     import {buildParasolMarshal, tickParasolMarshal} from './src/models/parasolMarshal.js';
     import {buildKid, tickKid} from './src/models/kid.js';
@@ -1071,6 +1075,7 @@ import {buildShrub} from './src/models/shrub.js';
         lamppost_pair: 'lamppost',
         chunk_drum_circle: 'firepit',
         porta_potty: 'porta_potty', porta_potty_bank: 'porta_potty',
+        cornhole:'cornhole_board', cornhole_activity:'cornhole_board',
         picnic_table: 'tent',   // wooden thunk — closest existing SFX
         info_kiosk: 'tent',     // timber-and-canvas — same thunk as a booth
         welfare_post_plaza: 'porta_potty', welfare_post_standard: 'porta_potty',
@@ -1235,6 +1240,24 @@ import {buildShrub} from './src/models/shrub.js';
                 cam.dist = 23;
                 applyCam();
                 break;
+            }
+            case 'cornhole': {
+                const model=buildCornholeGame({seed:73});scene.add(model);entityRoot=model;currentEntity=model;
+                cam.target.set(0,.7,0);cam.dist=16;cam.yaw=.42;cam.pitch=.55;applyCam();break;
+            }
+            case 'cornhole_activity': {
+                const preview=createCornholePreview();scene.add(preview.group);entityRoot=preview.group;currentEntity=preview;
+                preview.group.userData.cleanup=()=>preview.dispose();
+                puppetControls=document.createElement('div');document.getElementById('hud').insertBefore(puppetControls,info);
+                for(const [label,action] of [
+                    ['Start game',()=>preview.start()],['Advance one round',()=>preview.advanceRound()],
+                    ['Finish game',()=>preview.finishGame()],['Show celebration',()=>preview.showPhase('reacting')],
+                    ['Show handshake',()=>preview.showPhase('handshake')],['Resume game',()=>preview.resume()],
+                    ['Interrupt game',()=>preview.interrupt()],
+                    ['Unload court',()=>preview.unload()],['Revisit court',()=>preview.revisit()],
+                ]){const button=document.createElement('button');button.textContent=label;button.onclick=action;puppetControls.appendChild(button);}
+                updateFn=dt=>{preview.update(dt);info.textContent=preview.status();};
+                cam.target.set(0,.9,0);cam.dist=17;cam.yaw=.45;cam.pitch=.52;applyCam();break;
             }
             case 'picnic_activity': {
                 const root=new THREE.Group(),people=new Crowd({spawn(){}}),model=buildPicnicTable(mulberry32(919));

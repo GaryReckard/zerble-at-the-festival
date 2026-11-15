@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""Offline guided capture contracts. No socket, Chrome, or worker is launched."""
+import contextlib
+import hashlib
+import io
+import json
+from pathlib import Path
+import sys
+import tempfile
+import threading
+from types import SimpleNamespace
+import unittest
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from tooling.performance_lab import guided, snapshot
+from tooling.performance_lab.contract import digest
+
+
+class GuidedContracts(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.origin = 'http://127.0.0.1:18888'
+
+    def post(self, payload, *, token='secret', origin=None, length=None, path=None):
+        raw = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
+        handler = object.__new__(guided.GuidedHandler)
+        handler.path = path or '/__capture/device-test?token='+token
+        handler.headers = {'Origin': self.origin if origin is None else origin,
+                           'Content-Length': str(len(raw) if length is None else length)}
+        handler.rfile = io.BytesIO(raw)
+        handler.wfile = io.BytesIO()
+        handler.server = SimpleNamespace(guided=dict(origin=self.origin, token='secret',
+            directory=self.root, lock=threading.Lock()))
+        codes = []
+        handler.send_response = codes.append
+        handler.send_error = codes.append
+        handler.send_header = lambda *args: None
+        handler.end_headers = lambda: None
+        handler.do_POST()
+        return codes, handler.wfile.getvalue(), handler.rfile.tell()
+
+    def test_final_and_periodic_reports_are_separate(self):
+        final = dict(schema='zerble-device-perf-v2', reason='complete', valid=True, samples=[1])
+        partial = dict(schema='zerble-device-perf-v2', reason='periodic', valid=True, samples=[2])
+        codes, ack, _ = self.post(final)
+        self.assertEqual(codes, [200]); self.assertEqual(json.loads(ack), {'saved': True})
+        self.post(partial)
+        self.assertEqual(json.loads((self.root/'device-report.json').read_text()), final)
+        self.assertEqual(json.loads((self.root/'device-partial.json').read_text()), partial)
+
+    def test_wrong_token_or_origin_never_reads_or_writes_body(self):
+        for kwargs in ({'token':'wrong'}, {'origin':'https://remote.example'}, {'origin':''},
+                       {'path':'/__capture/device-test?token=secret&token=secret'}):
+            with self.subTest(kwargs=kwargs):
+                codes, _, consumed = self.post({}, **kwargs)
+                self.assertEqual(codes, [403]); self.assertEqual(consumed, 0)
+        self.assertEqual(list(self.root.iterdir()), [])
+
+    def test_size_and_path_bounds(self):
+        for length in (0, -1, 32*1024*1024+1):
+            codes, _, consumed = self.post(b'{}', length=length)
+            self.assertEqual(codes, [413]); self.assertEqual(consumed, 0)
+        codes, _, _ = self.post({}, path='/__capture/../../outside?token=secret')
+        self.assertEqual(codes, [404])
+
+    def test_malformed_and_wrong_schema(self):
+        self.assertEqual(self.post(b'{')[0], [400])
+        self.assertEqual(self.post({'schema':'other'})[0], [422])
+        self.assertEqual(list(self.root.iterdir()), [])
+
+    def test_non_object_json_is_rejected(self):
+        for value in ([], None, 'text', 4):
+            with self.subTest(value=value):
+                self.assertEqual(self.post(value)[0], [422])
+
+    def fixture_snapshot(self):
+        target = self.root/'snapshot'; target.mkdir()
+        host = self.root/'host'; host.mkdir()
+        names = ('tooling/performance_lab/guided.py', 'tooling/performance_lab/guided-worker.mjs')
+        files = {}
+        for name in names:
+            data = (ROOT/name).read_bytes()
+            for base in (target,host):
+                p = base/name; p.parent.mkdir(parents=True,exist_ok=True); p.write_bytes(data)
+            files[name] = hashlib.sha256(data).hexdigest()
+        (target/'dist').mkdir(); (target/'dist/index.html').write_text('<title>fixture</title>')
+        manifest = dict(files=files,app=digest(files),harness=digest(files),
+            build=digest({'index.html':hashlib.sha256((target/'dist/index.html').read_bytes()).hexdigest()}))
+        (target/'manifest.json').write_text(json.dumps(manifest))
+        return target,host,manifest
+
+    def test_real_snapshot_verifier_detects_build_source_and_host_drift(self):
+        target,host,manifest = self.fixture_snapshot()
+        snapshot.verify(target,manifest,host_root=host)
+        for p,expected in ((target/'dist/index.html','Snapshot build drift'),
+                           (target/'tooling/performance_lab/guided.py','Snapshot source drift'),
+                           (host/'tooling/performance_lab/guided-worker.mjs','Live host harness drift')):
+            original = p.read_bytes(); p.write_bytes(original+b'\nchanged')
+            with self.assertRaisesRegex(RuntimeError,expected): snapshot.verify(target,manifest,host_root=host)
+            p.write_bytes(original)
+
+    def run_main(self, result=None, raised=None, mode='detail'):
+        target,host,manifest = self.fixture_snapshot()
+        output = self.root/'output'; output.mkdir()
+        server = SimpleNamespace(server_port=18888,serve_forever=lambda:None,
+                                 shutdown=lambda:None,server_close=lambda:None)
+        argv = ['guided','--quiet','--snapshot',str(target),'--output',str(output),'--mode',mode]
+        real_verify = snapshot.verify
+        stack = contextlib.ExitStack(); self.addCleanup(stack.close)
+        stack.enter_context(patch.object(sys,'argv',argv))
+        stack.enter_context(patch.object(snapshot,'ROOT',host))
+        verify = stack.enter_context(patch.object(snapshot,'verify',side_effect=lambda t,m:real_verify(t,m,host_root=host)))
+        stack.enter_context(patch.object(guided.capability,'require',return_value={}))
+        stack.enter_context(patch.object(guided.capability,'signature',return_value='fixture-signature'))
+        stack.enter_context(patch.object(guided.http.server,'ThreadingHTTPServer',return_value=server))
+        supervisor = stack.enter_context(patch.object(guided,'supervise',return_value=result,side_effect=raised))
+        stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
+        return output,host,manifest,verify,supervisor
+
+    def test_failed_cleanup_retains_lease_and_revokes_capability(self):
+        output,host,_,_,_ = self.run_main(dict(state='failed',cleanup={'ok':False}))
+        with self.assertRaises(guided.CleanupFailure): guided.main()
+        self.assertTrue((host/'.claude/captures/performance-lab.lock').exists())
+        self.assertIn('cleanup failed',json.loads((output/'capabilities.json').read_text())['blocked'])
+
+    def test_unexpected_supervisor_exception_keeps_lease(self):
+        output,host,_,_,_ = self.run_main(raised=RuntimeError('receipt write failed'))
+        with self.assertRaisesRegex(RuntimeError,'receipt write failed'): guided.main()
+        self.assertTrue((host/'.claude/captures/performance-lab.lock').exists(),
+                        'Unverified browser cleanup must retain the lease')
+        self.assertIn('without cleanup receipt',json.loads((output/'capabilities.json').read_text())['blocked'])
+
+    def test_success_binds_metadata_and_releases_lease(self):
+        output,host,manifest,verify,supervisor = self.run_main(dict(state='collected',cleanup={'ok':True}))
+        self.assertEqual(guided.main(),0)
+        self.assertEqual(verify.call_count,2)
+        self.assertFalse((host/'.claude/captures/performance-lab.lock').exists())
+        directory = next((output/'guided').iterdir())
+        meta = json.loads((directory/'metadata.json').read_text())
+        for key in ('app','build','harness'): self.assertEqual(meta[key],manifest[key])
+        from urllib.parse import urlsplit,parse_qs
+        query = parse_qs(urlsplit(json.loads((directory/'guided-config.json').read_text())['url']).query)
+        for key,value in dict(perf='low',perfQuality='baseline',seed='2404796662',perfKids='full-v1',perfWorld='1',perfCapture='1').items():
+            self.assertEqual(query[key],[value])
+        self.assertNotIn('performanceLab',query)
+        self.assertTrue(supervisor.call_args.kwargs['smoke'])
+
+if __name__ == '__main__':
+    unittest.main()

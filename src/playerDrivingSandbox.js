@@ -9,6 +9,7 @@ import { createRapierAdapter } from './physics/rapierAdapter.js';
 import { createPlayerVehicle } from './physics/playerVehicle.js';
 import { engineDemand } from './engineDemand.js';
 import { VehicleCondition } from './vehicleCondition.js';
+import { selectVehicleImpact } from './physics/vehicleImpact.js';
 
 const $=id=>document.getElementById(id),params=new URLSearchParams(location.search),listeners=new AbortController();
 const names=['surfaces','ridge','creek','lake','obstacle'];
@@ -81,14 +82,9 @@ function step(dt){
   const before=adapter.readBody('live-cart'),started=performance.now();
   vehicle.beforeStep(dt,controls);adapter.step(dt);const solved=vehicle.afterStep(dt);cart.update(dt,controls,night?1:0);
   stepMs=performance.now()-started;maxStepMs=Math.max(maxStepMs,stepMs);totalStepMs+=stepMs;stepCount++;
-  const drained=adapter.drainEvents();let severity=solved.landingSpeed;
-  for(const event of drained.events){
-    if(event.type!=='contact-force'||event.a!=='live-cart'&&event.b!=='live-cart')continue;
-    const direction=event.maxForceDirection,v=before.linearVelocity;
-    const incoming=Math.abs(v.x*direction.x+v.y*direction.y+v.z*direction.z);
-    severity=Math.max(severity,Math.min(incoming,event.totalForceMagnitude*dt/before.mass));
-  }
-  condition.impact(severity,clock.time,'chassis');condition.step(dt,solved.immersion);
+  const drained=adapter.drainEvents();
+  const impact=selectVehicleImpact({state:solved,before,events:drained.events,step:dt,isSupport:id=>supportIds.has(id)});
+  condition.impact(impact.severity,clock.time,'chassis',impact.kind);condition.step(dt,solved.immersion);
   if(condition.cause){paused=true;replaying=false;orbit.enabled=true;$('pause').textContent='Resume';$('status').textContent=condition.cause==='submerged'?'Zerble is submerged. Reset to try again.':'Zerble needs a repair. Reset to try again.';}
   Sound.setEngineSpeed(cart.speed,cart.isBoosting?1:0,engineDemand({...cart.engineState,speed:Math.hypot(cart.velocity.x,cart.velocity.z),immersion:cart.submersion,stopped:!!condition.cause},envelope));
   if(Math.abs(cart.position.x)>40||cart.position.z< -100||cart.position.z>40||cart.position.y< -20)reset();

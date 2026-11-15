@@ -1,0 +1,71 @@
+FUNCTIONALITY AND DESIGN CONTRACT
+Prepared November 13, 2026. Source paths and line numbers refer to the local repository at capture time. This document is self-contained; the source references establish provenance and are not required reading for the designer.
+
+1. THE GAME AND ITS TWO MODES
+Zerble is a friendly golf cart that spreads bubbles to make festival-goers smile. Players drive around an outdoor festival, discover places and special bubbles, welcome passengers, collect juice, and avoid collisions. The tone is welcoming and playful.
+Festival Run: days become harder, juice becomes scarcer and vendor refills become pricier. Smiles chain into score bonuses. Harmful collisions and dry-tank frowns raise the vibe meter, which can lead to marshal ejection. Remaining empty too long ends the run. Vehicle damage or deep water can also end play.
+Just Cruisin': free refills and no marshal pressure, but hard crashes and deep water can still end the trip. Do not describe it as invulnerable or entirely without consequences.
+Evidence: index.html:171 (mode labels), index.html:230 (instructions), src/main.js:2068 (end causes).
+
+2. TITLE / MAIN MENU
+The two large mode controls each select a mode AND begin play once ready. They are not merely radio choices awaiting a separate visible Play button. Just Cruisin' is the default when no mode has been saved; the previous mode is remembered.
+The optional name field accepts up to 20 characters, persists locally, and may appear in festival greetings and public Festival Run scores. Blank names use a stable anonymous name such as Zerble #1234. Retain a clear public-score disclosure next to this optional field.
+Secondary routes: How to Play, Settings, Festival Passport, Bubble Upgrades, Leaderboard.
+Startup: the title artwork is visible while modules initialize. Mode actions, Settings, Passport, and Upgrades are disabled until their functionality is ready. How to Play and Leaderboard are available earlier. A status line rotates warm festival phrases and ends with “Bubble pressure: magnificent.” Network/module trouble can trigger one bounded automatic reload; persistent failure shows “The festival could not finish loading.” and “Try loading again”. Preserve disabled, loading, ready, and retry states with stable layout and accessible status feedback.
+The existing title illustration comprises sky, mountains, festival, foreground, logo, and animated bubble layers. Artwork uses a 1280×720 design stage, with a compact landscape layout. This is a description of today's implementation, not an obligation to keep that layout.
+Evidence: index.html:157, index.html:267, index.html:310; src/hud.js:49 (name), src/hud.js:89 (mode), src/hud.js:269 (start gesture).
+
+3. HOW TO PLAY
+The title route swaps content inside the title interface. Back returns to the main page, Escape also returns, and focus follows the transition. The same instruction content is available from Settings during play.
+Desktop controls: WASD drive; Shift boost; Ctrl slow; arrow keys move camera; V cycles view; mouse wheel zooms; Space honks; B rings the bell; H sounds the clown horn; G bubble blast; I/O eye glow; M festival map; J music; U upgrades; P passport.
+Touch controls: thumbstick drives; dragging moves the camera; Boost and Slow modify driving; Honk provides horn/bell access; Cam changes view; the heart opens upgrades. The touch system also supports two-finger pinch zoom and a music action. Do not present keyboard-only controls as the sole help for touch players.
+Explain making smiles, discovering bubbles, maintaining juice, and the mode differences in readable sections. The designer may rewrite and restructure the prose without changing those mechanics.
+Evidence: index.html:211; src/settings.js:161; src/touch.js:1 and src/touch.js:19.
+
+4. SETTINGS
+Available from the title and an in-game gear button. A dialog has a close control, backdrop dismissal, and four tabs. The How to Play tab reuses the instruction content rather than defining a different control scheme.
+Performance:
+- Graphics quality: Auto, Low, Medium, High. Auto displays the detected tier. Changing tier requires restart.
+- Effects: Glow, Detailed bubbles, Shadows, each with Off / Auto / On. Auto lets quality adapt to stay smooth; explicit choices override that behavior.
+- Extra lights: Warm extra lights and Extra detail lights. Both require restart; their helper text communicates cost.
+- Glow and detailed-bubble changes apply live. Shadows can change live on capable tiers, but enabling them from a tier with shadow machinery disabled requires restart.
+- A conditional notice and Restart now button appear when changes require a restart. This is not a permanent general-purpose Apply button. Settings are persisted as they change, and the restart path saves a resume snapshot.
+Sound: Master, Music, Sound effects sliders, with current levels. Values persist. Captures were session-muted independently of these volume settings.
+Accessibility: Festival minimap visibility, Reset this festival’s explored map, Reduced motion, Colorblind-friendly cues. The larger map remains accessible with M even when the minimap is hidden. Map reset asks “Clear explored territory and known places for this festival? This cannot be undone.” Preserve cancellation and scope this action to the current festival’s map, not passport or all progress.
+Required design states without separate screenshots: restart pending and map-reset confirmation. These are verified from source, not executed against the user's saved settings/map.
+Evidence: src/settings.js:89 (content), :194 (quality), :201 (effects), :226 (lights), :240 (map), :248 (restart), :290 (pending condition); src/main.js:967 (resume snapshot).
+
+5. FESTIVAL PASSPORT
+Available from the title, the in-game book button, and P. This is the record of a player's wandering and discoveries. Gameplay pauses while open. It explicitly blocks background interaction, traps keyboard focus, supports Escape/P to close, and returns focus to the opener. Opening it closes Settings and Upgrades.
+Tabs: This visit and All time. During an active visit it defaults to This visit; before starting it defaults to All time. A fresh game begins a fresh visit; a settings restart preserves that visit.
+Statistics: From the entrance (visit only), Farthest adventure, Distance driven, Smiles collected, Bubbles blown, Stages visited, Passengers welcomed, Bonks, Time at the festival. Smiles count pickups before score bonuses. Distance is measured along the ground plane. Distances use metres/kilometres; large counts compact while retaining exact accessible values.
+Memories are all-time stamps. Each card contains an icon, name, earned/unearned status, and clue. Current six: Wanderer (500 m from entrance), There and Back (reach 500 m then return within 25 m), Stage Hopper (three stages in one visit), Night Owl (a stage after dark), Smile Spreader (1,000 lifetime smiles), Bubble Maker (1,000 lifetime bubbles). Show stamped count out of six.
+Persistence disclosure: memories stay in this browser, do not sync between devices, and disappear when site data is cleared. If saving is unavailable, explain that memories last only until page close. Before play, show the explanation to choose a mode for a new visit. A relocated visit also has an explanatory notice because exploration records/new stage visits are suspended until a new visit, while distance driven still counts.
+Do not invent account signup, cloud save, or an achievement currency.
+Evidence: src/passportMenu.js:14 (render/content), :72 (close), :81 (open), :99 (markup), :136 (keyboard); src/main.js:989 (menu coordination), :1240 (pause).
+
+6. BUBBLE UPGRADES
+Available from the title, in-game heart, and U. A scrollable dialog shows found/total and bubble charm percentage. Each visible discovery has a swatch, name, and clue. Locked entries show a lock; earned entries show an accessible on/off switch controlling inclusion in the bubble stream. Disabling an earned bubble does not mean losing its discovery. Discoveries add 4% charm apiece up to the configured cap of ten levels.
+The ordinary visible catalogue has ten items: Heart, Music, Ember, Firefly, Rainbow, Sparkler, Lantern, Smile, Confetti, and Brass Bubbles. Clues relate to exploration, meeting a character, stages, night activities, fireworks/parades, smiles, and surviving into day two. Preserve the meaning of each supplied clue. Some additional discoveries are intentionally hidden until earned; do not show empty teaser slots or reveal their names on the title/how-to screens.
+An unread dot on the heart signals a new discovery and clears on opening. The menu supports close, backdrop dismissal, Escape/U, focus trapping and return, and scroll isolation. Do not assume that this dialog pauses gameplay, because only the Passport has that explicit pause contract in the inspected integration.
+Evidence: src/upgradesMenu.js:18 (cards), :72 (entry points), :114 (keyboard), :126 (open/clear unread), :145 (notification); src/bubbleTypes.js:16 (charm), :207 (hidden catalogue rule).
+
+7. LEADERBOARD AND RESULTS
+The title's Leaderboard opens a view-only version of the results dialog. It shows “Local legends”, the board, and Back to the gate, while hiding run statistics and replay. Boards show rank, player name, smiles score, and day reached. The local board is capped at ten rows. Local / Today / All-time tabs appear when global boards are enabled. Remote fetch failure silently falls back to Local; do not invent a blocking network-error screen.
+Empty board copy: “No legends yet”, followed by encouragement to finish a Festival Run. The full current wording is visible in the empty fixture.
+Run results include the cause, total smiles, days, best combo, local legends, an optional highlighted player row/star, Run it again!, and Back to the gate. Causes include running dry, being walked out by marshals, too much vehicle damage, or submersion. This result surface can appear in either mode for vehicle loss. Festival Run uses its score high-water mark; Just Cruisin' vehicle results use the current score.
+Current replay behavior reloads to the title while preserving mode/name; the player taps a mode again to start. Back after a run ending also reloads to the title. A view-only board closes without restarting the game. If the redesign proposes direct replay, label it as a behavioral proposal because audio still needs a fresh start gesture.
+Evidence: src/hud.js:161 (rows), :186 (remote fallback), :393 (view-only/full results); src/leaderboard.js:1 (board storage); src/main.js:2062 and :2068 (result data/causes), :2082 (actions).
+
+8. IN-GAME LAUNCHERS AND MAP
+The normal in-game edge contains a gear (Settings), heart (Upgrades), book (Passport), and minimap. The HUD includes smiles/personal best, juice, cart damage, and day cycle, with further run-context indicators. Use the gameplay reference to preserve the visual space needed for driving.
+M or the minimap opens the expanded festival map. It shows discovered geography/places and the player, with destination selection/pins; map discovery persists for the festival layout. Zoom supports wheel and pinch. Escape closes expanded view, and the compact/expanded transition honors reduced motion. Keep map interaction separate from music and driving actions.
+J toggles music; it is not a standalone music-library menu. Vendor interactions are contextual gameplay rather than an existing full-screen shop route in this menu inventory. Do not create a music screen or shop as a required existing menu.
+Evidence: src/festivalMap/view.js:17 (shell), :32 (zoom/input), :55 (Escape), :95 (expand), :189 (pins); src/main.js:1369 (map/music); index.html:75 (HUD), :145 (touch).
+
+9. RESPONSIVENESS, ACCESSIBILITY, AND IMPLEMENTATION HANDOFF
+Current portrait view at widths up to 900 px shows “Rotate your phone” and “Zerble plays in landscape”. Preserve that supported-orientation message unless explicitly proposing broader portrait support.
+Show desktop and compact landscape layouts. Reflow dense settings/stamp grids, deliberately scroll long content, and keep close/back controls reachable. Desktop-size screenshots have a 1280×720 viewport; compact screenshots have 844×390. Compact images do not emulate a physical touchscreen or safe-area hardware.
+Carry selected, focused, pressed, disabled, locked, earned, unread, empty, loading, error, and restart-pending states through the shared components. Distinguish state by text/shape in addition to color, support readable text, and provide reduced motion.
+Implementation context: menus are real HTML/CSS overlays over a Three.js browser game. The project uses plain JavaScript ES modules and Vite. Designs can use illustration and CSS motion, but require a practical path to responsive DOM interfaces. Start audio synchronously from the real start gesture, including mobile Safari; do not add an asynchronous animation/promise before audio unlock. No game engine replacement is part of the assignment.
+Evidence: styles.css:2540 (portrait), :2565 (compact title); src/hud.js:269 (gesture); AGENTS.md, “Constraints that must survive edits”, item 3 (audio invariant).

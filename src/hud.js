@@ -1,5 +1,6 @@
 // Lightweight HUD bindings. Pure DOM, no framework.
 
+import { createMenuDialog, initHelpControls } from './menuUi.js';
 import { Leaderboard, FALLBACK_NAME } from './leaderboard.js';
 import { RunMode, MODE_CRUISIN, MODE_FESTIVAL } from './runMode.js';
 
@@ -73,6 +74,8 @@ const _anonName = (() => {
   return name;
 })();
 if ($playerName) $playerName.placeholder = _anonName;
+const nameNote = document.getElementById('name-note');
+if (nameNote) nameNote.textContent = `Optional. Your name can appear in festival greetings and on public Festival Run scores. Blank rides as ${_anonName}.`;
 function captureName() {
   if (!$playerName) return;
   _playerName = $playerName.value.trim().slice(0, 20);
@@ -92,31 +95,41 @@ function reflectMode() {
   const fest = RunMode.isFestival();
   $modeCruisin?.setAttribute('data-selected', String(!fest));
   $modeFestival?.setAttribute('data-selected', String(fest));
+  let remembered = null;
+  try { remembered = localStorage.getItem('zerble-mode'); } catch { /* optional storage */ }
+  for (const [button, mode] of [[$modeCruisin, MODE_CRUISIN], [$modeFestival, MODE_FESTIVAL]]) {
+    const badge = button?.querySelector('.mode-remembered');
+    if (badge) badge.hidden = remembered !== mode;
+  }
 }
 RunMode.loadSaved();
 reflectMode();
 $modeCruisin?.addEventListener('click', () => { RunMode.set(MODE_CRUISIN); reflectMode(); });
 $modeFestival?.addEventListener('click', () => { RunMode.set(MODE_FESTIVAL); reflectMode(); });
 
-// ---- Title-card page swap: main menu ⇄ the How-to-play screen ----
-// One card frame, two screens (console-menu style). Focus follows the swap so
-// keyboard/AT users land on Back going in and back on the opener coming out;
-// Escape mirrors the Back button.
+// The title manual is a sheet over the same scene, with its own scroll body.
+// Settings clones the content, while focus returns to the title opener.
 const $pageMain = document.getElementById('title-page-main');
 const $pageHowto = document.getElementById('title-page-howto');
 const $howtoOpen = document.getElementById('howto-open');
 const $howtoBack = document.getElementById('howto-back');
+const howtoDialog = $pageHowto && createMenuDialog($pageHowto, { focus: '#howto-back', close: () => showHowto(false) });
+initHelpControls($pageHowto);
 function showHowto(open) {
   if (!$pageMain || !$pageHowto) return;
   $pageMain.hidden = open;
   $pageHowto.hidden = !open;
   document.getElementById('title-ui')?.classList.toggle('is-howto', open);
-  if (open) $pageHowto.parentElement.scrollTop = 0;
+  if (open) { $pageHowto.querySelector('.help-scroll').scrollTop = 0; howtoDialog.open(); }
+  else howtoDialog.close();
   $howtoOpen?.setAttribute('aria-expanded', String(open));
   (open ? $howtoBack : $howtoOpen)?.focus({ preventScroll: true });
 }
 $howtoOpen?.addEventListener('click', () => showHowto(true));
 $howtoBack?.addEventListener('click', () => showHowto(false));
+document.getElementById('title-ui')?.addEventListener('click', event => {
+  if (!$pageHowto.hidden && (event.target.id === 'title-ui' || event.target.classList.contains('card'))) showHowto(false);
+});
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && $pageHowto && !$pageHowto.hidden) showHowto(false);
 });
@@ -134,6 +147,12 @@ const $scoreAgain = document.getElementById('score-again');
 const $scoreClose = document.getElementById('score-close');
 const $boardOpenTitle = document.getElementById('board-open-title');
 
+let scoreViewOnly = false;
+const scoreDialog = $scoreScreen && createMenuDialog($scoreScreen, { focus: '#score-again', dismissible: false, beforeEscape: () => { if (scoreViewOnly) HUD.hideScoreScreen(); return true; } });
+$scoreScreen?.addEventListener('keydown', event => {
+  if (scoreViewOnly && event.key === 'Escape') HUD.hideScoreScreen();
+});
+$scoreScreen?.addEventListener('click', event => { if (scoreViewOnly && event.target === $scoreScreen) HUD.hideScoreScreen(); });
 let _onScoreAgain = null;
 let _onScoreClose = null;
 
@@ -175,6 +194,9 @@ function renderBoard(board, highlightRank) {
       const td = document.createElement('td');
       td.className = cls;
       td.textContent = text;
+      if (cls === 'bname' && i + 1 === highlightRank) {
+        const badge = document.createElement('span'); badge.className = 'board-you'; badge.textContent = '★ YOU'; td.appendChild(badge);
+      }
       tr.appendChild(td);
     }
     $localBoardBody.appendChild(tr);
@@ -408,10 +430,14 @@ export const HUD = {
     setBoardTab('local');
     $boardTabs?.classList.toggle('hidden', !Leaderboard.globalEnabled());
     renderBoard(board, _lastHighlight);
+    scoreViewOnly = viewOnly;
+    $scoreScreen.setAttribute('aria-label', viewOnly ? 'Leaderboard' : 'Run results');
     $scoreScreen.classList.remove('hidden');
+    scoreDialog.open();
+    if (viewOnly) $scoreClose?.focus({ preventScroll: true });
   },
 
-  hideScoreScreen() { $scoreScreen?.classList.add('hidden'); },
+  hideScoreScreen() { $scoreScreen?.classList.add('hidden'); scoreDialog?.close(); },
 
   onScoreAgain(cb) { _onScoreAgain = cb; },
   onScoreClose(cb) { _onScoreClose = cb; },

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+  <!-- A feathered perimeter joins scenery without putting generated pixels
+       under the original gate/vehicle or inside the central alpha window. -->
+  <defs><filter id="join" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation=".8"/></filter></defs>
+  <path fill="white" fill-rule="evenodd" filter="url(#join)" d="M-5 -5H105V105H-5Z M19.2 19.2H80.8V80.8H19.2Z"/>
+</svg>

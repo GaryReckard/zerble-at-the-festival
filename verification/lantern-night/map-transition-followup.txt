@@ -1,0 +1,1 @@
+PASS: 73 live animation frames follow panel bounds, retain backings through collapse, reverse safely, keep dimming full-screen until it fades, keep the expanded map full-screen and translucent without intercepting driving, hide the destination list, and restore the outlined minimap.

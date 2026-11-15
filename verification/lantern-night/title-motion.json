@@ -1,0 +1,60 @@
+{
+  "motionBefore": [
+    {
+      "layer": "title-layer title-sky",
+      "transform": "matrix(1, 0, 0, 1, -11.0039, 0)"
+    },
+    {
+      "layer": "title-layer title-mountains",
+      "transform": "matrix(1, 0, 0, 1, -13.7974, 0)"
+    },
+    {
+      "layer": "title-layer title-festival",
+      "transform": "matrix(1, 0, 0, 1, -2.66608, 0)"
+    },
+    {
+      "layer": "title-layer title-foreground",
+      "transform": "matrix(1.02, 0, 0, 1.02, 4.38551, 0)"
+    }
+  ],
+  "motionAfter": [
+    {
+      "animation": "title-drift",
+      "layer": "title-layer title-sky",
+      "transform": "matrix(1, 0, 0, 1, -0.128057, 0)"
+    },
+    {
+      "animation": "title-drift",
+      "layer": "title-layer title-mountains",
+      "transform": "matrix(1, 0, 0, 1, -0.0608289, 0)"
+    },
+    {
+      "animation": "title-drift",
+      "layer": "title-layer title-festival",
+      "transform": "matrix(1, 0, 0, 1, -0.213398, 0)"
+    },
+    {
+      "animation": "title-sway",
+      "layer": "title-layer title-foreground",
+      "transform": "matrix(1.02, 0, 0, 1.02, 0.225502, 0)"
+    }
+  ],
+  "motionReduced": [
+    {
+      "animation": "none",
+      "layer": "title-layer title-sky"
+    },
+    {
+      "animation": "none",
+      "layer": "title-layer title-mountains"
+    },
+    {
+      "animation": "none",
+      "layer": "title-layer title-festival"
+    },
+    {
+      "animation": "none",
+      "layer": "title-layer title-foreground"
+    }
+  ]
+}

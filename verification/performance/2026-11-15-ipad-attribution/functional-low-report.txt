@@ -1,0 +1,79 @@
+Report: verification/performance/2026-11-15-ipad-attribution/functional-low-capture.json
+Captured: 2026-11-15T16:46:26.125Z | result: complete | schema: zerble-device-perf-v2
+Device: MacIntel / Chrome / ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version) | tier: low (detected high) | seed: 2404796662 | scenario: parked
+Samples: 62 | active duration: 61s | felt lag marks: 0 | errors: 0
+Quality policy: baseline | requested: baseline | locked from first frame: True | comparison locked: True
+
+Window summary: wall p95/p99 columns are medians of per-window percentiles, not whole-phase percentiles.
+
+Phase            n  FPS med  wall p95  wall p99  worst wall  worst work  worst world  worst render  >50ms  draws med
+settle           21       60      18.4      21.4       154.0       134.3         43.4          47.3      6       1094
+parked           41       60      18.4      18.7        40.0        24.4          1.8           7.8      0       1095
+
+Detailed frame attribution by phase and quality rung (milliseconds):
+  Work p95 is the median of per-window subgroup p95 values, not a whole-phase percentile.
+  Outside-body and outside-callback residuals use the preceding frame and its phase/rung; neither measures GPU time.
+  settle / baseline (0): 1165 measured frames; median per-window work p95 10.5ms
+    physics: mean 0.404ms; sum 470.600ms / 1165 frames; 3495 calls
+    people: mean 3.445ms; sum 4013.900ms / 1165 frames; 12815 calls
+    registry: mean 0.144ms; sum 168.000ms / 1165 frames; 1165 calls
+    scans: mean 0.019ms; sum 21.900ms / 1165 frames; 1165 calls
+    collisions: mean 0.008ms; sum 9.900ms / 1165 frames; 1165 calls
+    bubbles: mean 0.120ms; sum 139.400ms / 1165 frames; 2330 calls
+    camera: mean 0.016ms; sum 18.400ms / 1165 frames; 1165 calls
+    lights: mean 0.012ms; sum 14.100ms / 1165 frames; 2330 calls
+    adaptive: mean 0.002ms; sum 1.800ms / 1165 frames; 1165 calls
+    hud: mean 0.023ms; sum 27.000ms / 1165 frames; 5899 calls
+    world: mean 0.769ms; sum 896.200ms / 1165 frames; 1165 calls
+    render: mean 3.593ms; sum 4185.700ms / 1165 frames; 1165 calls
+    matrices: mean 0.713ms; sum 831.000ms / 1165 frames; 1165 calls
+    other: mean 0.621ms; sum 723.000ms / 1165 frames; 0 calls
+    outside measured body: mean 7.280ms / 1165 aligned intervals
+    outside complete callback: mean 7.247ms / 1165 aligned intervals
+    Physics: 1172 steps / 1165 frames, mean 1.006, max 3 steps/frame
+    Player inner-step diagnostic (not total physics): sampled meanStepMs mean 0.432ms / 1165 samples; maxStepMs 35.200ms
+    Shader programs: 55 -> 71; range 55..71; 9 changes / 1165 samples
+    Attribution clock reads: 72378
+  parked / baseline (0): 2459 measured frames; median per-window work p95 10.2ms
+    physics: mean 0.333ms; sum 819.600ms / 2459 frames; 7377 calls
+    people: mean 3.035ms; sum 7463.900ms / 2459 frames; 27049 calls
+    registry: mean 0.135ms; sum 331.900ms / 2459 frames; 2459 calls
+    scans: mean 0.015ms; sum 36.000ms / 2459 frames; 2459 calls
+    collisions: mean 0.007ms; sum 17.000ms / 2459 frames; 2459 calls
+    bubbles: mean 0.156ms; sum 383.500ms / 2459 frames; 4918 calls
+    camera: mean 0.012ms; sum 29.600ms / 2459 frames; 2459 calls
+    lights: mean 0.009ms; sum 21.800ms / 2459 frames; 4918 calls
+    adaptive: mean 0.001ms; sum 2.100ms / 2459 frames; 2459 calls
+    hud: mean 0.010ms; sum 23.400ms / 2459 frames; 12327 calls
+    world: mean 0.284ms; sum 697.400ms / 2459 frames; 2459 calls
+    render: mean 3.559ms; sum 8751.600ms / 2459 frames; 2459 calls
+    matrices: mean 0.711ms; sum 1748.200ms / 2459 frames; 2459 calls
+    other: mean 0.775ms; sum 1906.700ms / 2459 frames; 0 calls
+    outside measured body: mean 7.632ms / 2458 aligned intervals
+    outside complete callback: mean 7.604ms / 2458 aligned intervals
+    Physics: 2460 steps / 2459 frames, mean 1.000, max 3 steps/frame
+    Player inner-step diagnostic (not total physics): sampled meanStepMs mean 0.223ms / 2459 samples; maxStepMs 35.200ms
+    Shader programs: 71 -> 71; range 71..71; 0 changes / 2459 samples
+    Attribution clock reads: 152522
+
+Horizon health (sampled maxima; cumulative supersession counter is not an interval count):
+  settle: ffApplySuperseded=0, ffPublishedAgeMs=18252.200000047684, ffCellsSincePublication=1, ffUnitMs=2
+  parked: ffApplySuperseded=0, ffPublishedAgeMs=59251, ffCellsSincePublication=0, ffUnitMs=2
+
+Worst frames (showing 8 of 8; 0 older events dropped):
+  settle       wall 154ms, work 29.6ms (previous work 134.3ms) (world 5.2, render 4.7) at -228,-694 | chunks 9 | programs 55
+    preceding settle / baseline: outside body 19.700000047683716ms; outside callback 19.299999952316284ms
+  settle       wall 98.1ms, work 134.3ms (previous work 2.7ms) (world 6.9, render 47.3) at -228,-694 | chunks 9 | programs 55
+    preceding None / None: outside body n/ams; outside callback n/ams
+  settle       wall 105.9ms, work 15.2ms (previous work 92.7ms) (world 6.1, render 3.6) at -228,-694 | chunks 9 | programs 55
+    preceding settle / baseline: outside body 13.200000047683716ms; outside callback 13.100000143051147ms
+  settle       wall 74.3ms, work 92.7ms (previous work 29.6ms) (world 3.9, render 3.6) at -228,-694 | chunks 9 | programs 55
+    preceding settle / baseline: outside body 44.700000047683716ms; outside callback 44.59999990463257ms
+  settle       wall 84.8ms, work 11.1ms (previous work 80.9ms) (world 0.7, render 5.1) at -228,-694 | chunks 9 | programs 68
+    preceding settle / baseline: outside body 3.9000000953674316ms; outside callback 3.799999952316284ms
+  settle       wall 18ms, work 80.9ms (previous work 7.5ms) (world 0.5, render 5.7) at -228,-694 | chunks 9 | programs 68
+    preceding settle / baseline: outside body 10.5ms; outside callback 10.400000095367432ms
+  settle       wall 51.6ms, work 29.9ms (previous work 50.9ms) (world 14.8, render 8) at -228,-694 | chunks 9 | programs 56
+    preceding settle / baseline: outside body 0.7000000476837158ms; outside callback 0.5ms
+  settle       wall 12.4ms, work 50.9ms (previous work 11.9ms) (world 43.4, render 3.3) at -228,-694 | chunks 9 | programs 55
+    preceding settle / baseline: outside body 0.5ms; outside callback 0.39999985694885254ms

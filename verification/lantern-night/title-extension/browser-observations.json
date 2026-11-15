@@ -1,0 +1,364 @@
+{
+  "frames": [
+    {
+      "bubble": {
+        "animation": "title-puff",
+        "count": 24,
+        "z": "3"
+      },
+      "gate": {
+        "bottom": 1034.742500199775,
+        "left": 1935.4684477445612,
+        "right": 2811.127592387952,
+        "top": 150.17160549832707
+      },
+      "hero": {
+        "bottom": 974.5530200921768,
+        "left": 1994.0251753957648,
+        "right": 2608.0811382092925,
+        "top": 432.55796309662674
+      },
+      "images": [
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20A%20feathered%20perimeter%20joins%20scenery%20without%20putting%20generated%20pixels%20under%20the%20original%20gate/vehicle%20or%20inside%20the%20central%20alpha%20window.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2019.2H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-sky-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-sky.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20A%20feathered%20perimeter%20joins%20scenery%20without%20putting%20generated%20pixels%20under%20the%20original%20gate/vehicle%20or%20inside%20the%20central%20alpha%20window.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2019.2H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-mountains-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-mountains.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20A%20feathered%20perimeter%20joins%20scenery%20without%20putting%20generated%20pixels%20under%20the%20original%20gate/vehicle%20or%20inside%20the%20central%20alpha%20window.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2019.2H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-festival-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-festival.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20Extended%20trees%20form%20one%20continuous%20canopy.%20The%20lower%20central%20opening%20excludes%20the%20generated%20vehicle,%20preserving%20the%20original%20Zerble%20instead.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2047H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-foreground-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0) 48%, rgb(0, 0, 0) 52%, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-foreground.webp"
+        }
+      ],
+      "layers": [
+        {
+          "name": "title-layer title-sky",
+          "transform": "matrix(1, 0, 0, 1, -1.07758, 0)",
+          "z": "0"
+        },
+        {
+          "name": "title-layer title-mountains",
+          "transform": "matrix(1, 0, 0, 1, -2.42122, 0)",
+          "z": "1"
+        },
+        {
+          "name": "title-layer title-festival",
+          "transform": "matrix(1, 0, 0, 1, -0.0345694, 0)",
+          "z": "2"
+        },
+        {
+          "name": "title-layer title-foreground",
+          "transform": "matrix(1.02, 0, 0, 1.02, 1.88361, 0)",
+          "z": "4"
+        }
+      ],
+      "viewport": [
+        3840,
+        1080
+      ]
+    },
+    {
+      "bubble": {
+        "animation": "title-puff",
+        "count": 24,
+        "z": "3"
+      },
+      "gate": {
+        "bottom": 807.5730605738576,
+        "left": 713.2877994519101,
+        "right": 1195.5844501696135,
+        "top": 320.36795961742826
+      },
+      "hero": {
+        "bottom": 774.4217623468413,
+        "left": 761.051269932797,
+        "right": 1099.2617512753134,
+        "top": 475.9010573538153
+      },
+      "images": [
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20A%20feathered%20perimeter%20joins%20scenery%20without%20putting%20generated%20pixels%20under%20the%20original%20gate/vehicle%20or%20inside%20the%20central%20alpha%20window.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2019.2H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-sky-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-sky.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20A%20feathered%20perimeter%20joins%20scenery%20without%20putting%20generated%20pixels%20under%20the%20original%20gate/vehicle%20or%20inside%20the%20central%20alpha%20window.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2019.2H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-mountains-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-mountains.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20A%20feathered%20perimeter%20joins%20scenery%20without%20putting%20generated%20pixels%20under%20the%20original%20gate/vehicle%20or%20inside%20the%20central%20alpha%20window.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2019.2H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-festival-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-festival.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20Extended%20trees%20form%20one%20continuous%20canopy.%20The%20lower%20central%20opening%20excludes%20the%20generated%20vehicle,%20preserving%20the%20original%20Zerble%20instead.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2047H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-foreground-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0) 48%, rgb(0, 0, 0) 52%, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-foreground.webp"
+        }
+      ],
+      "layers": [
+        {
+          "name": "title-layer title-sky",
+          "transform": "matrix(1, 0, 0, 1, -1.23041, 0)",
+          "z": "0"
+        },
+        {
+          "name": "title-layer title-mountains",
+          "transform": "matrix(1, 0, 0, 1, -13.8793, 0)",
+          "z": "1"
+        },
+        {
+          "name": "title-layer title-festival",
+          "transform": "matrix(1, 0, 0, 1, -13.5741, 0)",
+          "z": "2"
+        },
+        {
+          "name": "title-layer title-foreground",
+          "transform": "matrix(1.02, 0, 0, 1.02, 2.13222, 0)",
+          "z": "4"
+        }
+      ],
+      "viewport": [
+        1440,
+        900
+      ]
+    },
+    {
+      "bubble": {
+        "animation": "title-puff",
+        "count": 24,
+        "z": "3"
+      },
+      "gate": {
+        "bottom": 1100.4741459034708,
+        "left": 428.1575713819294,
+        "right": 991.249197708933,
+        "top": 531.651808411358
+      },
+      "hero": {
+        "bottom": 1061.769267375107,
+        "left": 481.70635504471625,
+        "right": 876.5743625038549,
+        "top": 713.2399941098804
+      },
+      "images": [
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20A%20feathered%20perimeter%20joins%20scenery%20without%20putting%20generated%20pixels%20under%20the%20original%20gate/vehicle%20or%20inside%20the%20central%20alpha%20window.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2019.2H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-sky-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-sky.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20A%20feathered%20perimeter%20joins%20scenery%20without%20putting%20generated%20pixels%20under%20the%20original%20gate/vehicle%20or%20inside%20the%20central%20alpha%20window.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2019.2H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-mountains-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-mountains.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20A%20feathered%20perimeter%20joins%20scenery%20without%20putting%20generated%20pixels%20under%20the%20original%20gate/vehicle%20or%20inside%20the%20central%20alpha%20window.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2019.2H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-festival-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-festival.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20Extended%20trees%20form%20one%20continuous%20canopy.%20The%20lower%20central%20opening%20excludes%20the%20generated%20vehicle,%20preserving%20the%20original%20Zerble%20instead.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2047H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-foreground-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0) 48%, rgb(0, 0, 0) 52%, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-foreground.webp"
+        }
+      ],
+      "layers": [
+        {
+          "name": "title-layer title-sky",
+          "transform": "matrix(1, 0, 0, 1, -12.3541, 0)",
+          "z": "0"
+        },
+        {
+          "name": "title-layer title-mountains",
+          "transform": "matrix(1, 0, 0, 1, -11.4432, 0)",
+          "z": "1"
+        },
+        {
+          "name": "title-layer title-festival",
+          "transform": "matrix(1, 0, 0, 1, -11.2505, 0)",
+          "z": "2"
+        },
+        {
+          "name": "title-layer title-foreground",
+          "transform": "matrix(1.02, 0, 0, 1.02, 2.76851, 0)",
+          "z": "4"
+        }
+      ],
+      "viewport": [
+        1024,
+        1366
+      ]
+    },
+    {
+      "bubble": {
+        "animation": "title-puff",
+        "count": 24,
+        "z": "3"
+      },
+      "gate": {
+        "bottom": 367.1648120292315,
+        "left": 424.675601502925,
+        "right": 656.8924801475123,
+        "top": 132.58457823539516
+      },
+      "hero": {
+        "bottom": 351.2030806108185,
+        "left": 443.22145201030526,
+        "right": 606.0635741384406,
+        "top": 207.47088523397537
+      },
+      "images": [
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20A%20feathered%20perimeter%20joins%20scenery%20without%20putting%20generated%20pixels%20under%20the%20original%20gate/vehicle%20or%20inside%20the%20central%20alpha%20window.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2019.2H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-sky-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-sky.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20A%20feathered%20perimeter%20joins%20scenery%20without%20putting%20generated%20pixels%20under%20the%20original%20gate/vehicle%20or%20inside%20the%20central%20alpha%20window.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2019.2H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-mountains-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-mountains.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20A%20feathered%20perimeter%20joins%20scenery%20without%20putting%20generated%20pixels%20under%20the%20original%20gate/vehicle%20or%20inside%20the%20central%20alpha%20window.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2019.2H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-festival-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-festival.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "url(\"data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%20preserveAspectRatio='none'%3e%3c!--%20Extended%20trees%20form%20one%20continuous%20canopy.%20The%20lower%20central%20opening%20excludes%20the%20generated%20vehicle,%20preserving%20the%20original%20Zerble%20instead.%20--%3e%3cdefs%3e%3cfilter%20id='join'%20x='-10%25'%20y='-10%25'%20width='120%25'%20height='120%25'%3e%3cfeGaussianBlur%20stdDeviation='.8'/%3e%3c/filter%3e%3c/defs%3e%3cpath%20fill='white'%20fill-rule='evenodd'%20filter='url(%23join)'%20d='M-5%20-5H105V105H-5Z%20M19.2%2047H80.8V80.8H19.2Z'/%3e%3c/svg%3e\")",
+          "src": "assets/title-screen/layer-foreground-extended.webp"
+        },
+        {
+          "loaded": true,
+          "mask": "linear-gradient(to right, rgba(0, 0, 0, 0), rgb(0, 0, 0) 40px, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0) 48%, rgb(0, 0, 0) 52%, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "src": "assets/title-screen/layer-foreground.webp"
+        }
+      ],
+      "layers": [
+        {
+          "name": "title-layer title-sky",
+          "transform": "matrix(1, 0, 0, 1, -10.4963, 0)",
+          "z": "0"
+        },
+        {
+          "name": "title-layer title-mountains",
+          "transform": "matrix(1, 0, 0, 1, -13.8744, 0)",
+          "z": "1"
+        },
+        {
+          "name": "title-layer title-festival",
+          "transform": "matrix(1, 0, 0, 1, -2.66805, 0)",
+          "z": "2"
+        },
+        {
+          "name": "title-layer title-foreground",
+          "transform": "matrix(1.02, 0, 0, 1.02, 4.82009, 0)",
+          "z": "4"
+        }
+      ],
+      "viewport": [
+        844,
+        390
+      ]
+    }
+  ],
+  "reducedMotion": {
+    "animations": [
+      "none",
+      "none",
+      "none",
+      "none"
+    ],
+    "bubbleDisplays": [
+      "none"
+    ],
+    "reduced": true
+  }
+}

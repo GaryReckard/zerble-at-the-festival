@@ -1,0 +1,10 @@
+{
+  "path": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/snapshots/58967cd3c212e3f3bb8ead202cf74e98b851e6f32a26bbb176a1f0e27e6bdf08",
+  "app": "58967cd3c212e3f3bb8ead202cf74e98b851e6f32a26bbb176a1f0e27e6bdf08",
+  "build": "b9b9d6c4fc41554077f150dfd9040ed7226deec3ac24070d0865b3a9e52ee9cc",
+  "head": "558c9f33f62d2bcfde0321fcb0bc48804bc45d27",
+  "dependencies": "6ea4f0053add945ef1b8631b87459f2c9540951a4efc65217716c047e0240ff9",
+  "harness": "6d1eb7716970b18618c6adcc124f0f0fca2ea5412a8f42417dd9489dcc701998",
+  "cleanCommit": false,
+  "scope": "Content-addressed dirty-source preparation only; not timed acceptance."
+}

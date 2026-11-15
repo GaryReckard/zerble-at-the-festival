@@ -1,0 +1,95 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { createFrameAttribution, FRAME_SECTIONS } from '../src/frameAttribution.js';
+
+let time = 0, reads = 0;
+const timing = createFrameAttribution(() => { reads++; return time; });
+const total = () => Object.values(timing.parts).reduce((sum, value) => sum + value, 0);
+const failure = new Error('original failure');
+const child = { work(value) { assert.equal(this, child); time += 3; return value * 2; } };
+const parent = {
+  work(a, b) { assert.equal(this, parent); time += 2; const result = child.work(a); time += 4; return result + b; },
+  fail() { time += 1; throw failure; },
+};
+const original = parent.work;
+timing.watch(child, 'work', 'registry');
+timing.watch(parent, 'work', 'people');
+timing.watch(parent, 'fail', 'collisions');
+assert.equal(parent.work(5, 7), 17);
+assert.throws(() => parent.fail(), error => error === failure);
+assert.equal(reads, 0, 'unrecorded wrappers preserve behavior without clock reads');
+
+time = 0;
+timing.begin(0);
+time = 1;
+assert.equal(parent.work(5, 7), 17);
+time = 11;
+assert.throws(() => parent.fail(), error => error === failure);
+timing.finish(14);
+assert.equal(total(), 14);
+assert.equal(timing.parts.people, 6, 'nested child duration is excluded from its parent');
+assert.equal(timing.parts.registry, 3);
+assert.equal(timing.parts.collisions, 1);
+assert.equal(timing.parts.other, 4);
+assert.equal(timing.calls.people, 1);
+assert.equal(timing.calls.registry, 1);
+assert.equal(timing.clockReads, 6);
+assert.deepEqual(Object.keys(timing.parts), FRAME_SECTIONS);
+timing.finish(100);
+assert.equal(total(), 14, 'finish is idempotent');
+const after = reads;
+parent.work(1, 2);
+assert.equal(reads, after);
+
+// Safari-style coarse clocks still partition the entire elapsed frame.
+time = 20;
+timing.begin(20);
+const outer = timing.enter('physics');
+const inner = timing.enter('world');
+time = 21;
+timing.leave(inner);
+timing.leave(outer);
+timing.finish(22);
+assert.equal(total(), 2);
+assert.equal(timing.parts.world, 1);
+assert.equal(timing.parts.physics, 0);
+assert.equal(timing.parts.other, 1);
+assert.equal(timing.calls.people, 0, 'begin resets all calls');
+assert.equal(timing.clockReads, 4, 'begin resets clock counts');
+timing.dispose(); timing.dispose();
+assert.equal(parent.work, original);
+
+// Inherited methods regain prototype lookup; own methods regain their identity.
+const prototype = { work() { return this.value; } };
+const inherited = Object.assign(Object.create(prototype), { value: 42 });
+const own = { work() { return 9; } }, ownOriginal = own.work;
+const restore = createFrameAttribution(() => { throw Error('unexpected clock'); });
+restore.watch(inherited, 'work', 'hud');
+restore.watch(own, 'work', 'hud');
+restore.watch(own, 'work', 'world');
+assert.equal(inherited.work(), 42);
+restore.dispose();
+assert.equal(Object.hasOwn(inherited, 'work'), false);
+assert.equal(inherited.work, prototype.work);
+assert.equal(own.work, ownOriginal);
+const replacement = () => 'external';
+restore.watch(own, 'work', 'hud');
+own.work = replacement;
+restore.dispose();
+assert.equal(own.work, replacement, 'teardown preserves a newer external replacement');
+assert.throws(() => restore.watch(own, 'missing', 'hud'), TypeError);
+assert.throws(() => restore.watch(own, 'work', 'invalid'), TypeError);
+
+// Disposing from inside a measured operation must not read a clock afterward.
+let disposalReads = 0;
+const midCall = createFrameAttribution(() => { disposalReads++; return 0; });
+const disposer = { run() { midCall.dispose(); return 'disposed'; } };
+const disposeOriginal = disposer.run;
+midCall.watch(disposer, 'run', 'hud');
+midCall.begin(0);
+assert.equal(disposer.run(), 'disposed');
+assert.equal(disposalReads, 1);
+assert.equal(disposer.run, disposeOriginal);
+assert.ok(Object.values(midCall.parts).every(Number.isFinite));
+
+console.log('PASS frame attribution: disjoint nested scopes, coarse clocks, behavior preservation, resets and disposal');

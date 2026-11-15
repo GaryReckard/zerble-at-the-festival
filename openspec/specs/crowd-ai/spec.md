@@ -7,6 +7,8 @@
 > bubbles/smiles in `feedback-systems`; the song-end cheer signal in
 > `audio-synthesis`.
 
+## Purpose
+
 The crowd is a pool of stateful NPCs spawned by chunks, each with a personality and a
 small behavior state machine, that react to the player — making eye contact, smiling
 and dropping smile pickups, fleeing when plowed into. Separately, a few themed groups
@@ -133,3 +135,33 @@ laterally while their loop continues marching.
 - **WHEN** the child controller participates through the common runtime
 - **THEN** children retain gaggle movement and bubble chasing without receiving
   adult-only boarding or amenity behavior merely through registration
+
+
+### Requirement: Ordinary people can play and leave cornhole
+
+Cornhole SHALL borrow two eligible existing adults through the people activity-claim contract. A game SHALL alternate four bags per player, count one point on the board and three in the hole, apply cancellation after eight throws, and finish at 21 or more at the end of a round. Players SHALL walk between ends, visibly collect bags, react to the result, shake hands, tidy bags at one end, and release back to ordinary AI. The game SHALL NOT create a dedicated permanent population or end solely because a short presentation timer expired.
+
+#### Scenario: A full game concludes
+
+- **WHEN** a normal game completes an eight-bag round with a player reaching 21 or more
+- **THEN** all bags are gathered, the result reactions and handshake play, the court is tidied, and both people return to ordinary behavior
+
+#### Scenario: Zerble interrupts play
+
+- **WHEN** the cart approaches, a person becomes unavailable, or the court unloads
+- **THEN** claims are released without stale pose writes or retained actors
+- **AND** on a still-live court held/flying bags settle near their current positions for the next pair to collect
+
+### Requirement: Courts are contextual and have vacant periods
+
+Courts SHALL be admitted only within completed communal camp or vendor-parent reservations, with enough households/booths, dry level grass, road clearance and unoccupied playing/access space. A parent whose full registered court footprint cannot fit SHALL decline. Court selection SHALL use an independent seeded stream. Courts SHALL remain present when idle, use staggered initial availability and post-game rests, respect individual cooldowns, prefer newcomers and cap simultaneous games at two.
+
+#### Scenario: A narrow vendor strip cannot fit a court
+
+- **WHEN** the full conservative court footprint extends outside the vendor reservation
+- **THEN** no court is spawned there, even if a narrower visible rectangle would fit
+
+#### Scenario: A court is ready for another pair
+
+- **WHEN** its rest period has elapsed and eligible people are available
+- **THEN** a new pair may claim it, with prior participants de-prioritized rather than permanently excluded

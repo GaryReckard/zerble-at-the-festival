@@ -59,11 +59,12 @@
   <meta name="twitter:title" content="Zerble at the Festival" />
   <meta name="twitter:description" content="Bring the bubbles, collect the smiles." />
   <meta name="twitter:image" content="https://garyreckard.github.io/zerble-at-the-festival/assets/zerble.png" />
-  <!-- The title-screen pixel face is self-hosted (see the @font-face at the
-       top of styles.css) — no third-party font CSS in the critical path. -->
-  <link rel="preload" href="assets/fonts/press-start-2p.woff2" as="font" type="font/woff2" crossorigin />
+  <!-- Self-host the Lantern Night typefaces without third-party font requests. -->
+  <link rel="preload" href="assets/fonts/caprasimo-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="passport.css" />
+  <link rel="stylesheet" href="lantern-ui.css" />
   <script type="module" src="./src/boot.js"></script>
 </head>
 <body>
@@ -156,33 +157,45 @@
 
   <div id="title-card">
     <div id="title-stage">
-      <img class="title-layer title-sky" src="assets/title-screen/layer-sky.webp" alt="" fetchpriority="high" />
-      <img class="title-layer title-mountains" src="assets/title-screen/layer-mountains.webp" alt="" fetchpriority="high" />
-      <img class="title-layer title-festival" src="assets/title-screen/layer-festival.webp" alt="" />
+      <div class="title-layer title-sky">
+        <img class="title-extension" src="assets/title-screen/layer-sky-extended.webp" alt="" />
+        <img class="title-original" src="assets/title-screen/layer-sky.webp" alt="" fetchpriority="high" />
+      </div>
+      <div class="title-layer title-mountains">
+        <img class="title-extension" src="assets/title-screen/layer-mountains-extended.webp" alt="" />
+        <img class="title-original" src="assets/title-screen/layer-mountains.webp" alt="" fetchpriority="high" />
+      </div>
+      <div class="title-layer title-festival">
+        <img class="title-extension" src="assets/title-screen/layer-festival-extended.webp" alt="" />
+        <img class="title-original" src="assets/title-screen/layer-festival.webp" alt="" />
+      </div>
       <div id="title-bubbles" aria-hidden="true"></div>
-      <img class="title-layer title-foreground" src="assets/title-screen/layer-foreground.webp" alt="" />
+      <div class="title-layer title-foreground">
+        <img class="title-extension" src="assets/title-screen/layer-foreground-extended.webp" alt="" />
+        <img class="title-original" src="assets/title-screen/layer-foreground.webp" alt="" />
+      </div>
       <img class="title-logo" src="assets/title-screen/title-logo.webp" alt="" fetchpriority="high" />
       <h1 class="title-sr-only">Zerble at the Festival</h1>
-      <p class="title-sr-only">Bring the bubbles, collect the smiles</p>
     </div>
     <div id="title-ui">
       <div class="card">
       <!-- Page 1: the attract screen / main menu -->
       <div class="card-page" id="title-page-main">
-        <div class="title-menu-label">Choose a mode to play</div>
+        <p class="title-tagline">Bring the bubbles, collect the smiles</p>
+        <div class="title-menu-label">Pick a lantern to start</div>
         <div id="mode-select" role="group" aria-label="Choose a mode to play">
-          <button id="mode-festival" class="mode-btn" type="button" aria-label="Play Festival Run" aria-describedby="festival-description" data-selected="false" disabled aria-disabled="true">
-            <span class="mode-cursor" aria-hidden="true"></span>
+          <button id="mode-cruisin" class="mode-btn" type="button" aria-label="Play Just Cruisin'" aria-describedby="cruisin-description" data-selected="true" disabled aria-disabled="true">
+            <span class="mode-cap" aria-hidden="true">…</span>
             <span class="mode-text">
-              <span class="mode-name">Festival Run</span>
-              <span class="mode-desc" id="festival-description">Days get harder. More challenging.</span>
+              <span class="mode-heading"><span class="mode-name">Just Cruisin'</span><span class="mode-remembered" hidden>Last played</span></span>
+              <span class="mode-desc" id="cruisin-description">Free refills, no marshals. Mind your cart.</span>
             </span>
           </button>
-          <button id="mode-cruisin" class="mode-btn" type="button" aria-label="Play Just Cruisin'" aria-describedby="cruisin-description" data-selected="true" disabled aria-disabled="true">
-            <span class="mode-cursor" aria-hidden="true"></span>
+          <button id="mode-festival" class="mode-btn" type="button" aria-label="Play Festival Run" aria-describedby="festival-description" data-selected="false" disabled aria-disabled="true">
+            <span class="mode-cap" aria-hidden="true">…</span>
             <span class="mode-text">
-              <span class="mode-name">Just Cruisin'</span>
-              <span class="mode-desc" id="cruisin-description">Explore freely. Mind your cart.</span>
+              <span class="mode-heading"><span class="mode-name">Festival Run</span><span class="mode-remembered" hidden>Last played</span></span>
+              <span class="mode-desc" id="festival-description">Days get harder. Chase a high score.</span>
             </span>
           </button>
         </div>
@@ -191,29 +204,31 @@
           <div class="name-plank"><label for="player-name">Name</label>
           <input id="player-name" type="text" maxlength="20" autocomplete="nickname"
                  spellcheck="false" placeholder="Zerble" enterkeyhint="done" aria-describedby="name-note" /></div>
-          <span id="name-note" class="name-note">Optional. Your name appears in the festival and on public Festival Run scores.</span>
+          <span id="name-note" class="name-note">Optional. Your name can appear in festival greetings and on public Festival Run scores.</span>
         </div>
 
         <button id="start-btn" class="title-sr-only" type="button" tabindex="-1" disabled aria-disabled="true" aria-busy="true">Warming up Zerble…</button>
-        <span id="boot-copy" role="status" aria-live="polite">Pressurizing the bubble tank…</span>
-        <button id="boot-retry" type="button" hidden>Try loading again</button>
+        <div class="title-status"><span id="boot-copy" role="status" aria-live="polite">Pressurizing the bubble tank…</span>
+        <button id="boot-retry" type="button" hidden>Try loading again</button></div>
 
-        <div class="title-links">
+        <nav class="title-links" aria-label="Menus">
           <button id="howto-open" class="title-link" type="button" aria-expanded="false" aria-controls="title-page-howto">How to play</button>
           <button id="settings-open-title" class="title-link" type="button" aria-label="Open settings" disabled>Settings</button>
           <button id="passport-open-title" class="title-link" type="button" aria-label="Open Festival Passport" disabled>Festival passport</button>
           <button id="upgrades-open-title" class="title-link" type="button" aria-label="Open bubble upgrades" disabled>Bubble upgrades</button>
           <button id="board-open-title" class="title-link" type="button" aria-label="View the leaderboard">Leaderboard</button>
-        </div>
+        </nav>
       </div>
 
-      <!-- Page 2: the instructions screen (same card frame; content swaps) -->
-      <div class="card-page" id="title-page-howto" hidden>
+      <!-- The instructions sheet shares its content with the in-game Settings tab. -->
+      <div class="card-page" id="title-page-howto" role="dialog" aria-modal="true" aria-label="How to play" hidden>
         <div class="howto-header">
           <button id="howto-back" type="button" aria-label="Back to the title screen">◀ Back</button>
-          <span class="howto-title">How to play</span>
+          <h2 class="howto-title">How to play</h2>
         </div>
 
+        <div class="help-scroll">
+        <div class="controls-scheme" role="group" aria-label="Controls for"><span>Controls for</span><button type="button" data-scheme="keyboard" aria-pressed="true">Keyboard and mouse</button><button type="button" data-scheme="touch" aria-pressed="false">Touch</button></div>
         <div class="controls controls-kbd">
           <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> drive · <kbd>Shift</kbd> boost · <kbd>Ctrl</kbd> slow</div>
           <div><kbd>Arrow keys</kbd> move camera · <kbd>V</kbd> change view · mouse wheel zoom</div>
@@ -226,7 +241,7 @@
           <div><span class="tag-key">Thumbstick</span> drive · <span class="tag-key">Drag</span> move camera</div>
           <div><span class="tag-key">Boost</span> faster · <span class="tag-key">Slow</span> careful driving</div>
           <div><span class="tag-key">Honk</span> bell or horn · <span class="tag-key">Cam</span> change view</div>
-          <div><span class="tag-key">Heart</span> bubble upgrades</div>
+          <div><span class="tag-key">Pinch</span> zoom · <span class="tag-key">Heart</span> bubble upgrades · <span class="tag-key">Music</span> music on or off</div>
         </div>
 
         <p class="hint"><strong>Make smiles.</strong> Drive near festival-goers and send bubbles their way. Chain smiles for a bigger score, and avoid crashing into people and props.</p>
@@ -234,16 +249,19 @@
         <p class="hint"><strong>Discover bubbles.</strong> Explore stages, meet Lurleen and stay out after dark to unlock special bubbles. Open Bubble Upgrades from the main menu or with the in-game heart (<kbd>U</kbd> on keyboard) to see clues and switch earned bubbles on or off. Every discovery adds bubble charm.</p>
 
         <p class="hint"><strong>Keep Zerble bubbling.</strong> Grab glowing juice jugs or visit a bubble vendor. In Festival Run, each new day brings scarcer juice and pricier refills. Hitting people or drawing frowns while dry raises the vibe meter. A marshal whistles at the warning mark; fill the meter and they walk you out. Staying empty too long also ends the run. Just Cruisin' keeps free refills and no marshal pressure. In either mode, hard crashes damage your cart and deep water can end your trip.</p>
+        <div class="help-modes"><section><h3>Just Cruisin'</h3><p>Free refills, no marshals. Mind your cart: hard crashes and deep water can still end your trip.</p></section><section><h3>Festival Run</h3><p>Days get harder. Chase a high score, keep the juice flowing, and stay on the marshals’ good side.</p></section></div>
+        </div>
       </div>
       </div>
     </div>
   </div>
 
-  <div id="rotate-phone" role="status" aria-live="polite">Rotate your phone<span>Zerble plays in landscape</span></div>
+  <div id="rotate-phone" role="status" aria-live="polite"><div class="rotate-device" aria-hidden="true"><img src="assets/title-screen/bubble.webp" alt="" /></div><strong>Rotate your phone</strong><span>Zerble plays in landscape</span><small>Turn sideways and the gate opens.</small></div>
 
   <div id="score-screen" class="hidden" role="dialog" aria-modal="true" aria-label="Run results">
     <div class="card">
-      <h2 id="score-cause">The festival rolls on…</h2>
+      <header class="sheet-header"><h2 id="score-cause">The festival rolls on…</h2></header>
+      <div class="score-body">
       <div class="score-stats" id="score-stats">
         <div class="stat"><span class="stat-n" id="score-final">0</span><span class="stat-l">smiles</span></div>
         <div class="stat"><span class="stat-n" id="score-days">1</span><span class="stat-l">days</span></div>
@@ -257,6 +275,7 @@
       </div>
       <table id="local-board" aria-label="Leaderboard"><tbody></tbody></table>
       <p id="board-empty" class="board-empty hidden">No legends yet — finish a Festival Run to claim the board!</p>
+      </div>
       <div class="score-actions">
         <button id="score-again" type="button">Run it again!</button>
         <button id="score-close" type="button">Back to the gate</button>
@@ -264,38 +283,10 @@
     </div>
   </div>
 
-  <script>
+  <script type="module">
+    import { initTitleScene } from './src/titleScene.js';
+    initTitleScene();
     (function () {
-      const title = document.getElementById('title-card');
-      function fitTitle() {
-        const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
-        title.style.setProperty('--title-fit', `translate(${-640 * scale}px, ${-360 * scale}px) scale(${scale})`);
-      }
-      window.addEventListener('resize', fitTitle, { passive: true });
-      window.visualViewport?.addEventListener('resize', fitTitle, { passive: true });
-      fitTitle();
-
-      const specs = [[30, 9, 0], [16, 12, 2], [26, 8, 4], [34, 11, 1],
-        [22, 10, 6], [28, 13, 3.5], [32, 9.5, 7], [18, 7.5, 5],
-        [24, 10.5, 8.5], [20, 8.5, 2.8], [30, 11.5, 6.8], [14, 9.8, 4.6]];
-      const bubbles = document.getElementById('title-bubbles');
-      for (let pass = 0; pass < 2; pass++) {
-        specs.forEach(([width, duration, delay], index) => {
-          const bubble = document.createElement('img');
-          bubble.className = 'title-bubble';
-          bubble.src = 'assets/title-screen/bubble.webp';
-          bubble.alt = '';
-          bubble.width = width;
-          bubble.height = width;
-          bubble.style.setProperty('--bubble-duration', `${duration}s`);
-          bubble.style.setProperty('--bubble-delay', `${delay - pass * duration / 2}s`);
-          const jitterIndex = index + pass * specs.length;
-          bubble.style.marginLeft = `${(jitterIndex * 37) % 121 - 60}px`;
-          bubble.style.marginTop = `${(jitterIndex * 17) % 31 - 12}px`;
-          bubbles.appendChild(bubble);
-        });
-      }
-
       // Orientation locking is available only on supported fullscreen browsers.
       // The portrait overlay also covers Safari, which does not expose the lock.
       document.addEventListener('fullscreenchange', () => {
@@ -308,7 +299,7 @@
 
   <script>
     (function () {
-      // The mode planks stay disabled until hud.js arms the trusted-gesture
+      // The mode lanterns stay disabled until hud.js arms the trusted-gesture
       // start callback. This line narrates the wait without moving the menu.
       const copy = document.getElementById('boot-copy');
       const retry = document.getElementById('boot-retry');
@@ -325,6 +316,7 @@
       function fail(error, downloadFailure = false) {
         if (ready || failed) return;
         failed = true;
+        document.getElementById('title-card')?.setAttribute('data-load', 'failed');
         clearInterval(timer);
         clearTimeout(stuck);
         copy.classList.remove('is-done');
@@ -382,6 +374,7 @@
           clearInterval(timer);
           clearTimeout(stuck);
           copy.textContent = 'Bubble pressure: magnificent.';
+          document.getElementById('title-card')?.setAttribute('data-load', 'ready');
           setTimeout(function () {
             copy.classList.add('is-done');
           }, 1400);

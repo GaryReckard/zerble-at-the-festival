@@ -1,0 +1,54 @@
+[
+  {
+    "layer": "sky",
+    "originalSha256": "3b7af04412055f9fe45196390cfc0b13c83deac0710b13fa051e0a5aecec3b04",
+    "originalEqualsHead": true,
+    "extension": "assets/title-screen/layer-sky-extended.webp",
+    "sourceGeneration": "exec-de6bb933-c636-460f-9104-f6f9e0546c7c.png",
+    "size": [
+      1672,
+      941
+    ],
+    "bytes": 445926,
+    "alphaPreserved": true
+  },
+  {
+    "layer": "mountains",
+    "originalSha256": "b2cc9cb9a4573969ee3854dc9d4a8bed68caa77183ddc798f96854798f9c9082",
+    "originalEqualsHead": true,
+    "extension": "assets/title-screen/layer-mountains-extended.webp",
+    "sourceGeneration": "exec-d752e1c0-359e-464a-8cec-77fc20a17cb9.png",
+    "size": [
+      1672,
+      941
+    ],
+    "bytes": 293680,
+    "alphaPreserved": true
+  },
+  {
+    "layer": "festival",
+    "originalSha256": "9cbd42970e41618bd6d64e9be45a5b32936c5b6cbb104cd87867aa75f7351ddb",
+    "originalEqualsHead": true,
+    "extension": "assets/title-screen/layer-festival-extended.webp",
+    "sourceGeneration": "exec-d62bdda2-d037-4e98-a0e3-0d2554764f60.png",
+    "size": [
+      1672,
+      941
+    ],
+    "bytes": 591408,
+    "alphaPreserved": true
+  },
+  {
+    "layer": "foreground",
+    "originalSha256": "becf34156b9881a5bb1dc84ae32ab54d8c5cd1b1cb580fed3d4a8c02de872160",
+    "originalEqualsHead": true,
+    "extension": "assets/title-screen/layer-foreground-extended.webp",
+    "sourceGeneration": "exec-3a10ad86-9cb1-406d-b201-6df5d4e29ed0.png",
+    "size": [
+      1672,
+      941
+    ],
+    "bytes": 520760,
+    "alphaPreserved": true
+  }
+]

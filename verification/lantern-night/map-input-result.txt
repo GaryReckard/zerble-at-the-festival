@@ -1,0 +1,1 @@
+PASS: real touch stick held across expansion/zoom/close, release, music action separation, Space isolation.

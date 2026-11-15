@@ -1,4 +1,5 @@
 import { ENGINE_WATER_HEIGHT } from '../vehicleTuning.js';
+import { landingNormalSpeed, LANDING_EPISODE_SECONDS } from './vehicleImpact.js';
 // One dynamic chassis is authoritative on the ground and in the air. This owner
 // consumes the live world's clock; it never reads an interpolated render pose.
 export const VEHICLE_SURFACES = Object.freeze({
@@ -35,7 +36,7 @@ export function createPlayerVehicle({adapter,cart,id='live-cart',sampleSurface=(
   if(!result.ok){adapter.removeBody(id);throw new Error(`Player controller admission failed: ${result.reason}`);}
   const token=result.token;
   let enabled=true,disposed=false,contacts=0,steering=0,surface='grass',airTime=0,recoveryTime=0,recoveries=0,resetCount=0,lastReset='restart';
-  let impactSpeed=0,landingSpeed=0,impactNormal={x:0,y:0,z:0},expectedVelocity={x:0,y:0,z:0},previousVelocity={x:0,y:0,z:0};
+  let landingAirTime=0,landingEpisode=0,impactSpeed=0,landingSpeed=0,impactNormal={x:0,y:0,z:0},expectedVelocity={x:0,y:0,z:0},previousVelocity={x:0,y:0,z:0};
   let lastInput={throttle:0,boost:false},water={wet:false,depth:0,surfaceY:0},immersion=0;
   const forward={},up={},sample={},wetSample={},normal={},wheelControls=WHEELS.map(()=>({engineForce:0,brake:0,steering:0,frictionSlip:2.5,sideFrictionStiffness:1}));
   const engine={throttle:0,load:0,revs:0,wet:0,submersion:0,running:true,grounded:false,boost:false};
@@ -144,12 +145,17 @@ export function createPlayerVehicle({adapter,cart,id='live-cart',sampleSurface=(
     solved=adapter.readBody(id);if(!solved)return;
     wheelState=adapter.readVehicle(token);const previousContacts=contacts;
     contacts=wheelState.wheels.filter(w=>w.contact).length;
+    const completedAirTime=airTime;
+    const touchdown=contacts&&!previousContacts;
+    if(touchdown){landingAirTime=completedAirTime;landingEpisode=LANDING_EPISODE_SECONDS;}
+    else if(contacts){landingEpisode=Math.max(0,landingEpisode-dt);if(landingEpisode===0)landingAirTime=0;}
     airTime=contacts?0:airTime+dt;
+    if(!contacts){landingAirTime=airTime;landingEpisode=0;}
     const dv={x:solved.linearVelocity.x-expectedVelocity.x,y:solved.linearVelocity.y-expectedVelocity.y,z:solved.linearVelocity.z-expectedVelocity.z};
     // Contacts in the same native step include suspension impulses; only retain
     // changes larger than ordinary support/drive for consequence consumers.
     impactSpeed=length(dv);const inv=impactSpeed?1/impactSpeed:0;impactNormal={x:dv.x*inv,y:dv.y*inv,z:dv.z*inv};
-    landingSpeed=contacts&&!previousContacts?Math.max(0,-previousVelocity.y):0;
+    landingSpeed=touchdown?landingNormalSpeed(previousVelocity,wheelState.wheels):0;
     readWater(solved.pose.position);publish();
     recoveryTime=up.y<.25&&length(solved.linearVelocity)<1&&length(solved.angularVelocity)<.7?recoveryTime+dt:0;
     if(recoveryTime>2&&immersion<.8){
@@ -166,7 +172,7 @@ export function createPlayerVehicle({adapter,cart,id='live-cart',sampleSurface=(
     const next=poseOf(cart),speed=Number.isFinite(cart.speed)?cart.speed:0;
     adapter.setPose(id,next);rotated({x:0,y:0,z:-1},next.rotation,forward);
     adapter.setVelocity(id,{linear:{x:forward.x*speed,y:forward.y*speed,z:forward.z*speed}});
-    contacts=0;airTime=0;impactSpeed=landingSpeed=0;steering=0;resetCount++;lastReset=reason;
+    contacts=0;airTime=landingAirTime=landingEpisode=0;impactSpeed=landingSpeed=0;steering=0;resetCount++;lastReset=reason;
     for(const w of wheelControls)Object.assign(w,{engineForce:0,brake:0,steering:0});
     adapter.setVehicleControls(token,{wheels:wheelControls,enabled});solved=adapter.readBody(id);previousPose=solved.pose;wheelState=adapter.readVehicle(token);readWater(next.position);publish();return true;
   }
@@ -181,7 +187,7 @@ export function createPlayerVehicle({adapter,cart,id='live-cart',sampleSurface=(
     cart.root.updateMatrixWorld?.(true);
   }
   function endRender(){if(!renderPose)return;copyVector(cart.position,renderPose.position);cart.root.quaternion.copy(renderPose.rotation);renderPose=null;cart.root.updateMatrixWorld?.(true);}
-  function state(){return {id,bodyGeneration:body.generation,contacts,grounded:contacts>0,speed:cart.speed,velocity:{...cart.velocity},position:{x:cart.position.x,y:cart.position.y,z:cart.position.z},surface,water:{...water},immersion,airTime,impactSpeed,landingSpeed,impactNormal:{...impactNormal},up:{...up},engine:{...engine},recoveries,resets:resetCount,lastReset,disposed};}
+  function state(){return {id,bodyGeneration:body.generation,contacts,grounded:contacts>0,speed:cart.speed,velocity:{...cart.velocity},position:{x:cart.position.x,y:cart.position.y,z:cart.position.z},surface,water:{...water},immersion,airTime,landingAirTime,impactSpeed,landingSpeed,impactNormal:{...impactNormal},up:{...up},engine:{...engine},recoveries,resets:resetCount,lastReset,disposed};}
   function dispose(){if(disposed)return;disposed=true;adapter.removeVehicle(token);adapter.removeBody(id);cart.grounded=false;}
   reset('restart');
   return {id,token,beforeStep,afterStep,reset,state,dispose,beginRender,endRender,setEnabled(value){if(typeof value!=='boolean')throw new TypeError('Enabled must be boolean');enabled=value;if(!disposed)adapter.setVehicleControls(token,{wheels:wheelControls,enabled});}};

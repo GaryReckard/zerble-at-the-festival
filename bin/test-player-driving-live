@@ -173,3 +173,39 @@ assert.ok(shallowTravel<dryTravel*.85,`shallow drag reduces actual travel (${sha
   } finally {f.close();}
 }
 console.log('PASS live player driving: reserved terrain/static support, paused frontier and resume, real tree damage episode, parked stability, passable shallow water, sustained deep submersion, StarPower passage/safe re-entry, and exact body/collider/controller teardown.',JSON.stringify(reports));
+
+// Actual production consequence consumption, including terrain chassis events.
+const landingReports=[];
+for(const hz of [30,60,120])for(const height of [.3,1,2,10]){
+ const f=await fixture();
+ try{
+   f.frames(90,{brake:true});f.cart.position.y+=height;f.cart.speed=0;f.live.reset('teleport');
+   let maxAir=0;
+   for(let frame=0;frame<hz*3;frame++){
+     f.prepare();f.live.advance(1/hz,{input:{brake:true}});
+     maxAir=Math.max(maxAir,f.live.stats().cart.landingAirTime);
+   }
+   landingReports.push({hz,height,maxAir,damage:f.cart.condition.damage});
+   assert(f.live.stats().cart.contacts>0,'drop returns to real terrain support');
+   if(height<=2)assert.equal(f.cart.condition.damage,0,`${height}m incidental drop at ${hz}Hz is harmless`);
+   else{assert(maxAir>=.5);assert(f.cart.condition.damage>0&&f.cart.condition.damage<=25,`10m serious drop at ${hz}Hz still damages the cart once`);}
+ }finally{f.close();}
+}
+{
+ const f=await fixture({trees:[-18]});
+ try{
+   f.frames(90,{brake:true});f.cart.position.set(0,1.2,-10);f.cart.speed=18;f.live.reset('teleport');
+   let airborneCollision=false;const collisionEvidence=[];
+   for(let frame=0;frame<60;frame++){
+     const damage=f.cart.condition.damage;f.step();
+     if(f.cart.condition.damage>damage){collisionEvidence.push({frame,contacts:f.live.stats().cart.contacts,height:f.cart.position.y,damage:f.cart.condition.damage,kind:f.cart.lastPhysicalDamage.kind});if(f.live.stats().cart.contacts===0)airborneCollision=true;}
+   }
+   assert(airborneCollision,`an actual airborne tree impact remains damaging: ${JSON.stringify(collisionEvidence)}`);
+   console.log('Airborne tree evidence',JSON.stringify(collisionEvidence));
+ }finally{f.close();}
+}
+for(const height of [.3,1,2,10]){
+ const samples=landingReports.filter(sample=>sample.height===height);
+ for(const sample of samples)assert(Math.abs(sample.damage-samples[0].damage)<1e-8,'landing damage is independent of presentation cadence');
+}
+console.log('PASS production landing forgiveness: short drops, serious fall, airborne tree impact and presentation cadence.',JSON.stringify(landingReports));

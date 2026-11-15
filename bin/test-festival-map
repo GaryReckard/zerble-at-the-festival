@@ -145,7 +145,7 @@ console.log('Festival map independent backdrop contract passes');
 // Direct pointer pin selection toggles, and empty space remains an exit on touch.
 const pinMethods=viewSource.slice(viewSource.indexOf('  togglePin('),viewSource.indexOf('  suspend('));
 const pinView=vm.runInNewContext(`new (class {${pinMethods}})()`,{projectPin,Math});
-Object.assign(pinView,{player:{x:0,z:0},width:200,height:200,scale:1,roundness:1,markers:[{id:'stage',kind:'stage_front',label:'Stage',x:0,z:0}],overlay:{getBoundingClientRect:()=>({left:0,top:0})},expanded:true,setExpanded(on){this.expanded=on;}});
+Object.assign(pinView,{pinOptions:{querySelectorAll:()=>[]},player:{x:0,z:0},width:200,height:200,scale:1,roundness:1,markers:[{id:'stage',kind:'stage_front',label:'Stage',x:0,z:0}],overlay:{getBoundingClientRect:()=>({left:0,top:0})},expanded:true,setExpanded(on){this.expanded=on;}});
 pinView.pick(100,100);assert.equal(pinView.selected,'stage');pinView.pick(100,100);assert.equal(pinView.selected,null);
 pinView.pick(5,5);assert.equal(pinView.expanded,false);
 // Modified map/music shortcuts must not swallow the cart's Ctrl slow mode.

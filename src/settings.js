@@ -23,6 +23,7 @@
 //     reloads when any differs from what booted — and preserves the live session
 //     (seed/position/score/juice) across the reload via captureState.
 
+import { createMenuDialog, initHelpControls } from './menuUi.js';
 import { PERF, DETECTED_TIER } from './perf.js';
 import * as AdaptiveQuality from './adaptiveQuality.js';
 import { Sound } from './sound.js';
@@ -45,6 +46,7 @@ function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return n
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
 
+let dialog = null;
 let refs = null;       // { bubbles, captureState }
 let bootSnap = null;   // reload-required settings as they booted
 let $overlay = null;
@@ -60,6 +62,7 @@ export const Settings = {
     };
     this._build();
     this._wire();
+    this._setTab('performance');
   },
 
   // Re-apply the persisted LIVE per-effect overrides at boot. The reload-required
@@ -76,14 +79,14 @@ export const Settings = {
     if (sh === 'on' || sh === 'off') AdaptiveQuality.setOverride('shadows', sh === 'on');
   },
 
-  open() { if ($overlay) { this._sync(); $overlay.classList.remove('hidden'); } },
-  close() { if ($overlay) $overlay.classList.add('hidden'); },
+  open() { if ($overlay) { this._sync(); $overlay.classList.remove('hidden'); dialog.open(); } },
+  close() { if ($overlay) { $overlay.classList.add('hidden'); dialog.close(); this._cancelMapReset(); } },
 
   _build() {
     const gear = document.createElement('button');
     gear.id = 'settings-gear';
     gear.setAttribute('aria-label', 'Open settings');
-    gear.innerHTML = GEAR_SVG;
+    gear.innerHTML = GEAR_SVG + '<span class="launcher-label">Settings</span>';
     document.body.appendChild(gear);
 
     const overlay = document.createElement('div');
@@ -92,28 +95,34 @@ export const Settings = {
     overlay.innerHTML = `
       <div class="settings-backdrop"></div>
       <div class="settings-card" role="dialog" aria-modal="true" aria-label="Settings">
-        <button class="settings-close" aria-label="Close settings">&times;</button>
+        <header class="sheet-header"><button class="settings-close" aria-label="Close settings">&times;</button>
         <div class="settings-accent"></div>
-        <h2 class="settings-title">Settings</h2>
+        <h2 class="settings-title">Settings</h2></header>
 
         <div class="settings-tabs" role="tablist">
-          <button class="settings-tab-btn active" data-tab="performance" role="tab">Performance</button>
-          <button class="settings-tab-btn" data-tab="sound" role="tab">Sound</button>
-          <button class="settings-tab-btn" data-tab="accessibility" role="tab">Accessibility</button>
-          <button class="settings-tab-btn" data-tab="howto" role="tab">How to play</button>
+          <button class="settings-tab-btn active" data-tab="performance" role="tab" aria-controls="settings-performance" id="settings-tab-performance">Performance</button>
+          <button class="settings-tab-btn" data-tab="sound" role="tab" aria-controls="settings-sound" id="settings-tab-sound">Sound</button>
+          <button class="settings-tab-btn" data-tab="accessibility" role="tab" aria-controls="settings-accessibility" id="settings-tab-accessibility">Accessibility</button>
+          <button class="settings-tab-btn" data-tab="howto" role="tab" aria-controls="settings-howto" id="settings-tab-howto">How to play</button>
         </div>
 
-        <div class="settings-tab" data-tab="performance" role="tabpanel">
+        <div class="sheet-body">
+        <div class="settings-tab" data-tab="performance" id="settings-performance" aria-labelledby="settings-tab-performance" role="tabpanel">
           <div class="settings-cols">
             <div class="settings-col">
               <div class="settings-section">
-                <div class="settings-section-label">Graphics quality <span class="settings-reload-note">reload to apply</span></div>
+                <div class="settings-section-label">Graphics quality <span class="settings-reload-note">needs restart</span></div>
                 <div id="set-quality" role="radiogroup" aria-label="Graphics quality">
                   ${tierRow('auto', 'Auto')}
                   ${tierRow('low', 'Low')}
                   ${tierRow('mid', 'Medium')}
                   ${tierRow('high', 'High')}
                 </div>
+              </div>
+              <div class="settings-section">
+                <div class="settings-section-label">Extra lights <span class="settings-reload-note">needs restart</span></div>
+                ${toggleRow('set-context', 'Warm extra lights', 'firepits &amp; lamps glow for real')}
+                ${toggleRow('set-fancy', 'Extra detail lights', 'every torch &amp; bulb — heaviest')}
               </div>
             </div>
             <div class="settings-col">
@@ -124,34 +133,39 @@ export const Settings = {
                 ${triRow('set-bubbles', 'Detailed bubbles', 'shinier, costlier bubbles')}
                 ${triRow('set-shadows', 'Shadows', 'cast shadows on the ground')}
               </div>
-              <div class="settings-section">
-                <div class="settings-section-label">Extra lights <span class="settings-reload-note">reload to apply</span></div>
-                ${toggleRow('set-context', 'Warm extra lights', 'firepits &amp; lamps glow for real')}
-                ${toggleRow('set-fancy', 'Extra detail lights', 'every torch &amp; bulb — heaviest')}
-              </div>
+
             </div>
           </div>
         </div>
 
-        <div class="settings-tab is-hidden" data-tab="sound" role="tabpanel">
+        <div class="settings-tab is-hidden" data-tab="sound" id="settings-sound" aria-labelledby="settings-tab-sound" role="tabpanel">
           <div class="settings-section">
             ${sliderRow('set-vol-master', 'Master')}
             ${sliderRow('set-vol-music', 'Music')}
             ${sliderRow('set-vol-sfx', 'Sound effects')}
+            <p class="settings-hint">Levels save as you move them.</p>
           </div>
         </div>
 
-        <div class="settings-tab is-hidden" data-tab="accessibility" role="tabpanel">
+        <div class="settings-tab is-hidden" data-tab="accessibility" id="settings-accessibility" aria-labelledby="settings-tab-accessibility" role="tabpanel">
           <div class="settings-section">
             ${toggleRow('set-map-visible', 'Festival minimap', 'M opens the larger map, even with the minimap hidden')}
-            <button id="set-map-reset" class="settings-apply">Reset this festival’s explored map</button>
+            <button id="set-map-reset" class="settings-apply" aria-expanded="false" aria-controls="set-map-confirm">Reset this festival’s explored map…</button>
+            <div id="set-map-confirm" class="map-reset-confirm" hidden>
+              <p>Clear explored territory and known places for this festival? This cannot be undone.</p>
+              <p>Only this festival’s map is cleared. Your passport and bubble discoveries stay.</p>
+              <button type="button" id="set-map-cancel" class="settings-apply">Cancel</button>
+              <button type="button" id="set-map-clear" class="settings-apply">Clear map</button>
+              <p id="set-map-result" role="status"></p>
+            </div>
             ${toggleRow('set-reduced-motion', 'Reduced motion', 'calm the strobes, warp &amp; pulses')}
             ${toggleRow('set-colorblind', 'Colorblind-friendly cues', 'mark a lost smile by shape, not just colour')}
           </div>
         </div>
 
-        <div class="settings-tab settings-howto is-hidden" data-tab="howto" role="tabpanel"></div>
+        <div class="settings-tab settings-howto is-hidden" data-tab="howto" id="settings-howto" aria-labelledby="settings-tab-howto" role="tabpanel"></div>
 
+        </div>
         <div class="settings-restart is-hidden">
           <span class="settings-restart-text">A couple of these need a quick restart — you'll pick up right where you left off.</span>
           <button class="settings-apply">Restart now</button>
@@ -165,12 +179,17 @@ export const Settings = {
     const howtoSrc = document.getElementById('title-page-howto');
     const howtoPane = overlay.querySelector('.settings-tab[data-tab="howto"]');
     if (howtoSrc && howtoPane) {
-      for (const el of howtoSrc.querySelectorAll('.controls, .hint')) {
+      for (const el of howtoSrc.querySelectorAll('.controls-scheme, .controls, .hint, .help-modes')) {
         howtoPane.appendChild(el.cloneNode(true));
       }
     }
     document.body.appendChild(overlay);
     $overlay = overlay;
+    initHelpControls(howtoPane);
+    dialog = createMenuDialog(overlay, { focus: '.settings-close', close: () => this.close(), beforeEscape: () => {
+      if (!overlay.querySelector('#set-map-confirm').hidden) { this._cancelMapReset(); return true; }
+      return false;
+    } });
   },
 
   _wire() {
@@ -188,6 +207,15 @@ export const Settings = {
     $('.settings-tabs').addEventListener('click', (e) => {
       const btn = e.target.closest('.settings-tab-btn');
       if (btn) this._setTab(btn.dataset.tab);
+    });
+
+    $('.settings-tabs').addEventListener('keydown', event => {
+      const buttons = [...$('.settings-tabs').querySelectorAll('button')];
+      const index = buttons.indexOf(event.target);
+      if (index < 0 || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowLeft' ? -1 : 1) + buttons.length) % buttons.length;
+      this._setTab(buttons[next].dataset.tab); buttons[next].focus();
     });
 
     // --- Graphics quality (reload) ---
@@ -239,7 +267,20 @@ export const Settings = {
 
     $('#set-map-visible').addEventListener('change', e => refs.festivalMap?.setCompact(e.target.checked));
     $('#set-map-reset').addEventListener('click', () => {
-      if (confirm('Clear explored territory and known places for this festival? This cannot be undone.')) void refs.festivalMap?.reset();
+      $('#set-map-confirm').hidden = false;
+      $('#set-map-reset').setAttribute('aria-expanded', 'true');
+      $('#set-map-result').textContent = '';
+      $('#set-map-cancel').focus();
+    });
+    $('#set-map-cancel').addEventListener('click', () => this._cancelMapReset());
+    $('#set-map-clear').addEventListener('click', async () => {
+      const button = $('#set-map-clear');
+      button.disabled = true;
+      try {
+        await refs.festivalMap?.reset();
+        $('#set-map-result').textContent = 'This festival’s explored map has been cleared.';
+      } catch { $('#set-map-result').textContent = 'The map could not be cleared. Please try again.'; }
+      finally { button.disabled = false; }
     });
     // --- Accessibility (live) ---
     $('#set-reduced-motion').addEventListener('change', (e) => A11y.setReducedMotion(e.target.checked));
@@ -254,8 +295,18 @@ export const Settings = {
     });
   },
 
+  _cancelMapReset() {
+    $overlay.querySelector('#set-map-confirm').hidden = true;
+    $overlay.querySelector('#set-map-reset').setAttribute('aria-expanded', 'false');
+    if (!$overlay.classList.contains('hidden')) $overlay.querySelector('#set-map-reset').focus();
+  },
+
   _setTab(name) {
-    $overlay.querySelectorAll('.settings-tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
+    if (name !== 'accessibility') {
+      $overlay.querySelector('#set-map-confirm').hidden = true;
+      $overlay.querySelector('#set-map-reset').setAttribute('aria-expanded', 'false');
+    }
+    $overlay.querySelectorAll('.settings-tab-btn').forEach((b) => { const active = b.dataset.tab === name; b.classList.toggle('active', active); b.setAttribute('aria-selected', String(active)); b.tabIndex = active ? 0 : -1; });
     $overlay.querySelectorAll('.settings-tab').forEach((p) => p.classList.toggle('is-hidden', p.dataset.tab !== name));
   },
 
@@ -273,8 +324,8 @@ export const Settings = {
     // Shadows reflects the persisted CHOICE (reload-required), not a live override.
     setTri($('#set-shadows'), lsGet(K.shadows) || 'auto');
     // Extra lights (booted state)
-    $('#set-context').checked = !!PERF.contextLights;
-    $('#set-fancy').checked = !!PERF.fancyLights;
+    $('#set-context').checked = lsGet(K.context) === null ? !!PERF.contextLights : lsGet(K.context) === '1';
+    $('#set-fancy').checked = lsGet(K.fancy) === null ? !!PERF.fancyLights : lsGet(K.fancy) === '1';
     // Volume
     setSlider($('#set-vol-master'), Sound.getMasterVolume(), 'master');
     setSlider($('#set-vol-music'), Sound.getMusicVolume(), 'music');
@@ -300,6 +351,10 @@ export const Settings = {
       $('#set-fancy').checked !== bootSnap.fancy;
     // Contextual: the restart bar only exists when something actually needs one.
     $('.settings-restart').classList.toggle('is-hidden', !pending);
+    const items = [tierNow !== bootSnap.tier && 'graphics quality', shadowsNeedRestart && 'shadows',
+      $('#set-context').checked !== bootSnap.context && 'warm extra lights',
+      $('#set-fancy').checked !== bootSnap.fancy && 'extra detail lights'].filter(Boolean);
+    $('.settings-restart-text').textContent = `Restart to apply ${items.join(', ')}. Your visit is saved and resumes after the restart.`;
   },
 };
 
@@ -317,6 +372,7 @@ function tierRow(value, label) {
       <span class="settings-dot"></span>
       <span class="settings-radio-body">
         <span class="settings-radio-head"><span class="settings-radio-label">${label}</span>${chip}</span>
+        ${value !== 'auto' ? `<span class="settings-quality-note">${{ low: 'Smoothest', mid: 'Balanced', high: 'Prettiest' }[value]}</span>` : ''}
         ${warnEl}
       </span>
     </label>`;
@@ -330,9 +386,9 @@ function triRow(id, label, sub) {
         <span class="settings-tri-sub">${sub}</span>
       </div>
       <div class="settings-tri" id="${id}" role="radiogroup" aria-label="${label}">
-        <button type="button" data-v="off">Off</button>
-        <button type="button" data-v="auto">Auto</button>
-        <button type="button" data-v="on">On</button>
+        <button type="button" role="radio" aria-checked="false" data-v="off">Off</button>
+        <button type="button" role="radio" aria-checked="false" data-v="auto">Auto</button>
+        <button type="button" role="radio" aria-checked="false" data-v="on">On</button>
       </div>
     </div>`;
 }
@@ -351,8 +407,8 @@ function toggleRow(id, label, sub) {
 function sliderRow(id, label) {
   return `
     <div class="settings-slider-row">
-      <span class="settings-slider-label">${label}</span>
-      <input type="range" id="${id}" min="0" max="100" value="60" class="settings-slider">
+      <label for="${id}" class="settings-slider-label">${label}</label>
+      <input type="range" id="${id}" min="0" max="100" value="60" class="settings-slider"><output class="settings-slider-output" for="${id}">60%</output>
     </div>`;
 }
 
@@ -360,7 +416,7 @@ function sliderRow(id, label) {
 function triValue(ov) { return ov === null ? 'auto' : ov ? 'on' : 'off'; }
 
 function setTri(el, val) {
-  el.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.v === val));
+  el.querySelectorAll('button').forEach((b) => { const on = b.dataset.v === val; b.classList.toggle('active', on); b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
 }
 
 function getTri(el) {
@@ -369,6 +425,14 @@ function getTri(el) {
 }
 
 function bindTri(el, onChange) {
+  el.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    const buttons = [...el.querySelectorAll('button')], index = buttons.indexOf(event.target);
+    if (index < 0) return;
+    event.preventDefault();
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowLeft' ? -1 : 1) + buttons.length) % buttons.length;
+    buttons[next].click(); buttons[next].focus();
+  });
   el.addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (!btn) return;
@@ -381,12 +445,14 @@ function bindSlider(input, bus, apply) {
   input.addEventListener('input', () => {
     const pct = Number(input.value) / 100;
     apply(pct * VOL_MAX[bus]);
+    input.nextElementSibling.textContent = `${input.value}%`;
   });
 }
 
 function setSlider(input, gain, bus) {
   const pct = Math.round((gain / VOL_MAX[bus]) * 100);
   input.value = String(Math.max(0, Math.min(100, pct)));
+  input.nextElementSibling.textContent = `${input.value}%`;
 }
 
 const GEAR_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`;

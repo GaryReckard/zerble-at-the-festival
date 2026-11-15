@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {CornholeRules} from '../src/people/cornholeRules.js';
+const game=new CornholeRules();
+for(const points of [3,1,3,1,0,1,1,0])game.toss(points);
+assert.deepEqual(game.score,[4,0]);assert.equal(game.winner,null);game.nextRound();
+for(let round=0;round<2;round++){
+ for(let i=0;i<7;i++){game.toss(i%2===0?3:0);assert.equal(game.winner,null,'never win before the complete round');}
+ game.toss(0);if(round===0)game.nextRound();
+}
+assert.equal(game.winner,0);assert.deepEqual(game.score,[28,0]);assert.throws(()=>game.nextRound());
+const tie=new CornholeRules();for(let i=0;i<8;i++)tie.toss(3);assert.deepEqual(tie.score,[0,0]);assert.equal(tie.leader,0);assert.throws(()=>new CornholeRules().toss(2));
+console.log('PASS cornhole alternating eight-bag rounds, cancellation, ties and complete-round wins above 21.');

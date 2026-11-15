@@ -1,0 +1,135 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { attachHorizonCapture } from '../src/horizonCapture.js';
+globalThis.window ??= { innerWidth: 1024, innerHeight: 768 };
+globalThis.navigator ??= { hardwareConcurrency: 8, deviceMemory: 8 };
+const { FarField } = await import('../src/farField.js');
+const { FAR_FIELD_TIERS } = await import('../src/perf.js');
+const { setSeed } = await import('../src/worldgen/index.js');
+const { setTerrainEnabled } = await import('../src/worldgen/terrain.js');
+
+const disabled = new FarField({ enabled: false });
+const disabledKeys = Reflect.ownKeys(disabled);
+assert.equal(attachHorizonCapture(disabled, { now() { throw Error('disabled clock'); } }), null);
+assert.deepEqual(Reflect.ownKeys(disabled), disabledKeys);
+assert.equal(attachHorizonCapture({ enabled: true, disposed: true }), null);
+assert.equal(attachHorizonCapture(null), null);
+
+let time = 100;
+const make = () => new FarField({ enabled: true, tier: FAR_FIELD_TIERS.low });
+setSeed(2404796662);
+setTerrainEnabled(false);
+const ff = make();
+const original = Object.getOwnPropertyDescriptors(ff);
+const planner = ff.planner;
+const plannerOriginal = Object.getOwnPropertyDescriptors(planner);
+const probe = attachHorizonCapture(ff, { now: () => time });
+assert.equal(attachHorizonCapture(ff), probe, 'attachment is idempotent');
+time = 130;
+assert.equal(probe.snapshot().ffAwaitingFirstRequestPublicationMs, null, 'title waiting precedes any horizon request');
+assert.equal(probe.snapshot().ffFirstRequestToPublicationMs, null);
+ff.update(0, 0, { budgetMs: 0 });
+ff.update(80, 0, { budgetMs: 0 });
+ff.update(160, 0, { budgetMs: 0 });
+time = 140;
+let s = probe.snapshot();
+assert.equal(s.ffPublishedAgeMs, null);
+assert.equal(s.ffAwaitingFirstPublicationMs, 40);
+assert.equal(s.ffAwaitingFirstRequestPublicationMs, 10);
+assert.equal(s.ffFirstPublicationMs, null);
+assert.equal(s.ffRequestedCells, 3);
+assert.equal(s.ffCellsSincePublication, 3);
+assert.equal(s.ffRequestedCell, '2,0');
+assert.equal(s.ffPlanSuperseded, 2);
+assert.equal(s.ffSupersededStreakMax, 2);
+// A planned snapshot is not yet a publication, even if the planner committed.
+while (planner.pending) planner.step(() => [], 1);
+assert.equal(probe.snapshot().ffPublishedAgeMs, null);
+ff._job = ff._beginApply([]);
+ff.update(240, 0, { budgetMs: 0 });
+assert.equal(probe.snapshot().ffApplySuperseded, 1);
+assert.equal(probe.snapshot().ffSupersededStreakMax, 3);
+while (planner.pending) planner.step(() => [], 1);
+const empty = ff._beginApply([]);
+ff._advanceApply(empty, Infinity);
+time = 150;
+ff._commitApply(empty);
+s = probe.snapshot();
+assert.equal(s.ffPublishedAgeMs, 0);
+assert.equal(s.ffFirstPublicationMs, 50);
+assert.equal(s.ffFirstRequestToPublicationMs, 20, 'idle before first request does not inflate request-to-publication latency');
+assert.equal(s.ffAwaitingFirstRequestPublicationMs, null);
+assert.equal(s.ffPublishedCell, '3,0');
+assert.equal(s.ffCellsSincePublication, 0);
+assert.equal(s.ffSupersededStreak, 0);
+assert.equal(s.ffSupersededStreakMax, 3);
+time = 175;
+assert.equal(probe.snapshot().ffPublishedAgeMs, 25);
+assert.equal(probe.snapshot().ffFirstRequestToPublicationMs, 20);
+ff.update(320, 0, { budgetMs: 0 });
+assert.equal(probe.snapshot().ffCellsSincePublication, 1);
+probe.recordGrounding(170);
+probe.recordPreparation(160);
+assert.equal(probe.snapshot().ffUnitMs, 5);
+assert.equal(probe.snapshot().ffUnitKind, 'ground-instance');
+assert.equal(probe.snapshot().ffPreparationCallMs, 15);
+const wrappedNames = ['_beginApply', '_commitApply', '_planRoads', 'dispose', 'captureProbe'];
+probe.dispose(); probe.dispose();
+for (const name of wrappedNames) assert.deepEqual(Object.getOwnPropertyDescriptor(ff, name), original[name]);
+assert.deepEqual(Object.getOwnPropertyDescriptor(planner, 'begin'), plannerOriginal.begin);
+ff.dispose();
+
+// Own descriptors, receiver, arguments, return values and throwing commits.
+let syntheticTime = 0;
+const fixture = {
+  enabled: true, stats: {}, planner: { begin() {}, superseded: 0 },
+  _beginApply(value) { assert.equal(this, fixture); syntheticTime += 3; return value; },
+  _commitApply() { syntheticTime += 5; throw Error('publication failed'); },
+  _planRoads() { syntheticTime += 30; return null; },
+  dispose() { this.disposed = true; },
+};
+const descriptors = Object.getOwnPropertyDescriptors(fixture);
+const fp = attachHorizonCapture(fixture, { now: () => syntheticTime });
+assert.equal(fixture._beginApply(42), 42);
+assert.equal(fixture._planRoads(), null);
+assert.throws(() => fixture._commitApply(), /publication failed/);
+assert.equal(fp.snapshot().ffPublications, 0);
+assert.equal(fp.snapshot().ffPublishedAgeMs, null);
+assert.equal(fp.snapshot().ffUnitMs, 3);
+assert.equal(fp.snapshot().ffRoadSliceMs, 30);
+fixture.dispose();
+for (const name of wrappedNames) assert.deepEqual(Object.getOwnPropertyDescriptor(fixture, name), descriptors[name]);
+assert.equal(fixture.disposed, true);
+
+// Real FarField regression: capture preserves active descriptors and every
+// typed array in the pools/road geometry, using the installed Three.js package.
+function published(field) {
+  const bytes = array => Buffer.from(array.buffer, array.byteOffset, array.byteLength).toString('base64');
+  return {
+    active: structuredClone(field._active),
+    pools: Object.fromEntries(Object.entries(field._pools).map(([name, p]) => [name, {
+      count: p.mesh.count, matrix: bytes(p.mesh.instanceMatrix.array), fade: bytes(p.fade.array),
+      color: p.mesh.instanceColor ? bytes(p.mesh.instanceColor.array) : null,
+    }])),
+    roads: [bytes(field._road.posAttr.array), bytes(field._road.colorAttr.array), bytes(field._road.idxAttr.array), field._road.geo.drawRange],
+  };
+}
+setTerrainEnabled(true);
+const ordinary = make(), captured = make();
+let reads = 0;
+const liveProbe = attachHorizonCapture(captured, { now: () => { reads++; return performance.now(); } });
+for (const [x, z] of [[-230.3, -691.8], [-287.3, -634.8], [-344.3, -577.8], [-401.3, -520.8]]) {
+  ordinary.update(x, z, { budgetMs: 60000 });
+  captured.update(x, z, { budgetMs: 60000 });
+  assert.deepEqual(published(captured), published(ordinary));
+}
+assert.equal(liveProbe.snapshot().ffPublications, 4);
+assert.ok(liveProbe.snapshot().ffPreparationCallMs > 0);
+assert.ok(liveProbe.snapshot().ffUnitMs > 0);
+assert.equal(liveProbe.snapshot().ffClockReadsTotal, reads, 'counts every supplied clock read, including attachment, grounding hooks and snapshot age');
+liveProbe.dispose();
+const before = reads;
+captured.update(-460, -463, { budgetMs: 60000 });
+assert.equal(reads, before, 'disposal removes every capture clock read');
+ordinary.dispose(); captured.dispose();
+console.log('PASS horizon capture: starvation, actual publication age, unit/call distinction, lifecycle, and 4 real-world buffer comparisons');

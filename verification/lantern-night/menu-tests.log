@@ -1,0 +1,4 @@
+PASS menu focus ownership, wrap/return, confirmation Escape, undismissable results, modifier-safe map shortcuts and retained map driving
+PASS changing settings tabs cancels hidden reset confirmation and maintains a single tab stop
+PASS Settings wheel isolation preserves native scrolling across pane boundaries
+PASS boot recovery: bounded retry, manual fallback, entry failures, non-network errors, slow/ready transition and preserved URL/state.

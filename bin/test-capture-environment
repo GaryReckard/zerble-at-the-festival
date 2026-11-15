@@ -1,0 +1,49 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readCaptureEnvironment, createTitleCadenceEstimate} from '../src/captureEnvironment.js';
+const empty = {deviceModel: null, lowPowerMode: 'unknown', charging: 'unknown', batteryPercent: null, thermalNote: null};
+assert.deepEqual(readCaptureEnvironment(), empty);
+assert.deepEqual(readCaptureEnvironment(null), empty);
+assert.deepEqual(readCaptureEnvironment({toString() { throw Error('not a string'); }}), empty);
+assert.deepEqual(readCaptureEnvironment('?perfDeviceLowPowerMode=true&perfDeviceCharging=yes&perfDeviceBatteryPercent=101'), empty);
+for (const value of ['', '-1', '100.1', '1e2', 'Infinity', 'NaN', ' 50', '001']) {
+  assert.equal(readCaptureEnvironment('?perfDeviceBatteryPercent=' + encodeURIComponent(value)).batteryPercent, null);
+}
+for (const value of ['0', '50', '100']) assert.equal(readCaptureEnvironment('?perfDeviceBatteryPercent=' + value).batteryPercent, Number(value));
+assert.deepEqual(readCaptureEnvironment('?perfDeviceModel=My+iPad&perfDeviceLowPowerMode=off&perfDeviceCharging=on&perfDeviceBatteryPercent=72&perfDeviceThermalNote=warm%0Acaseless'), {
+  deviceModel: 'My iPad', lowPowerMode: 'off', charging: 'on', batteryPercent: 72, thermalNote: 'warm caseless',
+});
+assert.equal(readCaptureEnvironment('?perfDeviceModel=' + 'a'.repeat(200)).deviceModel.length, 160);
+assert.equal(readCaptureEnvironment('?perfDeviceThermalNote=' + 'a'.repeat(600)).thermalNote.length, 500);
+assert.doesNotThrow(() => readCaptureEnvironment('?perfDeviceModel=%E0%A4%A'));
+const cadence = createTitleCadenceEstimate();
+assert.equal(cadence.snapshot().estimatedHz, null);
+for (const value of [null, undefined, NaN, Infinity, -1, 0, 3.9, 100.1, '16']) cadence.sample(value);
+cadence.sample(16, {hidden: true}); cadence.sample(16, {running: true});
+assert.equal(cadence.snapshot().sampleCount, 0);
+for (let index = 0; index < 19; index++) cadence.sample(1000 / 60);
+assert.equal(cadence.snapshot().estimatedHz, null);
+cadence.sample(50);
+assert.equal(cadence.snapshot().estimatedHz, 60);
+const before = cadence.snapshot(); before.sampleCount = 999;
+assert.equal(cadence.snapshot().sampleCount, 20);
+for (let index = 0; index < 200; index++) cadence.sample(1000 / 60);
+assert.equal(cadence.snapshot().sampleCount, 120);
+assert.equal(cadence.snapshot().estimatedHz, 60);
+assert.equal(before.estimatedHz, 60);
+// Sampling consumes only its supplied intervals and never reads a clock or schedules work.
+const originals = {performance: globalThis.performance, setTimeout: globalThis.setTimeout, requestAnimationFrame: globalThis.requestAnimationFrame};
+try {
+  Object.defineProperty(globalThis, 'performance', {configurable: true, value: {now() { throw Error('own clock'); }}});
+  globalThis.setTimeout = () => { throw Error('own timer'); };
+  globalThis.requestAnimationFrame = () => { throw Error('own RAF'); };
+  const isolated = createTitleCadenceEstimate();
+  for (let index = 0; index < 20; index++) isolated.sample(10);
+  assert.equal(isolated.snapshot().estimatedHz, 100);
+} finally {
+  Object.defineProperty(globalThis, 'performance', {configurable: true, value: originals.performance});
+  globalThis.setTimeout = originals.setTimeout;
+  if (originals.requestAnimationFrame === undefined) delete globalThis.requestAnimationFrame;
+  else globalThis.requestAnimationFrame = originals.requestAnimationFrame;
+}
+console.log('PASS sanitized environment metadata and bounded title cadence with no clocks or scheduling');

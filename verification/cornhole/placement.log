@@ -1,0 +1,45 @@
+PASS cornhole clearance, terrain/water/road exclusions, parent containment, real board registration/unload and private RNG; 33 built / 111 skipped in 144 deterministic parent fixtures.
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS completed production hub census with elevated terrain and prepared landscape v2 access policy: [{"seed":0,"courts":0,"locations":[]},{"seed":1,"courts":0,"locations":[]},{"seed":2,"courts":0,"locations":[]},{"seed":3,"courts":1,"locations":[{"x":119.88517421715004,"z":323.60940638382664,"yaw":2.253498188159152,"source":"camp_village"}]},{"seed":4,"courts":1,"locations":[{"x":87.22003212368783,"z":-125.9768989269494,"yaw":5.7896709201073016,"source":"camp_village"}]}]
+(node:35253) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

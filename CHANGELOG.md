@@ -2,6 +2,34 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-11-15
+
+### Added
+- **Campers can start and finish a game of cornhole.** Eligible ordinary NPCs borrow a clear communal-camp court, alternate four bags each, use cancellation scoring to 21 or more after the complete round, collect the bags between ends, and finish with winner/loser reactions, a handshake and tidying before normal activity resumes. Seeded initial rests, duration-scaled court rests, player cooldowns and a two-game cap leave boards available for incidental driving. Courts require a level, dry, unobstructed footprint inside an established communal parent; cramped vendor strips are rejected. Low sloping board colliders give one tire a natural bump with landing forgiveness rather than a launch impulse. Production-session sandbox controls, native tire tests, complete-game/claim regressions and real-hub placement checks are included. [Evidence and limits](verification/cornhole/README.md).
+
+### Fixed
+- **Small hops no longer dent Zerble.** Landing damage requires at least half a second airborne and more than 8 m/s into the landing surface. Wheel touchdowns and ground chassis contacts share the rule, downhill travel is measured against the surface normal, and trees and other side impacts retain their damage. [Native regression evidence](verification/physics/2026-11-15-landing.md).
+- **Debug teleports retain their destination with physics enabled.** Successful overlay commands and landmark jumps reset the physics owner and notify progression of the relocation, while unsupported surface jumps remain rejected.
+
+### Changed
+- **Reserved desktop runs can collect the guided phone route with supervised cleanup.** A new runner preserves native title gestures, hardware GPU receipts, token-gated local export and exact owned-process teardown while comparing basic versus detailed capture on one immutable build. The four-run check passed its declared descriptive overhead criterion, while retaining a far-field duration-target miss. [Results and limits](verification/performance/2026-11-15-ipad-attribution/desktop-window/README.md).
+- **Guided captures can attribute the rest of the frame.** Detailed captures sum exclusive physics, people, index, scans, collision, particles, camera, lights, quality, HUD, world, render and existing scene-matrix work by phase and quality rung. The residual between callbacks is aligned with the preceding callback, including recorder/scheduling work, and is not labeled GPU time. Horizon probes distinguish actual publication from planning, preserve source buffers, and report freshness, supersession, unit timing and observer-clock counts. Harness options select horizon/physics-off controls and record manual device/power notes. Ordinary play installs no timing wrappers; gameplay and quality defaults remain unchanged. [Preparation and remaining measurement gates](openspec/changes/ipad-performance-strategy/README.md).
+- **The painted title scene fills tablet and ultrawide screens.** Four generated scenery extensions surround the original registered layers, with feathered joins and the original Zerble/gate retained in the center. Each layer and its extension move as one parallax group; adaptive framing keeps the gate and vehicle in view. The original 24-bubble sizes, stagger, jitter and curved rising path are restored beneath the foreground, so the plume rises behind Zerble. Reduced motion hides the decorative plume, and title animations pause after starting. [Art sources and verification](verification/lantern-night/title-extension/README.md).
+- **The expanded map is a translucent driving overlay again.** The opaque sheet and visible destination-pill list are removed, the map fills the viewport beneath HUD/touch controls, and it no longer captures gameplay keys or declares itself a modal. Compact cream outlines, a small indigo zoom/close toolbar and one selected-destination label retain the useful parts of the new styling. Keyboard destination selection remains available without displaying every place at once.
+- **Gameplay numbers use a plain face, and the title logo grows on larger screens.** The smile count uses Outfit with tabular digits and no glow instead of the decorative display face. The title logo can grow to 720px rather than stopping at 360px, while the compact landscape height limit remains in place.
+
+## 2026-11-14
+
+### Fixed
+- **The painted title layers move independently again.** The Lantern Night stylesheet retains the original sky, mountain and festival drift and foreground sway, with hidden-screen pausing and both system and in-game reduced-motion preferences still respected.
+
+### Added
+- **A renderer-free menu preview.** `menu-preview.html?mute=1` uses the production markup and menu modules for sample results, discovery states, settings, passport and startup recovery, with memory-only progress and no fake score submission. Focus regressions are included in `npm run check`.
+
+### Changed
+- **The title and menus now share the Lantern Night design.** The supplied handoff replaces wooden start planks and mismatched panels with teal/pink mode lanterns, hanging navigation, indigo sheets, cream outlines, self-hosted Caprasimo/Outfit type, labeled HUD launchers and a framed real festival map. Close buttons and primary actions stay visible while content scrolls on compact landscape screens; help offers keyboard/touch instructions, in-game upgrades use a non-pausing drawer, and Passport keeps its pause behavior with lit memory cards. Existing start/audio, scores, saved progress and replay behavior remain owned by the game. [Desktop evidence and device limits](verification/lantern-night/README.md).
+- **Settings makes pending and destructive actions explicit.** The restart bar names changed settings, remembers saved light choices when reopened, and stays outside the scrolling body. Map reset asks for confirmation inside the sheet, with Escape canceling the confirmation before closing Settings. Switches show ON/OFF, locked upgrades use a text label, and a NEW marker appears on both upgrade entry points.
+
 ## 2026-11-11
 
 ### Performance

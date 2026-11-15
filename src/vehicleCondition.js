@@ -1,10 +1,10 @@
 import { ENGINE_WATER_HEIGHT, SUBMERSION_GRACE_SECONDS } from './vehicleTuning.js';
-const LIGHT_CHAIRS=new Set(['chair','camp_chair','camp_loveseat']);
+const LIGHT_PROPS=new Set(['chair','camp_chair','camp_loveseat','cornhole_board']);
 const SOLID_DAMAGE_SCALE=20/(18-4)**2;
 export function impactDamageFor(closingSpeed,kind='solid') {
-  const severity=Math.max(0,closingSpeed-4)**2;
-  // Lightweight seating should dent the cart slightly, not count as a tree.
-  if(LIGHT_CHAIRS.has(kind))return Math.min(3,severity*.32*.06);
+  const severity=Math.max(0,closingSpeed-(kind==='landing'?8:4))**2;
+  // Light seating and small wooden game boards only give the cart a slight dent.
+  if(LIGHT_PROPS.has(kind))return Math.min(3,severity*.32*.06);
   // A head-on hit at the normal 18 m/s target costs 20 points. Boost and
   // hard landings can hurt more, but cannot wreck a healthy cart in one hit.
   return Math.min(25,severity*SOLID_DAMAGE_SCALE);
@@ -15,12 +15,13 @@ export class VehicleCondition {
   impact(closingSpeed,time,key='chassis',kind='solid') {
     if(!Number.isFinite(closingSpeed)||closingSpeed<0||!Number.isFinite(time))throw new TypeError('Impact requires finite speed and time');
     if(this.cause||closingSpeed<=4)return 0;
+    const added=Math.min(100-this.damage,impactDamageFor(closingSpeed,kind));
+    if(added===0)return 0;
     const previous=this.impacts.get(key);
     if(previous!==undefined&&time-previous<.75)return 0;
     for(const [id,last]of this.impacts)if(time-last>2)this.impacts.delete(id);
     if(this.impacts.size>=64)this.impacts.delete(this.impacts.keys().next().value);
     this.impacts.set(key,time);
-    const added=Math.min(100-this.damage,impactDamageFor(closingSpeed,kind));
     this.damage+=added;
     if(this.damage>=100)this.cause='wrecked';
     return added;

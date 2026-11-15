@@ -1016,8 +1016,14 @@ export class FarField {
         const inst = list[job.next];
         // A cold terrain tile is the one expensive thing a height can need.
         // Warm it in bounded pieces first; the height itself is then cheap.
-        if (!prepareTerrainHeight(inst.gx, inst.gz, deadline)) return false;
+        const probe = this.captureProbe;
+        const groundStart = probe ? probe.now() : 0;
+        const ready = prepareTerrainHeight(inst.gx, inst.gz, deadline);
+        if (probe) probe.recordPreparation(groundStart);
+        if (!ready) return false;
+        const heightStart = probe ? probe.now() : 0;
         groundFarInstance(inst);
+        if (probe) probe.recordGrounding(heightStart);
         job.next++;
         if ((job.next & 15) === 0 && performance.now() >= deadline) return false;
       }

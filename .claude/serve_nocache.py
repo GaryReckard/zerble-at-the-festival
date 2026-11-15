@@ -28,7 +28,7 @@ MAX_CAPTURE_BYTES = 32 * 1024 * 1024
 CAPTURE_TOKEN = None
 LAN_MODE = False
 PUBLIC_FILES = {
-    '/', '/index.html', '/sandbox.html', '/hub-sandbox.html', '/terrain-sandbox.html', '/map-sandbox.html', '/styles.css', '/passport.css', '/favicon.ico', '/favicon.svg',
+    '/', '/index.html', '/sandbox.html', '/hub-sandbox.html', '/terrain-sandbox.html', '/map-sandbox.html', '/styles.css', '/passport.css', '/lantern-ui.css', '/favicon.ico', '/favicon.svg',
     '/favicon-96x96.png', '/apple-touch-icon.png', '/site.webmanifest',
     '/web-app-manifest-192x192.png', '/web-app-manifest-512x512.png',
 }
@@ -122,12 +122,58 @@ def local_ipv4_addresses():
     return sorted(a for a in addresses if not ipaddress.ip_address(a).is_loopback)
 
 
-def capture_url(address, port, scenario=None, seed='3948869160', tier='auto', token=None, quality='auto', autopilot=False, world_detail=False, child_cohort='full-v1'):
+def capture_experiment_params(scenario, far_field='on', physics='on', device_model=None,
+                              low_power_mode='unknown', charging='unknown',
+                              battery_percent=None, thermal_note=None):
+    """Validate the bounded capture controls before building, binding, or encoding a URL."""
+    if far_field not in ('on', 'off') or physics not in ('on', 'off'):
+        raise ValueError('far-field and physics must be on or off')
+    if low_power_mode not in ('on', 'off', 'unknown') or charging not in ('on', 'off', 'unknown'):
+        raise ValueError('power states must be on, off, or unknown')
+    if battery_percent is not None and (type(battery_percent) is not int or not 0 <= battery_percent <= 100):
+        raise ValueError('battery-percent must be an integer from 0 to 100')
+    for label, value, limit in [('device-model', device_model, 160), ('thermal-note', thermal_note, 500)]:
+        if value is not None and (not isinstance(value, str) or not value.strip() or len(value) > limit or any(ord(c) < 32 or ord(c) == 127 for c in value)):
+            raise ValueError(f'{label} must be nonblank text of at most {limit} characters without control characters')
+    supplied = (far_field != 'on' or physics != 'on' or device_model is not None or
+                low_power_mode != 'unknown' or charging != 'unknown' or
+                battery_percent is not None or thermal_note is not None)
+    if supplied and not scenario:
+        raise ValueError('capture controls and device metadata require --playtest')
+    params = {}
+    if far_field == 'off':
+        params['farField'] = '0'
+    if physics == 'off':
+        params['physics'] = '0'
+    for key, value in [('perfDeviceModel', device_model), ('perfDeviceLowPowerMode', low_power_mode),
+                       ('perfDeviceCharging', charging), ('perfDeviceBatteryPercent', battery_percent),
+                       ('perfDeviceThermalNote', thermal_note)]:
+        if value is not None and not (key in ('perfDeviceLowPowerMode', 'perfDeviceCharging') and value == 'unknown'):
+            params[key] = str(value)
+    return params
+
+
+def add_capture_experiment_arguments(parser):
+    parser.add_argument('--far-field', choices=('on', 'off'), default='on', help='capture-only horizon control (default: on)')
+    parser.add_argument('--physics', choices=('on', 'off'), default='on', help='capture-only physics control; off uses legacy driving')
+    parser.add_argument('--device-model', help='manual model name/number (max 160 characters)')
+    parser.add_argument('--low-power-mode', choices=('on', 'off', 'unknown'), default='unknown')
+    parser.add_argument('--charging', choices=('on', 'off', 'unknown'), default='unknown')
+    parser.add_argument('--battery-percent', type=int, help='manual battery percentage, 0 through 100')
+    parser.add_argument('--thermal-note', help='manual heat/case/context note (max 500 characters)')
+
+
+def capture_experiment_options(args):
+    return {key: getattr(args, key) for key in ('far_field', 'physics', 'device_model',
+            'low_power_mode', 'charging', 'battery_percent', 'thermal_note')}
+
+
+def capture_url(address, port, scenario=None, seed='3948869160', tier='auto', token=None, quality='auto', autopilot=False, world_detail=False, child_cohort='full-v1', **experiment_options):
     if quality not in ('auto', 'baseline', 'sustained') or (quality != 'auto' and (tier != 'low' or not scenario)):
         raise ValueError('experimental quality requires a guided Low-tier capture')
     if child_cohort not in ('full-v1','half-v1') or (child_cohort!='full-v1' and not autopilot):
         raise ValueError('child cohort requires the fixed device autopilot')
-    params = {'perfCapture': '1'}
+    params = {'perfCapture': '1', **capture_experiment_params(scenario, **experiment_options)}
     if autopilot:
         params['perfKids'] = child_cohort
     if autopilot:
@@ -176,7 +222,13 @@ if __name__ == '__main__':
     parser.add_argument('--no-qr', action='store_true', help='print the URL without opening a QR code')
     parser.add_argument('--desktop-open', action='store_true', help='open a loopback playtest in the named browser')
     parser.add_argument('--browser', help='desktop browser app name (default: macOS default browser)')
+    add_capture_experiment_arguments(parser)
     args = parser.parse_args()
+    experiment_options = capture_experiment_options(args)
+    try:
+        capture_experiment_params(args.playtest, **experiment_options)
+    except ValueError as error:
+        parser.error(str(error))
     if args.child_cohort!='full-v1' and not args.autopilot:
         parser.error('--child-cohort half-v1 requires --autopilot')
     if args.autopilot and (args.playtest != 'drive' or args.seed != '2404796662'):
@@ -207,7 +259,7 @@ if __name__ == '__main__':
             addresses.sort(key=lambda address: (not address.startswith('192.168.'), not address.startswith('10.'), address))
             print('phone/iPad playtest URLs:', flush=True)
             for address in addresses:
-                print(f'  {capture_url(address, port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN, args.quality, args.autopilot, args.world_detail, args.child_cohort)}', flush=True)
+                print(f'  {capture_url(address, port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN, args.quality, args.autopilot, args.world_detail, args.child_cohort, **experiment_options)}', flush=True)
             if args.playtest and not args.no_qr:
                 qr_path = CAPTURE_DIR / 'playtest-qr.png'
                 CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
@@ -217,17 +269,17 @@ if __name__ == '__main__':
                     subprocess.run(['/usr/bin/clang', '-fobjc-arc', '-framework', 'AppKit', '-framework', 'CoreImage',
                                     str(qr_script), '-o', str(qr_tool)],
                                    check=True, timeout=60, capture_output=True, text=True)
-                    subprocess.run([str(qr_tool), capture_url(addresses[0], port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN, args.quality, args.autopilot, args.world_detail, args.child_cohort), str(qr_path)],
+                    subprocess.run([str(qr_tool), capture_url(addresses[0], port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN, args.quality, args.autopilot, args.world_detail, args.child_cohort, **experiment_options), str(qr_path)],
                                    check=True, timeout=60, capture_output=True, text=True)
                     subprocess.Popen(['/usr/bin/open', str(qr_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                     print(f'QR code opened: {qr_path} (scan with the phone camera)', flush=True)
                 except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
                     print(f'QR code unavailable ({error}); copy the printed URL instead.', file=sys.stderr, flush=True)
         else:
-            print(f'LAN mode is active. Open {capture_url("<this-mac-ip>", port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN, args.quality, args.autopilot, args.world_detail, args.child_cohort)}', flush=True)
+            print(f'LAN mode is active. Open {capture_url("<this-mac-ip>", port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN, args.quality, args.autopilot, args.world_detail, args.child_cohort, **experiment_options)}', flush=True)
         print('LAN capture writes require the token embedded in those URLs.', flush=True)
     elif args.playtest:
-        url = capture_url('127.0.0.1', port, args.playtest, args.seed, args.tier, quality=args.quality, autopilot=args.autopilot, world_detail=args.world_detail, child_cohort=args.child_cohort)
+        url = capture_url('127.0.0.1', port, args.playtest, args.seed, args.tier, quality=args.quality, autopilot=args.autopilot, world_detail=args.world_detail, child_cohort=args.child_cohort, **experiment_options)
         print(f'desktop playtest URL: {url}', flush=True)
         if args.desktop_open:
             open_command = ['/usr/bin/open']

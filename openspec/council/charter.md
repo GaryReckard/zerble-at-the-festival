@@ -39,17 +39,17 @@
    are shared truth — never mutate them in place.
 2. **ES module namespaces are frozen.** No `THREE.X = Y` after
    `import * as THREE`; tier-aware overrides go through `src/threeShim.js`,
-   the `'three'` importmap entry (Safari mobile throws "Cannot assign to
+   the exact `'three'` Vite alias (Safari mobile throws "Cannot assign to
    property of [object Module]" and the boot dies).
 3. **iOS audio initializes synchronously inside the title-card gesture.** No
    `await`/`setTimeout`/async hop between the tap and `Sound.init()`, and the
    three-stage unlock chain stays intact (otherwise iOS Safari ships silent).
-4. **No build step.** A new `src/` module must be added to the importmap
-   cache-buster lists in the three full pages (`index.html`, `sandbox.html`,
-   `hub-sandbox.html`; `map-sandbox.html` is worldgen-only) and verified with
-   `bin/check-importmaps` — without the entry, local edits silently stop
-   reloading. A bundler is on the table only behind a measured perf proposal
-   raised explicitly with Gary (`.claude/rules/no-build.md`).
+4. **Use the approved Vite toolchain.** Gary approved the build workflow on
+   October 29, 2026 (`.claude/rules/no-build.md`). Ordinary imports discover
+   modules; do not maintain HTML importmaps or cache-buster inventories. New
+   entry pages belong in `vite.config.mjs`, and code changes require
+   `npm run check` and `npm run build`. Three.js stays pinned, with tier-aware
+   materials routed through `src/threeShim.js`.
 5. **Lifecycle disposal safety.** Lakes deliberately omit `chunkKey` (their
    colliders must survive host-chunk unload); pooled resources tagged
    `userData.shared = true` are never disposed (one mis-dispose storms shader
@@ -59,7 +59,7 @@
    — the shadow audit holds at 56 casters. Graphics changes verify on
    `?perf=low` and `?perf=mid`, not just high.
 7. **Sandbox-pass ≠ game-pass.** A new model is not done without its full
-   sandbox entry (importmap + `<option>` + `loadEntity()` case + hit
+   sandbox entry (module import + `<option>` + `loadEntity()` case + hit
    kind/music style where relevant), and no task is done until the main game
    boots clean (title card → world generation → clean console).
 8. **InstancedMesh writes flip `instanceMatrix.needsUpdate`** — a "frozen"

@@ -1,0 +1,64 @@
+{
+  "title": {
+    "animations": [
+      "title-drift",
+      "title-drift",
+      "title-drift",
+      "title-sway"
+    ],
+    "bubbleCount": 24,
+    "bubbleZ": "3",
+    "foregroundZ": "4",
+    "images": [
+      {
+        "loaded": true,
+        "src": "/assets/title-screen/layer-sky-extended.webp"
+      },
+      {
+        "loaded": true,
+        "src": "/assets/title-screen/layer-sky.webp"
+      },
+      {
+        "loaded": true,
+        "src": "/assets/title-screen/layer-mountains-extended.webp"
+      },
+      {
+        "loaded": true,
+        "src": "/assets/title-screen/layer-mountains.webp"
+      },
+      {
+        "loaded": true,
+        "src": "/assets/title-screen/layer-festival-extended.webp"
+      },
+      {
+        "loaded": true,
+        "src": "/assets/title-screen/layer-festival.webp"
+      },
+      {
+        "loaded": true,
+        "src": "/assets/title-screen/layer-foreground-extended.webp"
+      },
+      {
+        "loaded": true,
+        "src": "/assets/title-screen/layer-foreground.webp"
+      }
+    ],
+    "viewport": [
+      1280,
+      720
+    ]
+  },
+  "afterStart": {
+    "bubbleStates": [
+      "paused"
+    ],
+    "hidden": true,
+    "layerStates": [
+      "paused",
+      "paused",
+      "paused",
+      "paused"
+    ]
+  },
+  "consoleErrors": []
+}

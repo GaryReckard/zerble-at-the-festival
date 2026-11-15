@@ -212,6 +212,25 @@ inside each interval and the diagnostic clock reads perturb timing. These
 measurements locate a hot section, not its exclusive CPU/GPU cost or an accepted
 optimization benefit.
 
+Detailed windows additionally contain `frame.detail.groups`, with exclusive
+section sums, frame denominators, call counts and physics-step diagnostics for
+each phase/quality subgroup. Divide section sums by their measured-frame counts;
+do not compare zero-rounded per-frame values on coarse clocks. Existing `worldMs`
+and `renderMs` remain inclusive legacy timers, so do not add them to the new
+exclusive section totals. Scene-matrix time is captured inside the renderer's
+existing traversal, and `scans` includes the associated per-kind update work.
+Wall intervals and outside-callback residuals follow the preceding callback's
+phase/rung, including across window boundaries; first or interrupted intervals
+remain unknown. The residual includes scheduling, browser work, events and
+unmeasured activity, and is not proof of GPU cost. Reports label work percentiles
+as summaries of one-second windows rather than whole-phase percentiles.
+
+Detailed horizon samples identify actual completed publications, age/waiting
+time, cells requested since publication, plan/apply supersession and clock reads.
+Atomic publication/grounding maxima are separate from yielding preparation and
+road-call maxima. Low stall time alone cannot pass horizon acceptance when
+publication has starved. [Implementation and remaining gates](../verification/performance/2026-11-15-ipad-attribution/README.md).
+
 Use `bin/report-perf-playtest` on the saved JSON to see route validity and largest
 world-stall sections. Manual runs without these flags retain their existing
 behavior. The fixed route is a feedback-controlled workload, not exact input or
@@ -219,6 +238,66 @@ full-world determinism: crowd evolution, frame schedules and Auto transitions
 can still differ. Any before/after claim needs matched route/settings/build
 identities and appropriate repeated comparisons. A human-driven earlier capture
 is not an equal-work control for this new route/instrumentation policy.
+
+### Four-run iPad attribution session
+
+The session uses one frozen build and the same explicit Low tier for every arm.
+Here, Auto means the adaptive quality policy (`--quality auto`), not hardware tier
+selection. Forced Low and detected Low select the same `TABLE.low` object in
+[src/perf.js](../src/perf.js): `resolveOverride() || DETECTED_TIER` selects the
+profile and `PERF = TABLE[profile]` selects its settings. The harness retains its
+ordinary `--tier auto` default, while `--quality baseline` requires explicit Low.
+
+Record the model name and number from Settings → General → About, Low Power Mode,
+charging state, battery percentage, and any heat/case context. The example below
+prompts for the model and leaves unknown power states explicit; replace those
+states and add `--battery-percent 75` with the observed percentage. No browser API
+is assumed to know these manual facts.
+
+```sh
+read -r 'ipad_model?iPad model name and number: '
+perf_common=(drive --autopilot --world-detail --tier low --seed 2404796662 --port 8770
+  --device-model "$ipad_model" --low-power-mode unknown --charging unknown)
+# Run 1: Auto, with the horizon and physics enabled.
+bin/playtest-perf "${perf_common[@]}" --quality auto
+# After SAVED, close the iPad tab and stop the server with Ctrl-C before each next run.
+# Run 2: lock quality to rung zero at the same Low tier.
+bin/playtest-perf "${perf_common[@]}" --quality baseline
+# Run 3: repeat Auto to expose repeatability and thermal drift.
+bin/playtest-perf "${perf_common[@]}" --quality auto
+# Run 4: disable only the horizon, retaining Auto.
+bin/playtest-perf "${perf_common[@]}" --quality auto --far-field off
+```
+
+These are zsh commands for Gary's Mac. Keep orientation, charging, Low Power Mode,
+case, and foreground state unchanged, and record any interruptions or increasing
+warmth. Add `--thermal-note 'case on; cool at start'` using actual observations.
+The launcher builds before each run, so keep source unchanged and record the
+commit and working-tree status once for the frozen bundle. Wait for SAVED after
+each run, and retain invalid captures with their failure reason rather than
+silently treating them as completed comparisons. Record the ending battery
+percentage and any horizon pop-in or stale scenery alongside the reports.
+
+Both `--far-field on|off` and `--physics on|off` default to `on`. Only `off` adds
+`farField=0` or `physics=0` to the generated URL. The optional fifth run is
+`bin/playtest-perf "${perf_common[@]}" --quality auto --physics off`; this switches
+to legacy driving and therefore changes the workload. Treat it as supporting
+context for physics timings, never as a clean physics-only comparison.
+
+Manual fields use `perfDeviceModel`, `perfDeviceLowPowerMode`,
+`perfDeviceCharging`, `perfDeviceBatteryPercent`, and `perfDeviceThermalNote`.
+Unknown/omitted fields remain unknown, battery percentage accepts integers from
+0 through 100, and model/thermal text is bounded and URL-encoded. These controls
+are restricted to guided captures and never expose arbitrary URL arguments or
+change the LAN asset allowlist or capture-write token requirement.
+
+Runs 1 and 3 establish the repeatability range around the locked-quality run;
+run 4 bounds the whole horizon's cost, rather than predicting the exact benefit
+of a future cull. This procedure prepares a device session but does not establish
+acceptance by itself. Complete the instrumentation overhead check, draw census,
+and pre-registered far-field duration/publication thresholds in the active
+[iPad performance change](../openspec/changes/ipad-performance-strategy/deliberations/001-next-levers/results.md)
+before Gary runs the session.
 
 ### Comparing child population on the device
 

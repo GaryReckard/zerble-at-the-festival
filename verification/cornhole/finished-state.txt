@@ -1,0 +1,4 @@
+Browser tab: 24, Title: "Sandbox — Zerble at the Festival", URL: "http://127.0.0.1:8765/sandbox.html?entity=cornhole_activity&mute=1&perf=low".
+The following is a diff from the previous accessibility tree with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+~			240 text idle · score 11 : 24 · round 12 · court live · completed
+The focused UI element is 186 button Resume game

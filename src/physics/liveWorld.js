@@ -3,7 +3,7 @@ import { createRapierAdapter } from './rapierAdapter.js';
 import { FixedStepClock } from './fixedStep.js';
 import { CartProxy } from './cartProxy.js';
 import { createPlayerVehicle } from './playerVehicle.js';
-import { impactDamageFor } from '../vehicleCondition.js';
+import { selectVehicleImpact } from './vehicleImpact.js';
 import { createDrivingSurface } from '../drivingSurface.js';
 import { createTerrainResidency } from './terrainResidency.js';
 import { createStaticResidency } from './staticResidency.js';
@@ -282,22 +282,14 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
       owner.stepPeople(step);ordinary?.step(step);
       const drained=adapter.drainEvents();overflow+=drained.overflow;
       if(vehicle&&cart.condition&&consequences){
-        // Suspension forces never create chassis contact events. Use the actual
-        // solver impulse projected against incoming motion, once per episode.
-        let severity=vehicleState.landingSpeed,impactKind='solid',damage=impactDamageFor(severity);
-        for(const event of drained.events){
-          if(event.type!=='contact-force'||event.a!==cartId&&event.b!==cartId)continue;
-          const direction=event.maxForceDirection,v=beforeVehicle.linearVelocity;
-          const incoming=Math.abs(v.x*direction.x+v.y*direction.y+v.z*direction.z);
-          const impulseSpeed=event.totalForceMagnitude*step/beforeVehicle.mass;
-          const bodyId=event.a===cartId?event.b:event.a;
-          let kind=solids.bodyKind(bodyId)??'solid';
-          for(const record of records.values())if(record.token&&owner.ownsBody(record.token,bodyId)){kind=registry.entries.get(record.entryId)?.kind??kind;break;}
-          const closing=Math.min(incoming,impulseSpeed),candidate=impactDamageFor(closing,kind);
-          if(candidate>damage){severity=closing;impactKind=kind;damage=candidate;}
-        }
-        const added=playerGhost?0:cart.condition.impact(severity,time,'chassis',impactKind);
-        if(added>0)cart.lastPhysicalDamage={amount:added,speed:severity,kind:impactKind,time};
+        const impact=selectVehicleImpact({state:vehicleState,before:beforeVehicle,events:drained.events,step,cartId,
+          isSupport:id=>terrain.ownsBody(id)||solids.isVehicleSupportBody(id),bodyKind(bodyId){
+            let kind=solids.bodyKind(bodyId)??'solid';
+            for(const record of records.values())if(record.token&&owner.ownsBody(record.token,bodyId)){kind=registry.entries.get(record.entryId)?.kind??kind;break;}
+            return kind;
+          }});
+        const added=playerGhost?0:cart.condition.impact(impact.severity,time,'chassis',impact.kind);
+        if(added>0)cart.lastPhysicalDamage={amount:added,speed:impact.severity,kind:impact.kind,time};
         cart.condition.step(step,vehicleState.immersion);
       }
       for(const event of drained.events) {
@@ -352,7 +344,13 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
     if(vehicle){cart.physicsDriven=false;delete cart.physicalImpulse;}
     return {ok:!errors.length,errors};
   }
-  return {prepare,advance,stats,dispose,
+  // Reusable, capture-only scalar diagnostics avoid stats()'s per-person arrays.
+  function captureStats(out={}) {
+    out.steps=clock.steps;out.stepMs=playerStepMs;
+    out.meanStepMs=totalPlayerStepMs/(playerSteps||1);out.maxStepMs=maxPlayerStepMs;
+    return out;
+  }
+  return {prepare,advance,stats,captureStats,dispose,
     labClock:()=>({steps:clock.steps,dropped:clock.dropped,blockedSeconds:playerBlockedSeconds}),
     beginRender(){vehicle?.beginRender(blocked?1:clock.alpha);},endRender(){vehicle?.endRender();},
     setSpeed(speed){

@@ -1,0 +1,15 @@
+Festival map geometry/discovery contracts pass
+(node:58431) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/festivalMap/model.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Festival map persistence/epoch/residency contracts pass
+Worker 256m: 6.79ms, 25383 bytes
+Worker 512m: 1.14ms, 29765 bytes
+Worker 1024m: 3.47ms, 53531 bytes
+Festival map worker bounds/failure contracts pass
+Festival map actual-world marker contracts pass
+Festival map actual arrow follows cart forward direction
+Festival map transition layout/backing contracts pass
+Festival map independent backdrop contract passes
+Festival map direct pin controls and Ctrl slow driving pass

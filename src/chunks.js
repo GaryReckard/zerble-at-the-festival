@@ -25,6 +25,7 @@ import { registerCampsite, canPlaceCampsite, registerStageChair } from './campRe
 
 import * as THREE from 'three';
 import { registry } from './registry.js';
+import { tryPlaceCornhole } from './cornholePlacement.js';
 import { hash2, worldHash, mulberry32 } from './rng.js';
 import { Sound } from './sound.js';
 import { CAMP_CHAIR_STYLES } from './models/campChair.js';
@@ -1604,6 +1605,7 @@ function buildVendorRowAt(ctx, x, z, yaw) {
   // adjacent camps alternates full/lean and reads as one continuous, varied
   // backstage strip instead of a wall of identical full camps (Gary 2026-06-21).
   const prevCamp = { '-1': false, '1': false };
+  let communitySize = 0;
   for (const { i, side, t, x: wx, z: wz } of vendorRowSlots(x, z, yaw, count, T)) {
       const w = { x: wx, z: wz };
       if (isPointInLake(w.x, w.z)) continue;
@@ -1629,6 +1631,7 @@ function buildVendorRowAt(ctx, x, z, yaw) {
       tent.rotation.y = yaw + (side < 0 ? -Math.PI / 2 : Math.PI / 2) + Math.PI;
       ctx.group.add(tent);
       vendorTents.push({group:tent, chunkKey:ctx.key});
+      communitySize++;
       registry.add({
         kind: 'tent',
         vendor: tent,
@@ -1667,6 +1670,7 @@ function buildVendorRowAt(ctx, x, z, yaw) {
       }
       prevCamp[side] = hasCamp;
   }
+  tryPlaceCornhole(ctx, { kind: 'vendor_row', x, z, yaw, communitySize });
 }
 
 // A food-truck court ring centered at (x,z) — the festival's food street. Ported from
@@ -1819,7 +1823,9 @@ function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}
 function buildCampVillageAt(ctx, x, z, tentTarget) {
   const T = FESTIVAL_TUNING;
   const target = tentTarget != null ? tentTarget : T.CAMP_TARGET_BASE + Math.floor(ctx.rng() * T.CAMP_TARGET_SPAN);
-  return buildCampNeighborhoodAt(ctx, x, z, target, T.KIND_FOOTPRINT.camp_village);
+  const camps = buildCampNeighborhoodAt(ctx, x, z, target, T.KIND_FOOTPRINT.camp_village);
+  tryPlaceCornhole(ctx, { kind: 'camp_village', x, z, yaw: 0, envelope: T.KIND_FOOTPRINT.camp_village, communitySize: camps.length });
+  return camps;
 }
 
 function buildCampNeighborhoodAt(ctx, x, z, target, envelope = 60, density = null) {

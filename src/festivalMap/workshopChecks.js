@@ -33,10 +33,20 @@ export function checkMapInput(map){
   touch(stick,'touchend',700,x,y-45);check(Input.throttle===0,'Release stops throttle');
   const music=document.getElementById('btn-music');touch(music,'touchstart',701,10,10);touch(music,'touchend',701,10,10);
   check(!Input.consumePressed('M'),'Touch music does not open map');check(Input.consumePressed('J'),'Touch music retains its separate action');
-  map.setExpanded(true);map.host.querySelector('.map-expand').dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true,cancelable:true}));
+  map.setExpanded(true);
+  check(map.host.getAttribute('role')==='region'&&!map.host.hasAttribute('aria-modal'),'Map is a non-modal driving region');
+  const close=map.host.querySelector('.map-close');
+  close.dispatchEvent(new KeyboardEvent('keydown',{key:'w',bubbles:true,cancelable:true}));
+  check(Input.isDown('W')&&Input.throttle>0,'New throttle key reaches gameplay after expansion');
+  close.dispatchEvent(new KeyboardEvent('keydown',{key:'d',bubbles:true,cancelable:true}));
+  check(Input.isDown('D'),'New steering key reaches gameplay with a map control focused');
+  close.dispatchEvent(new KeyboardEvent('keyup',{key:'w',bubbles:true}));
+  close.dispatchEvent(new KeyboardEvent('keyup',{key:'d',bubbles:true}));
+  check(!Input.isDown('W')&&!Input.isDown('D'),'Driving keys release normally');
+  map.host.querySelector('.map-expand').dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true,cancelable:true}));
   check(!Input.consumePressed('SPACE'),'Map button activation does not honk');
   map.setExpanded(false);
-  return 'PASS: real touch stick held across expansion/zoom/close, release, music action separation, Space isolation.';
+  return 'PASS: real touch stick held across expansion/zoom/close, release, new keyboard throttle/steering through map controls, non-modal semantics, music action separation, Space isolation.';
 }
 
 export async function checkMapTransitions(map){
@@ -46,28 +56,32 @@ export async function checkMapTransitions(map){
     const deadline=performance.now()+1000;
     do{
       await nextFrame();
-      const rect=map.host.getBoundingClientRect();
+      const rect=map.overlay.getBoundingClientRect();
       check(Math.abs(rect.width-map.width)<3&&Math.abs(rect.height-map.height)<3,'Canvas logical viewport follows animated panel');
       if(map.transitioning&&!map.expanded)check(map.background.width>map.compactDiameter,'Collapse retains full backing');
       const backdrop=map.backdrop.getBoundingClientRect();
       check(Math.abs(backdrop.width-innerWidth)<1&&Math.abs(backdrop.height-innerHeight)<1,'Backdrop stays full-screen during map motion');
-      check(getComputedStyle(map.host).backgroundColor==='rgba(0, 0, 0, 0)','Moving map panel has no dark fill');
-      if(map.transitioning)check(Number(getComputedStyle(map.host,'::before').opacity)===0,'Compact disc does not morph through the moving panel');
+      if(map.expanded)check(getComputedStyle(map.host).backgroundColor==='rgba(0, 0, 0, 0)','Expanded map stays transparent');
+      if(map.transitioning&&!map.expanded)check(Number(getComputedStyle(map.host,'::before').opacity)===0,'Compact disc does not morph through the moving panel');
       frames.push({width:rect.width,height:rect.height,backing:map.background.width,backdropOpacity:Number(getComputedStyle(map.backdrop).opacity)});
       if(performance.now()>deadline)throw Error('Map transition did not settle');
     }while(map.transitioning);
   }
   map.setExpanded(true);await settle();
   const expandedOpacity=Number(getComputedStyle(map.background).opacity);
-  check(Math.abs(expandedOpacity-.4508)<.005,'Expanded terrain opacity reduced by another 30 percent');
+  check(Math.abs(expandedOpacity-.4508)<.005,'Expanded geography lets driving remain visible');
+  check(getComputedStyle(map.backdrop).pointerEvents==='none','Dimming never intercepts driving controls');
+  check(map.width>innerWidth-3&&map.height>innerHeight-3,'Expanded map fills the viewport');
+  const pins=map.host.querySelector('.map-pin-options');
+  check(getComputedStyle(pins).clipPath==='inset(50%)','Destination list stays visually clipped until keyboard focus');
   check(!map.host.contains(map.backdrop),'Backdrop is independent of map clipping');
   check(getComputedStyle(map.overlay).opacity==='1','Icons retain full opacity');
   map.setExpanded(false);await settle();
   check(Number(getComputedStyle(map.backdrop).opacity)<.01,'Full-screen dimming fades away after closing');
-  check(getComputedStyle(map.host).borderTopWidth==='0px','No permanent minimap border');
-  check(getComputedStyle(map.host).boxShadow==='none','No rectangular panel shadow');
+  check(getComputedStyle(map.host).borderTopWidth==='3px','Minimap has the cream outline');
+  check(getComputedStyle(map.host).boxShadow!=='none','Minimap has the ledge shadow');
   check(getComputedStyle(map.host.querySelector('.map-expand')).borderTopLeftRadius==='50%','Keyboard focus follows circle');
   map.setExpanded(true);await nextFrame();await nextFrame();map.setExpanded(false);await nextFrame();map.setExpanded(true);await settle();
   map.setExpanded(false);await settle();
-  return `PASS: ${frames.length} live animation frames follow panel bounds, retain backings through collapse, reverse safely, keep dimming full-screen until it fades, remove border/shadow and reduce expanded terrain opacity to 45%.`;
+  return `PASS: ${frames.length} live animation frames follow panel bounds, retain backings through collapse, reverse safely, keep dimming full-screen until it fades, keep the expanded map full-screen and translucent without intercepting driving, hide the destination list, and restore the outlined minimap.`;
 }

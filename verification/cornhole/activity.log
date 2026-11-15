@@ -1,0 +1,7 @@
+Full seeded game: 905.8 simulated seconds, 12 rounds.
+PASS complete seeded cornhole game, continuous walking, collection, handshake, tidy, real Crowd release, unload, vacancy and player rotation.
+PASS recruitment beyond the empty 20m court rim, with two existing people and no extra population.
+(node:45484) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

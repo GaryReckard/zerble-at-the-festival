@@ -1,0 +1,152 @@
+[
+  {
+    "file": "01-title-desktop.jpg",
+    "title": "Title / main menu",
+    "context": "Live game, ready state; two direct-start modes and five secondary routes."
+  },
+  {
+    "file": "02-how-to-play-desktop.jpg",
+    "title": "How to Play",
+    "context": "Live title instructions, keyboard controls and gameplay explanation."
+  },
+  {
+    "file": "03-settings-performance.jpg",
+    "title": "Settings: Performance",
+    "context": "Live title overlay; quality tiers, effect overrides, extra lights."
+  },
+  {
+    "file": "04-settings-sound.jpg",
+    "title": "Settings: Sound",
+    "context": "Live title overlay; master, music, and sound-effect levels."
+  },
+  {
+    "file": "05-settings-accessibility.jpg",
+    "title": "Settings: Accessibility",
+    "context": "Live title overlay; minimap, map reset, reduced motion and color cues."
+  },
+  {
+    "file": "06-settings-how-to-play.jpg",
+    "title": "Settings: How to Play",
+    "context": "Live title overlay; shared instruction content."
+  },
+  {
+    "file": "07-passport-all-time.jpg",
+    "title": "Passport: All time",
+    "context": "Live title overlay; browser-local accumulated statistics and mixed stamp states."
+  },
+  {
+    "file": "08-passport-this-visit.jpg",
+    "title": "Passport: This visit, before play",
+    "context": "Live title overlay; empty visit and explanation to choose a mode."
+  },
+  {
+    "file": "09-bubble-upgrades.jpg",
+    "title": "Bubble Upgrades: upper list",
+    "context": "Live title overlay; mixed earned switches and locked discoveries."
+  },
+  {
+    "file": "10-bubble-upgrades-lower.jpg",
+    "title": "Bubble Upgrades: scrolled list",
+    "context": "Live title overlay after scrolling; remaining discovery cards."
+  },
+  {
+    "file": "11-leaderboard.jpg",
+    "title": "Leaderboard: Local",
+    "context": "Live title overlay; local score row and board navigation."
+  },
+  {
+    "file": "12-leaderboard-today.jpg",
+    "title": "Leaderboard: Today",
+    "context": "Live remote range; daily board can be empty."
+  },
+  {
+    "file": "13-leaderboard-all-time.jpg",
+    "title": "Leaderboard: All-time",
+    "context": "Live remote range; scores/names are public board content, not prototype sample data."
+  },
+  {
+    "file": "14-gameplay-menu-context.jpg",
+    "title": "Gameplay and menu launchers",
+    "context": "Live Just Cruisin' game, started with the ready mode button; gear, heart, book, minimap and HUD."
+  },
+  {
+    "file": "15-expanded-festival-map.jpg",
+    "title": "Expanded festival map",
+    "context": "Live game; expanded discovery map. No teleport or map reset performed. The geography background is not visible in this capture; treat it as current rendering evidence, not a proposed map design."
+  },
+  {
+    "file": "16-settings-over-gameplay.jpg",
+    "title": "Settings above gameplay",
+    "context": "Live in-game How to Play settings tab, showing the backdrop relationship."
+  },
+  {
+    "file": "17-run-results-fixture.jpg",
+    "title": "Run results",
+    "context": "Production HUD fixture, sample names/scores; a static captured gameplay background replaces a live running world. Fade disabled only in the fixture to capture the settled state. No real score submission."
+  },
+  {
+    "file": "18-leaderboard-empty-fixture.jpg",
+    "title": "Empty leaderboard",
+    "context": "Production HUD fixture with an empty array; title background, no save deletion."
+  },
+  {
+    "file": "19-passport-saving-unavailable-fixture.jpg",
+    "title": "Passport: saving unavailable",
+    "context": "Existing official memory-only passport preview fixture; populated visit and unavailable-storage disclosure, not a real storage failure."
+  },
+  {
+    "file": "20-title-compact-landscape.jpg",
+    "title": "Compact landscape title",
+    "context": "Live ready title, 844\u00d7390 desktop viewport; no touch emulation."
+  },
+  {
+    "file": "21-settings-compact-landscape.jpg",
+    "title": "Compact landscape settings",
+    "context": "Live Performance tab, 844\u00d7390 desktop viewport; intentional content scrolling."
+  },
+  {
+    "file": "22-passport-compact-landscape.jpg",
+    "title": "Compact landscape passport",
+    "context": "Live All time tab at initial scroll position, 844\u00d7390."
+  },
+  {
+    "file": "23-passport-compact-lower.jpg",
+    "title": "Compact passport: lower content",
+    "context": "Live passport after scrolling to stamps and storage disclosure, 844\u00d7390."
+  },
+  {
+    "file": "24-upgrades-compact-landscape.jpg",
+    "title": "Compact landscape upgrades",
+    "context": "Live upper upgrade list, 844\u00d7390."
+  },
+  {
+    "file": "25-upgrades-compact-lower.jpg",
+    "title": "Compact upgrades: lower content",
+    "context": "Live scrolled upgrade list, 844\u00d7390."
+  },
+  {
+    "file": "26-how-to-play-compact-landscape.jpg",
+    "title": "Compact landscape instructions",
+    "context": "Live How to Play, 844\u00d7390; keyboard help because this is a desktop browser."
+  },
+  {
+    "file": "27-results-compact-fixture.jpg",
+    "title": "Compact run results",
+    "context": "Same production HUD fixture as 17, sample data/static gameplay background, 844\u00d7390."
+  },
+  {
+    "file": "28-title-loading-fixture.jpg",
+    "title": "Title: loading",
+    "context": "Static capture fixture using current markup/styles and loading copy. No game boot; start controls remain disabled."
+  },
+  {
+    "file": "29-title-load-error-fixture.jpg",
+    "title": "Title: load failure / retry",
+    "context": "Static capture fixture using the actual persistent-failure copy and retry control. This does not induce or verify a real download failure."
+  },
+  {
+    "file": "30-portrait-rotate-message.jpg",
+    "title": "Portrait orientation message",
+    "context": "Actual CSS portrait rule rendered over the static fixture, 390\u00d7844; not a physical phone capture."
+  }
+]

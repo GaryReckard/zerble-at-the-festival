@@ -2,12 +2,17 @@
 """Start one guided desktop or phone perf capture. Ctrl-C stops the server."""
 
 import argparse
+import importlib.util
 import os
 import sys
 from pathlib import Path
 
 
 def main():
+    root = Path(__file__).resolve().parent.parent
+    spec = importlib.util.spec_from_file_location('zerble_capture_server', root / '.claude' / 'serve_nocache.py')
+    capture_server = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(capture_server)
     parser = argparse.ArgumentParser(description='One-command Zerble performance playtest')
     parser.add_argument('scenario', nargs='?', choices=('drive', 'trip', 'parked'), default='drive')
     parser.add_argument('--desktop', action='store_true', help='open the test in a desktop browser on this Mac')
@@ -22,7 +27,13 @@ def main():
     parser.add_argument('--world-detail', action='store_true', help='capture per-section world timings and retain the largest world stalls')
     parser.add_argument('--port', type=int, default=8765)
     parser.add_argument('--no-qr', action='store_true')
+    capture_server.add_capture_experiment_arguments(parser)
     args = parser.parse_args()
+    experiment_options = capture_server.capture_experiment_options(args)
+    try:
+        capture_server.capture_experiment_params(args.scenario, **experiment_options)
+    except ValueError as error:
+        parser.error(str(error))
     if args.child_cohort != 'full-v1' and not args.autopilot:
         parser.error('--child-cohort half-v1 requires --autopilot')
     if args.autopilot and args.scenario != 'drive':
@@ -38,12 +49,14 @@ def main():
         parser.error('--no-open applies only to desktop playtests')
     if not args.desktop and args.browser:
         parser.error('--browser applies only to desktop playtests')
-    root = Path(__file__).resolve().parent.parent
     os.chdir(root)
     command = [sys.executable, str(root / '.claude' / 'serve_nocache.py'), str(args.port),
                '--playtest', args.scenario, '--seed', args.seed, '--tier', args.tier,
                '--quality', args.quality]
     command.extend(['--child-cohort', args.child_cohort])
+    for key, value in experiment_options.items():
+        if value is not None:
+            command.extend(['--' + key.replace('_', '-'), str(value)])
     if args.autopilot:
         command.append('--autopilot')
     if args.world_detail:

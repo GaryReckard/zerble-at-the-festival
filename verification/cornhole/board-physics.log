@@ -1,0 +1,25 @@
+(node:32931) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS native Rapier tire support crossing versus unchanged ground, one-tire-only bump, world yaw, replacement and exact unload: {
+  ground: { raised: 0, maxRise: 0 },
+  board: { raised: 53, maxRise: 0.29557693004608154 },
+  rotated: { raised: 53, maxRise: 0.2955769896507263 }
+}
+PASS production dynamic cart crossing: {
+  flatDrive: {
+    maxHeight: 0.0047533512115478516,
+    maxRoll: 5.306301753134811e-13,
+    boardContacts: 0,
+    damage: 0,
+    z: -13.272708892822266
+  },
+  boardDrive: {
+    maxHeight: 0.09256786108016968,
+    maxRoll: 0.04801697105519396,
+    boardContacts: 85,
+    damage: 0,
+    z: -11.846048355102539
+  }
+}

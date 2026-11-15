@@ -1,0 +1,55 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import {createFrameAttribution} from '../src/frameAttribution.js';
+
+const source=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+const tick=source.slice(source.indexOf('\nfunction tick() {'),source.indexOf('\nfunction tickBody(dt) {'));
+const hooks=source.slice(source.indexOf('if (_perfFrameParts) {\n  for (const name'),source.indexOf('// ---------- Game loop ----------'));
+assert(tick.includes('previousCallbackMs')&&hooks.includes("watch(scene,'updateMatrixWorld'"));
+for(const enabled of [false,true]) {
+  let now=1000,reads=0,steps=0,matrixCalls=0;
+  const clock=()=>{reads++;return now;};
+  const timer=enabled?createFrameAttribution(clock):null,records=[];
+  const noop=()=>{};
+  const scene={updateMatrixWorld(){matrixCalls++;now+=1;}};
+  const physical={advance(){steps+=2;now+=2;},beginRender:noop,endRender:noop,captureStats(out){Object.assign(out,{steps,meanStepMs:1,maxStepMs:2});return out;}};
+  const composer={render(){scene.updateMatrixWorld();now+=1;}};
+  const context=vm.createContext({
+    PERF_CAPTURE_TIMING:enabled,_perfFrameParts:timer,_perfTitleCadence:null,
+    _perfPhysicsBefore:enabled?{}:null,_perfPhysicsAfter:enabled?{}:null,
+    _perfWorldParts:enabled?{reset:noop,parts:{},ground:{},clockReads:0}:null,
+    _perfLastTick:0,_perfWorldMs:0,_perfRenderMs:0,_perfPreviousWorkMs:0,_perfPreviousCallbackMs:null,
+    performance:{now:clock},performanceLab:null,document:{hidden:false},clock:{getDelta:()=>1/60},running:true,
+    physicalWorld:physical,shouldRunFrame:()=>true,
+    tickBody(){physical.advance();composer.render();now+=1;},
+    recordCaptureFrame(frame){records.push(JSON.parse(JSON.stringify(frame)));now+=2;},
+    scheduleNext(){now+=3;},window:{addEventListener:noop},horizonCapture:null,
+    people:{beginFrame:noop,run:noop,dispatch:noop},registry:{rebuildSpatialIndex:noop},
+    bubbles:{update:noop},StarPower:{update:noop},chaseCam:{update:noop},
+    HUD:{setSmiles:noop},scene,composer,
+    // Actual module namespaces are frozen: setup must never assign their exports.
+    ContextLights:Object.freeze({update:noop}),AdaptiveQuality:Object.freeze({tick:noop}),
+  });
+  vm.runInContext(hooks,context);
+  if(enabled)timer.watch(physical,'advance','physics');
+  vm.runInContext(tick,context);
+  vm.runInContext('tick()',context);now+=6;vm.runInContext('tick()',context);
+  assert.equal(matrixCalls,2,'Capture times existing traversal, never adds another');
+  if(!enabled){assert.equal(reads,0,'Ordinary callback adds no attribution clock reads');assert.equal(records.length,0);}
+  else {
+    assert.equal(records[0].previousCallbackMs,null);
+    assert.equal(records[1].previousCallbackMs,10,'Previous callback includes recording and scheduling');
+    assert.equal(records[1].wallMs,16);
+    assert.equal(records[1].workMs,5);
+    assert.equal(records[1].physicsStats.frameSteps,2);
+    assert.equal(Object.values(records[1].frameParts).reduce((a,b)=>a+b,0),5);
+    assert.equal(records[1].frameParts.matrices,1);
+    assert.equal(records[1].frameParts.render,1,'Matrix time is excluded from exclusive render bucket');
+    assert.equal(records[1].frameParts.physics,2);
+    assert.equal(records[0].frameParts.physics,2,'Serializer preserves old frame after scratch reuse');
+  }
+  timer?.dispose();
+}
+console.log('PASS actual callback/setup: frozen module safety, one traversal, physical step deltas, disjoint sums and complete prior callback boundary');
