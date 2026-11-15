@@ -2065,3 +2065,9 @@ body .festival-map .map-pin-options button[aria-pressed=true]::before {
 }
 
 
+
+/* Ride records share the Passport's scroll and readable numeric face. */
+.passport-rides { padding-left: 1.4rem; }
+.passport-rides li { margin: .8rem 0; }
+.passport-rides li strong, .passport-rides li span { display: block; }
+.passport-rides li span, .passport-ride-note { font-size: .86rem; opacity: .85; }

@@ -31,7 +31,7 @@ const state = {
 };
 
 function emptyRun() {
-  return { jugs: 0, vendorRefuels: 0, ranDry: 0, trips: 0, passengers: 0, blastUsed: false };
+  return { jugs: 0, vendorRefuels: 0, ranDry: 0, trips: 0, passengers: 0, questsOffered: 0, questsCompleted: 0, blastUsed: false };
 }
 
 function send(name, params) {
@@ -227,6 +227,23 @@ export const Analytics = {
     send('passenger_board', { time_in_run_s: secondsIn() });
   },
 
+  // ----- Passenger quests -----
+  // The first offer of a run is an event (did the player ever see one?);
+  // every completion is an event, and ends without a delivery report why.
+  questOffered(type, kind, distance) {
+    state.run.questsOffered++;
+    if (state.firsts.has('quest')) return;
+    state.firsts.add('quest');
+    send('quest_offered', { quest_type: type, destination: kind, distance_m: Math.round(distance), time_in_run_s: secondsIn() });
+  },
+  questCompleted(type, kind, seconds, reward, missed) {
+    state.run.questsCompleted++;
+    send('quest_completed', { quest_type: type, destination: kind, duration_s: Math.round(seconds), reward, missed: !!missed, count: state.run.questsCompleted });
+  },
+  questEnded(type, kind, reason, seconds) {
+    send('quest_ended', { quest_type: type, destination: kind, reason, duration_s: Math.round(seconds) });
+  },
+
   // ----- Lightweight feature discovery (one event per feature per run) -----
   // feature: 'honk_bell' | 'honk_clown' | 'music_toggle' | 'camera_zoom' | 'boost'
   featureUsed(feature) {
@@ -303,6 +320,8 @@ export const Analytics = {
       ran_dry: state.run.ranDry,
       trips: state.run.trips,
       passengers: state.run.passengers,
+      quests_offered: state.run.questsOffered,
+      quests_completed: state.run.questsCompleted,
       blast_used: state.run.blastUsed,
       perf_tier: state.context?.perf_tier,
       ...summary.quality,

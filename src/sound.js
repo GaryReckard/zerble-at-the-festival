@@ -1051,6 +1051,36 @@ export const Sound = {
     osc.start(t + 0.06); osc.stop(t + 0.3);
   },
 
+  // ----- Passenger quests -----
+  // A rider speaks up: two soft rising notes, or a quick anxious triple for
+  // the urgent porta-potty run.
+  playQuestAsk(urgent = false) {
+    if (!ctx || !sfxBus) return;
+    if (urgent) { for (let i = 0; i < 3; i++) questNote(ctx, sfxBus, 880 + i * 60, i * 0.09, 0.07, 0.16, 'square'); return; }
+    questNote(ctx, sfxBus, 523.25, 0, 0.14, 0.16, 'triangle');
+    questNote(ctx, sfxBus, 783.99, 0.11, 0.2, 0.16, 'triangle');
+  },
+  // Delivered: a bright major arpeggio that lands just before the smiles do.
+  playQuestArrive() {
+    if (!ctx || !sfxBus) return;
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => questNote(ctx, sfxBus, f, i * 0.075, 0.26, 0.17, 'triangle'));
+    questNote(ctx, sfxBus, 1567.98, 0.3, 0.4, 0.07, 'sine');
+  },
+  // Too late: a short deflating slide.
+  playQuestFail() {
+    if (!ctx || !sfxBus) return;
+    boop(ctx, sfxBus, 392, 196, 0.42, 0.2, 'triangle');
+  },
+  // The rider hums as the stop gets close: a quiet two-note "mm-hmm" whose
+  // level follows `warmth` (0..1), so it is only noticed when nearly there.
+  playQuestHum(warmth = 0) {
+    if (!ctx || !sfxBus || warmth <= 0.15) return;
+    const level = 0.035 + 0.075 * Math.min(1, warmth);
+    const base = 196 * (1 + 0.5 * Math.min(1, warmth));
+    questNote(ctx, sfxBus, base, 0, 0.2, level, 'sine');
+    questNote(ctx, sfxBus, base * 1.189, 0.2, 0.3, level, 'sine');
+  },
+
   playUpgradeUnlock() {
     if (!ctx || !sfxBus) return;
     scheduleUpgradeArpeggio(ctx, sfxBus);
@@ -1651,6 +1681,20 @@ function boop(ctx, dest, freqStart, freqEnd, duration, volume = 0.4, type = 'sin
   osc.connect(env);
   osc.start();
   osc.stop(t + duration + 0.05);
+}
+
+// One enveloped note at `delay` seconds from now, for the quest cues above.
+function questNote(ctx, dest, freq, delay, duration, volume, type) {
+  const t = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(volume, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0006, t + duration);
+  osc.connect(g).connect(dest);
+  osc.start(t); osc.stop(t + duration + 0.05);
 }
 
 function juiceSputter(ctx, dest) {

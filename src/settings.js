@@ -150,6 +150,7 @@ export const Settings = {
         <div class="settings-tab is-hidden" data-tab="accessibility" id="settings-accessibility" aria-labelledby="settings-tab-accessibility" role="tabpanel">
           <div class="settings-section">
             ${toggleRow('set-map-visible', 'Festival minimap', 'M opens the larger map, even with the minimap hidden')}
+            ${toggleRow('set-quest-compass', 'Passenger compass', 'arrows and distances for riders’ requests')}
             <button id="set-map-reset" class="settings-apply" aria-expanded="false" aria-controls="set-map-confirm">Reset this festival’s explored map…</button>
             <div id="set-map-confirm" class="map-reset-confirm" hidden>
               <p>Clear explored territory and known places for this festival? This cannot be undone.</p>
@@ -266,6 +267,7 @@ export const Settings = {
     bindSlider($('#set-vol-sfx'), 'sfx', (v) => Sound.setSfxVolume(v));
 
     $('#set-map-visible').addEventListener('change', e => refs.festivalMap?.setCompact(e.target.checked));
+    $('#set-quest-compass').addEventListener('change', e => refs.questView?.setCompassVisible(e.target.checked));
     $('#set-map-reset').addEventListener('click', () => {
       $('#set-map-confirm').hidden = false;
       $('#set-map-reset').setAttribute('aria-expanded', 'true');
@@ -332,6 +334,7 @@ export const Settings = {
     setSlider($('#set-vol-sfx'), Sound.getSfxVolume(), 'sfx');
     // Accessibility
     $('#set-map-visible').checked = refs.festivalMap?.compact ?? true;
+    $('#set-quest-compass').checked = refs.questView?.compassVisible ?? true;
     $('#set-reduced-motion').checked = A11y.reducedMotion;
     $('#set-colorblind').checked = A11y.colorblind;
     this._refreshApply();

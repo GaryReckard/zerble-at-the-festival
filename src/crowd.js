@@ -181,7 +181,9 @@ export class Crowd {
     // touchier (faster displeasure build). Stays 1.0 in Just Cruisin'.
     this.frownRateMult = 1.0;
     this.onFrown = null;
-    // `onBoard(npc)` fires when an NPC actually climbs aboard (boarding→riding).
+    // `onBoard(handle, { party })` fires when someone actually climbs aboard
+    // Zerble (boarding→riding). Passenger quests key off the handle; members
+    // of a travelling party arrive with `party: true` and share one quest.
     this.onBoard = null;
     this.npcs = [];
     this.free = []; // indices available
@@ -2072,7 +2074,7 @@ export class Crowd {
       npc.state = 'riding';
       npc.rideTimer = RIDE_MIN_TIME + Math.random() * (RIDE_MAX_TIME - RIDE_MIN_TIME);
       this._writeMatrices(npc); // snap into place
-      if (this.onBoard && !vehicle) this.onBoard(npc);
+      if (this.onBoard && !vehicle) this.onBoard(npc.personHandle);
       return;
     }
 
@@ -2126,26 +2128,153 @@ export class Crowd {
 
     // Slight dance bob even while riding (extra dance-y characters wiggle a bit)
     npc.bob += dt * (1.2 + 0.6 * npc.dance);
+    // The "Gotta GO!" rider cannot sit still: a fast bounce and a side-to-side twist.
+    if (npc.rideMood === 'urgent') { npc.bob += dt * 9; npc.yaw += Math.sin(npc.bob * 1.7) * 0.24; }
 
     // Disembark when the ride times out (and Zerble's idle), OR immediately if
     // the bubble tank ran dry — riders bail on a bubble-less cart.
-    if (!(zerble.physicsDriven&&(!zerble.grounded||(zerble.engineState?.immersion??0)>.4)) && !npc.party && ((!vehicle && this.bubblesEmpty) || (npc.rideTimer <= 0 && (vehicle ? vehicle.state === 'parked' : Math.abs(zerble.speed) < ZERBLE_IDLE_SPEED)))) {
-      // A rider retains the seat when every nearby exit crosses a cliff or closed deck edge.
-      if (npc.surfaceBinding && !this._landPassenger(npc, zerble)) { this._writeMatrices(npc); return; }
-      this._releaseSeat(npc);
-      const seatPos = { x: npc.pos.x, z: npc.pos.z };
-      npc.seatSlot = null;
-      npc.seatY = undefined;
-      npc.state = 'disembarking';
-      // Pick a destination 3-6m away from where we got off
-      const a = Math.random() * Math.PI * 2;
-      const r = 3 + Math.random() * 3;
-      if (npc.surfaceBinding) npc.target.set(seatPos.x, 0, seatPos.z);
-      else npc.target.set(seatPos.x + Math.cos(a) * r, 0, seatPos.z + Math.sin(a) * r);
-      npc.stateTimer = 5;
+    // A passenger quest holds the ordinary timeout open (`rideHold`); a dry
+    // tank still empties the cart, and the quest notices the rider is gone.
+    if (!(zerble.physicsDriven&&(!zerble.grounded||(zerble.engineState?.immersion??0)>.4)) && !npc.party && ((!vehicle && this.bubblesEmpty) || (npc.rideTimer <= 0 && !npc.rideHold && (vehicle ? vehicle.state === 'parked' : Math.abs(zerble.speed) < ZERBLE_IDLE_SPEED)))) {
+      this._exitRide(npc, zerble);
     }
 
     this._writeMatrices(npc);
+  }
+
+  // Leave the seat and step off. Returns false when the rider must keep the
+  // seat because every nearby exit crosses a cliff or closed deck edge.
+  // `beside` puts a rider without a surface binding next to the cart at once
+  // (terrain-bound riders always land there), for exits that end in a pose.
+  _exitRide(npc, zerble, beside = false) {
+    if (npc.surfaceBinding && !this._landPassenger(npc, zerble)) return false;
+    this._releaseSeat(npc);
+    const seatPos = { x: npc.pos.x, z: npc.pos.z };
+    npc.seatSlot = null;
+    npc.seatY = undefined;
+    npc.rideHold = false; npc.rideMood = null;
+    npc.state = 'disembarking';
+    // Pick a destination 3-6m away from where we got off
+    const a = Math.random() * Math.PI * 2;
+    const r = 3 + Math.random() * 3;
+    if (npc.surfaceBinding) npc.target.set(seatPos.x, 0, seatPos.z);
+    else if (beside) {
+      const side = zerble.heading + (Math.random() < 0.5 ? Math.PI / 2 : -Math.PI / 2);
+      npc.pos.x = zerble.position.x + Math.sin(side) * 3.6;
+      npc.pos.z = zerble.position.z + Math.cos(side) * 3.6;
+      npc.target.set(npc.pos.x, 0, npc.pos.z);
+    }
+    else npc.target.set(seatPos.x + Math.cos(a) * r, 0, seatPos.z + Math.sin(a) * r);
+    npc.stateTimer = 5;
+    return true;
+  }
+
+  // ----- Passenger-quest surface (main.js drives quests through these) -----
+  // Is this person still riding Zerble, and where is their head? Quests poll
+  // this each frame, which covers every way a rider can leave (timeout, dry
+  // tank, scatter, despawn, restart) without a hook on each path.
+  riderInfo(handle, out) {
+    const npc = this.peopleHandles.resolve(handle);
+    out.riding = !!npc && npc.state === 'riding' && !!npc.seatSlot && !npc.seatSlot.vehicle;
+    if (!out.riding) return false;
+    out.x = npc.pos.x; out.z = npc.pos.z;
+    out.y = (npc.seatY ?? npc.pos.y) + 0.95 * (npc.scale || 1);
+    return true;
+  }
+
+  // Handles of ordinary (non-party) people currently riding Zerble.
+  zerbleRiders() {
+    const out = [];
+    for (const npc of this.npcs) if (npc.state === 'riding' && npc.seatSlot && !npc.seatSlot.vehicle && !npc.party) out.push(npc.personHandle);
+    return out;
+  }
+
+  // ----- Hailing: people on foot who want a ride -----
+  // Ordinary adults near the cart who could be asked to board. `visit` gets
+  // (handle, x, z, distance). Parties, photographers and anyone mid-activity
+  // are skipped by the same ambient-state rule the boarding trigger uses.
+  forEachHailCandidate(zerble, minDist, maxDist, visit) {
+    for (const npc of this.npcs) {
+      if (npc.party || npc.seatSlot || this.activityClaims.current.has(npc.personHandle) || npc.isPhotographer || npc.hailing || npc.curiosity < 0.3 || !ORDINARY_SOCIAL_STATES.has(npc.state) || npc.cheerTimer > 0 || npc.frownTimer > 0) continue;
+      const d = Math.hypot(npc.pos.x - zerble.position.x, npc.pos.z - zerble.position.z);
+      if (d >= minDist && d <= maxDist) visit(npc.personHandle, npc.pos.x, npc.pos.z, d);
+    }
+  }
+
+  // Where is this person's head, and can they still be picked up?
+  walkerInfo(handle, out) {
+    const npc = this.peopleHandles.resolve(handle);
+    out.boarding = !!npc && npc.state === 'boarding';
+    out.available = !!npc && !npc.party && !this.activityClaims.current.has(handle)
+      && (out.boarding ? !!npc.seatSlot && !npc.seatSlot.vehicle && this.seatReservations.isLive(npc._seatReservation) : !npc.seatSlot && ORDINARY_SOCIAL_STATES.has(npc.state));
+    if (!npc) return false;
+    out.x = npc.pos.x; out.z = npc.pos.z; out.y = npc.pos.y + 1.9 * (npc.scale || 1);
+    return out.available;
+  }
+
+  setHailing(handle, on) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (npc) npc.hailing = !!on;
+  }
+
+  // A short arms-up wave toward the cart, so a hail reads from a distance.
+  hailWave(handle, zerble) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (!npc || npc.seatSlot || this.activityClaims.current.has(handle) || !ORDINARY_SOCIAL_STATES.has(npc.state)) return false;
+    npc.cheerTimer = 1.1; npc.cheerX = zerble.position.x; npc.cheerZ = zerble.position.z;
+    return true;
+  }
+
+  // The cart stopped for this person: claim a seat and start walking to it.
+  hailBoard(handle, zerble) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (!npc || npc.party || npc.seatSlot || this.activityClaims.current.has(handle) || this.bubblesEmpty || !ORDINARY_SOCIAL_STATES.has(npc.state)) return false;
+    const slot = this._claimFreeSeat(zerble, npc);
+    if (!slot) return false;
+    npc.cheerTimer = 0; npc.state = 'boarding'; npc.seatSlot = slot; npc.stateTimer = 20;
+    return true;
+  }
+
+  setRideMood(handle, mood) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (npc) npc.rideMood = mood || null;
+  }
+
+  holdRide(handle, on) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (!npc || npc.state !== 'riding') return false;
+    npc.rideHold = !!on;
+    if (!on) npc.rideTimer = 0;   // released riders step off at the next stop
+    return true;
+  }
+
+  // End a Zerble ride now. `celebrate` holds the arms-up cheer facing the
+  // cart; `flee` sends them running. Returns false if they could not get off
+  // (no safe ground). Arrival retries retain their hold; ended quests release
+  // it so the ordinary riding loop can disembark them at the next safe stop.
+  endRide(handle, zerble, { celebrate = 0, flee = false, retainHold = false } = {}) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (!npc || npc.state !== 'riding' || npc.party || npc.seatSlot?.vehicle) return false;
+    if ((zerble.physicsDriven && (!zerble.grounded || (zerble.engineState?.immersion ?? 0) > 0.4)) || !this._exitRide(npc, zerble, true)) {
+      if (!retainHold) { npc.rideHold = false; npc.rideTimer = 0; }
+      return false;
+    }
+    if (flee) { npc.state = 'fleeing'; npc.fleeUrgency = 1.5; npc.stateTimer = 3; }
+    else if (celebrate > 0) {
+      npc.cheerTimer = celebrate; npc.cheerX = zerble.position.x; npc.cheerZ = zerble.position.z;
+      npc.smileTimeCooldown = SMILE_TIME_COOLDOWN;
+    }
+    this._writeMatrices(npc);
+    this._publishPerson(npc);
+    return true;
+  }
+
+  // A relieved rider heads for the nearest free porta-potty, when one is in reach.
+  sendToPotty(handle) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (!npc || npc.seatSlot || npc.state === 'riding' || this.activityClaims.current.has(handle) || this.bathrooms.has(handle)) return false;
+    npc.cheerTimer = 0; npc.state = 'idle';
+    return !!this.bathrooms.tryClaim(handle);
   }
 
   _landPassenger(npc, vehicle) {

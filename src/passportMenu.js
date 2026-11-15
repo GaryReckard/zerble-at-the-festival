@@ -21,7 +21,11 @@ export function createPassportMenu() {
       button.setAttribute('aria-selected', String(button.dataset.scope === scope));
       button.tabIndex = button.dataset.scope === scope ? 0 : -1;
     });
-    const panel = overlay.querySelector('[role="tabpanel"]');
+    const panel = overlay.querySelector('#passport-stat-panel');
+    panel.hidden = scope === 'rides';
+    overlay.querySelector('#passport-ride-panel').hidden = scope !== 'rides';
+    overlay.querySelector('.passport-definitions').hidden = scope === 'rides';
+    renderRides();
     panel.setAttribute('aria-labelledby', `passport-tab-${scope}`);
     const rows = [
       ...(scope === 'visit' ? [['From the entrance', formatPassportDistance(selected.currentDistance)]] : []),
@@ -70,6 +74,25 @@ export function createPassportMenu() {
       card.append(icon, name, status, hint); stampList.append(card);
     }
     overlay.querySelector('.passport-stamp-count').textContent = `${count} of ${PASSPORT_STAMPS.length} memories lit · All time`;
+  }
+  function renderRides() {
+    const list = overlay.querySelector('.passport-rides');
+    list.replaceChildren();
+    const log = options.questLog?.snapshot();
+    overlay.querySelector('.passport-ride-summary').textContent = log?.total
+      ? `${integer.format(log.total)} ${log.total === 1 ? 'lift' : 'lifts'} completed · ${integer.format(log.smiles)} reward smiles sent out`
+      : 'No lifts completed yet. Look for festival-goers waving for a ride, then stop nearby to welcome them aboard.';
+    overlay.querySelector('.passport-ride-note').textContent = options.questLog?.storageOK === false
+      ? 'Saving rides is unavailable. This ride history lasts until this page closes.'
+      : 'All-time rides in this browser, with the latest 20 shown. Reward smiles count the pickups sent out before collection or score bonuses.';
+    for (const ride of log?.recent || []) {
+      const row = document.createElement('li');
+      const place = document.createElement('strong'); place.textContent = ride.label || 'A festival stop';
+      const detail = document.createElement('span');
+      const type = ride.type === 'party' ? 'Monk party' : ride.type === 'urgent' ? 'Gotta GO!' : ride.type === 'summit' ? 'Mountaintop lift' : 'Festival lift';
+      detail.textContent = `${type} · ${integer.format(ride.reward)} reward smiles`;
+      row.append(place, detail); list.append(row);
+    }
   }
   function close() {
     if (!isOpen()) return;
@@ -120,8 +143,10 @@ export function createPassportMenu() {
           <div class="passport-tabs" role="tablist" aria-label="Passport statistics">
             <button type="button" id="passport-tab-visit" role="tab" data-scope="visit" aria-controls="passport-stat-panel">This visit</button>
             <button type="button" id="passport-tab-allTime" role="tab" data-scope="allTime" aria-controls="passport-stat-panel">All time</button>
+            <button type="button" id="passport-tab-rides" role="tab" data-scope="rides" aria-controls="passport-ride-panel">Ride log</button>
           </div>
           <div id="passport-stat-panel" role="tabpanel" tabindex="0"><dl class="passport-stats"></dl><p class="passport-note"></p></div>
+          <div id="passport-ride-panel" role="tabpanel" aria-labelledby="passport-tab-rides" tabindex="0" hidden><h3>Your lifts around the festival</h3><p class="passport-ride-summary"></p><ol class="passport-rides"></ol><p class="passport-ride-note"></p></div>
           <p class="passport-definitions">Smiles count pickups before score bonuses. Distances follow the ground plane, and stages count once per festival layout.</p>
           <p class="passport-relocated" hidden></p>
           </div><div class="passport-memories">
@@ -149,11 +174,13 @@ export function createPassportMenu() {
         event.stopImmediatePropagation();
         if (key === 'escape' || key === 'p') { event.preventDefault(); if (!event.repeat) close(); return; }
         if (event.target?.matches('[data-scope]') && ['arrowleft', 'arrowright', 'home', 'end'].includes(key)) {
-          event.preventDefault(); scope = key === 'home' ? 'visit' : key === 'end' ? 'allTime' : scope === 'visit' ? 'allTime' : 'visit';
+          event.preventDefault();
+          const scopes = ['visit', 'allTime', 'rides'];
+          scope = key === 'home' ? scopes[0] : key === 'end' ? scopes.at(-1) : scopes[(scopes.indexOf(scope) + (key === 'arrowleft' ? 2 : 1)) % scopes.length];
           render(); overlay.querySelector(`[data-scope="${scope}"]`).focus(); return;
         }
         if (key !== 'tab') return;
-        const focusable = [...overlay.querySelectorAll('button, [tabindex="0"]')].filter(el => el.tabIndex >= 0);
+        const focusable = [...overlay.querySelectorAll('button, [tabindex="0"]')].filter(el => el.tabIndex >= 0 && !el.closest('[hidden]'));
         const first = focusable[0], last = focusable.at(-1);
         if (event.shiftKey && (document.activeElement === first || document.activeElement === overlay.querySelector('.passport-panel'))) { event.preventDefault(); last.focus(); }
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }

@@ -36,6 +36,7 @@ not physical-device acceptance.
 ## Recent investigations
 
 - [iPad frame attribution preparation, November 15](performance/2026-11-15-ipad-attribution/README.md): capture-only sections, horizon publication health, validated four-run controls, real Low capture and Low/Mid smoke checks; the [reserved-Mac follow-up](performance/2026-11-15-ipad-attribution/desktop-window/README.md) passes a descriptive incremental-overhead check, retains a 72.9 ms far-field target miss, and leaves physical-iPad acceptance open.
+- [Passenger quests, November 15](passenger-quests/README.md): the reviewed integration, safe-disembarkation/activity regressions, live hailing and deliveries, Passport Ride log, explicit Low/Mid/High boots and compact-layout checks, with physical-device/audio/balance and remaining visual acceptance kept open.
 
 - [Far-field publication stall, November 11](performance/2026-11-11-far-field-publication/README.md): CPU attribution of the 424 ms iPad far-field interval, byte-identical bounded publication across 120 fingerprinted horizons, offline before/after timing and the pending iPad acceptance run.
 

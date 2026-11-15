@@ -71,7 +71,7 @@ population-migration backlog.
 
 The wagon now spawns on existing festival roads, cruises slowly, pauses near gatherings, boards regular NPCs, plays the existing spatial dub groove, and is ten times likelier on each encounter roll during a Trip. Gary selected rare normally / very likely during trips, regular NPCs first, and walking-pace cruising with gathering stops on 2026-10-13. [Current parameters and verification](verification/nut-wagon/GAMEPLAY.md).
 
-The four-to-six monk party and all eight guest places are implemented, including the standing platform. [Group behavior and checks](verification/nut-wagon/MONKS.md). The wagon now has a dedicated reggae arrangement. Shared-destination group ride quests remain in the passenger-quest backlog.
+The four-to-six monk party and all eight guest places are implemented, including the standing platform. [Group behavior and checks](verification/nut-wagon/MONKS.md). The wagon now has a dedicated reggae arrangement. Shared-destination group ride quests are implemented; remaining passenger-quest acceptance is listed below.
 
 ## Festival Run acceptance and operations
 
@@ -101,6 +101,15 @@ parameters, dated observations and unanswered decisions. Use the
   — they're supposed to keep their distance. A procedural-placement spacing bug in
   the festival planner ([worldgen/festival.js](src/worldgen/festival.js)) or the POI
   spacing guards in [chunks.js](src/chunks.js). Repro is the seed + coords above.
+  *Diagnosed 2026-11-15, not fixed:* the plan still reproduces it, with a tent stage
+  at (55, -331) and a side stage at (61, -319). Their hubs sit in neighboring cells
+  only 52 m apart, at (-25, -309) and (26, -320), and every hub plants a stage. The
+  cross-hub seam pass leaves a stage meeting a stage unresolved on purpose
+  (`_seamResponse`, "stage+stage = unresolved spacing"), and it only compares each
+  hub's zone nearest the other heart, which here is not the stage. Eight seeds over a
+  5 km square held 12 stage pairs closer than 40 m among 5,566 stages. A fix needs a
+  dedicated stage-to-stage check that drops the yielding hub's stage and its
+  dependents, and it will move the POI snapshot for the affected hubs only.
 
 ---
 
@@ -213,8 +222,7 @@ harness history, tier contract and acceptance criteria.
 - **Bubble Upgrades rollout:** finish the pending visual gate, crowd charm,
   leaderboard headroom and final performance/docs checks in the
   [feature plan](BUBBLE-UPGRADES-PLAN.md).
-- **Passenger quests:** rider destinations, shared monk-party quests and the
-  urgent porta-potty variant. Include a future **“Take me to the mountaintop”** request targeting a reachable, admitted mountain destination, with a legal arrival/drop-off area; this remains quest work, not part of the current terrain implementation.
+- **Passenger quest acceptance.** The reviewed integration includes hailing, rider destinations, urgent porta-potty runs, mountaintop requests, monk-party rides and the Passport Ride log. Desktop checks cover live ordinary/urgent delivery, explicit Low/Mid/High boots, compact Ride log layout, keyboard controls and storage failures. Still needed: physical-phone play, audio cues by ear, live mountaintop guidance, the complete watched urgent walk-to-door/flee sequence, hailer readability at 30–75 m, the four quest-earned bubble looks and Gary’s judgment of reward balance and hailing frequency. Kids requesting rides, tokens and streaks stay parked. See the [change record](openspec/changes/passenger-quests/README.md) and [verification](verification/passenger-quests/README.md).
 - **Festival activities:** daily-seed challenge, boost/hop tricks, food-truck
   purchase-and-dining behavior and vendor power-ups.
 - **Physical festival:** implement the [documented plan](openspec/changes/physical-festival/README.md)

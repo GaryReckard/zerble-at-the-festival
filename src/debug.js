@@ -573,6 +573,16 @@ function getCommandController() {
     where:()=>`x ${h().zerble.position.x.toFixed(2)} · z ${h().zerble.position.z.toFixed(2)} · heading ${((h().zerble.heading*180/Math.PI%360+360)%360).toFixed(1)}°`,
     seed:()=>`Seed ${getSessionSeed()}`,
     status:commandStatus,inspect:inspectCommand,
+    quest:(verb,kind)=>{
+      const dbg=window.__dbg;
+      if(!dbg)return 'Passenger helpers are not ready.';
+      if(verb==='status')return JSON.stringify(dbg.quests(),null,2);
+      if(verb==='log')return JSON.stringify(dbg.questLog(),null,2);
+      if(verb==='give')return dbg.giveQuest(kind);
+      if(verb==='hail')return dbg.hail(kind);
+      if(verb==='pickup')return dbg.hailGo();
+      return dbg.questGo();
+    },
     camera:(mode,span)=>{
       if(!h().chaseCam)return 'Camera controls are not ready.';
       if(mode==='chase'){h().chaseCam.dbgCamUnlock();return 'Chase camera restored.';}

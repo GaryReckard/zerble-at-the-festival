@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-15",
+  "surface": "managed in-app Browser, isolated production preview on 8771",
+  "muted": true,
+  "initialURL": "/?mute=1&tier=low&seed=4",
+  "note": "tier=low was not a valid override; initial run used Auto on desktop. Initial delivery screenshot is deliberately not labeled Low. Explicit perf=low, perf=mid and perf=high boots followed.",
+  "explicitTierBoots": [
+    "low",
+    "mid",
+    "high"
+  ],
+  "consoleWarningsAndErrors": [],
+  "deliveries": {
+    "ride": 2,
+    "urgent": 1,
+    "total": 3,
+    "rewardSmiles": 33
+  },
+  "compactViewport": [
+    844,
+    390
+  ],
+  "compactHorizontalOverflow": false,
+  "rideStates": [
+    "live populated",
+    "fixture populated",
+    "fixture empty",
+    "fixture save failure"
+  ],
+  "audioHeard": false,
+  "gpuTimingMeasured": false
+}

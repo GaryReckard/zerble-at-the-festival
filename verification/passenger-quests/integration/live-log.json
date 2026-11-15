@@ -1,0 +1,36 @@
+{
+  "total": 3,
+  "smiles": 33,
+  "byType": {
+    "ride": 2,
+    "urgent": 1
+  },
+  "byKind": {
+    "food_court": 1,
+    "tent_stage": 1,
+    "porta_potty": 1
+  },
+  "recent": [
+    {
+      "kind": "porta_potty",
+      "type": "urgent",
+      "label": "the nearest porta-potty",
+      "reward": 13,
+      "at": 1794772266811
+    },
+    {
+      "kind": "tent_stage",
+      "type": "ride",
+      "label": "the big tent",
+      "reward": 9,
+      "at": 1794772258332
+    },
+    {
+      "kind": "food_court",
+      "type": "ride",
+      "label": "the food trucks",
+      "reward": 11,
+      "at": 1794772215944
+    }
+  ]
+}

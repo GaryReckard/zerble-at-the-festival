@@ -69,6 +69,12 @@ export function createDebugCommands(actions, targets, targetDescriptions, worldg
   add('where','Show world coordinates and heading','where',[],()=>actions.where());
   add('seed','Show the current procedural seed','seed',[],()=>actions.seed());
   add('status','Show simulation, world and rendering status','status',[],()=>actions.status());
+  add('quest','Inspect passenger requests or exercise their live pickup/drop-off path','quest <status|give|go|hail|pickup|log> [kind]',[['status','give','go','hail','pickup','log'], ['main_stage','food_court','vendor_row','camp_village','porta_potty','urgent','summit']],args=>{
+    const verbs = ['status','give','go','hail','pickup','log'];
+    const kinds = ['main_stage','food_court','vendor_row','camp_village','porta_potty','urgent','summit'];
+    if (!verbs.includes(args[0]) || args.length > 2 || (args.length === 2 && (!['give','hail'].includes(args[0]) || !kinds.includes(args[1])))) return use('quest');
+    return actions.quest(args[0], args[1]);
+  });
   add('inspect','Inspect people controllers, nearby camps, NPC states, audio or world counts','inspect <people|camps|npcs|audio|world>',[['people','camps','npcs','audio','world']],args=>{
     if(args.length!==1||!['people','camps','npcs','audio','world'].includes(args[0]))return use('inspect');
     return actions.inspect(args[0]);

@@ -1,0 +1,67 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { Scene, Texture } from 'three';
+import { QuestBubbles } from '../src/models/questBubble.js';
+import { QuestCompass } from '../src/questHud.js';
+
+// Exercise the real sprite/material code without a renderer or canvas painter.
+// Supplying an already-created texture leaves show(), place() and disposal intact.
+const scene = new Scene();
+const bubbles = new QuestBubbles(scene, 1);
+bubbles._textures.set('potty', new Texture());
+try {
+  assert.equal(bubbles.show('urgent', 'potty', 0), true);
+  const sprite = bubbles.group.children[0];
+  const sample = (time, reducedMotion, warmth = 0.9, urgent = true) => {
+    bubbles.place('urgent', 2, 3, 4, { warmth, urgent, reducedMotion }, time);
+    return {
+      scale: sprite.scale.toArray(),
+      position: sprite.position.toArray(),
+      color: sprite.material.color.toArray(),
+      opacity: sprite.material.opacity,
+    };
+  };
+  const quiet = sample(0, true);
+  assert(quiet.scale[0] > 0, 'reduced motion shows the bubble immediately');
+  for (const time of [0.1, 0.35, 1.2, 4]) {
+    assert.deepEqual(sample(time, true), quiet, 'reduced motion stops entrance, jitter, pulse and tint oscillation');
+  }
+  const entrance = sample(0, false);
+  const moving = sample(0.1, false);
+  assert(entrance.scale[0] < moving.scale[0], 'normal motion retains the entrance animation');
+  const later = sample(1.2, false);
+  assert.notDeepEqual(moving.position, later.position, 'normal urgency retains jitter');
+  assert.notDeepEqual(moving.color, later.color, 'normal urgency retains tint animation');
+  assert.deepEqual(sample(1.2, true), quiet, 'enabling reduced motion applies to an existing bubble');
+  assert.notDeepEqual(sample(1.2, false), quiet, 'disabling reduced motion restores animation');
+  assert.notDeepEqual(sample(1.2, true, 0), quiet, 'proximity still changes the presentation without animation');
+  assert.deepEqual(sample(1, true, 0.9, false), sample(2, true, 0.9, false), 'ordinary bubbles also remain still');
+} finally {
+  bubbles.dispose();
+}
+
+// Native Event objects check cancellation semantics. The minimal target supplies
+// only closest(), so the production constructor registers and executes its handlers.
+// Actual browser-generated Space-to-click activation remains a browser smoke check.
+const root = new EventTarget();
+let onChip = true;
+root.closest = () => onChip ? { dataset: { quest: '12' } } : null;
+const picked = [];
+new QuestCompass(root, { onPick: id => picked.push(id) });
+function keydown(key) {
+  const event = new Event('keydown', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'key', { value: key });
+  root.dispatchEvent(event);
+  return event;
+}
+const space = keydown(' ');
+assert.equal(space.cancelBubble, true, 'Space on a quest button cannot bubble into game controls');
+assert.equal(space.defaultPrevented, false, 'the browser remains free to activate the button');
+assert.equal(keydown('Enter').cancelBubble, false, 'unrelated keys retain their existing behavior');
+onChip = false;
+assert.equal(keydown(' ').cancelBubble, false, 'Space outside a quest button is not swallowed');
+onChip = true;
+root.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
+assert.deepEqual(picked, [12], 'the activation click still selects the requested quest');
+
+console.log('quest presentation: reduced-motion sprites, live preference changes and Space activation semantics OK');

@@ -6,6 +6,14 @@ The title-menu link, in-game book button and `P` open a read-only record of this
 
 The Lantern Night view places statistics beside the memory cards in a panel up to 980px wide. Its header, close button and storage footer stay visible while the body scrolls; narrow screens stack the sections. Earned memories display “✓ Lit”, while their stored stamp IDs and earning rules remain unchanged. Counts of 1,000 or more use compact formatting with exact accessible values. The close icon retains a 44px hit target, and keyboard focus remains contained within the dialog.
 
+## Ride log
+
+The Ride log tab shows all-time completed lifts, the reward smiles sent out, and the latest 20 deliveries in newest-first order. Each delivery lists its destination, request type and reward. These smile totals count pickups emitted at arrival before collection or score bonuses, so they differ from both Smiles collected and the HUD score. Left and right arrow keys switch among the Passport tabs while focus is on a tab.
+
+The versioned `zerble.questLog` localStorage record is owned by `src/quests/questLog.js`, separately from Passport statistics. It saves after each completed delivery and retains totals by quest type and destination kind for bubble unlocks. Clearing site data clears the record, and it does not sync across browsers or devices. If storage fails, the current page keeps its in-memory history and the Ride log shows a saving-unavailable notice.
+
+The production tab was verified through a live completed delivery, keyboard navigation, populated and empty history, saving-unavailable feedback, and an 844×390 compact viewport. See the [passenger integration record](../verification/passenger-quests/README.md#integration-review-and-native-browser-follow-up). Physical-phone acceptance remains separate.
+
 ## Measurements and persistence
 
 | Statistic | Definition |
