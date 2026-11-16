@@ -97,7 +97,7 @@ export function makeLiveStageGenre(style) {
         voice.gain.cancelScheduledValues(at);
         voice.gain.setValueAtTime(.0001,at);
         voice.gain.exponentialRampToValueAtTime(gain * level, at+Math.min(attack,length*.3));
-        if (lane === 'lead' && (style === 'brass' || style === 'jam')) {
+        if (lane === 'lead' && (style === 'brass' || style === 'jam' || length > beat)) {
           // Hold the horn breath or amplified guitar string through its vowel.
           // A straight fade all the way from the attack sounds like a mallet.
           voice.gain.exponentialRampToValueAtTime(gain * level * .64, at + length * .62);
@@ -127,12 +127,16 @@ export function makeLiveStageGenre(style) {
         const turnaround=fill && step===7;
         const answer=bar%4===3;
         const headPlays=band.leadBars[slot][step]==='x';
-        if ((headPlays || turnaround || (solo && (step+bar)%3===0))
+        // Let selected phrase endings sing through the following rests, with
+        // no retrigger truncating the held monophonic voice. Funk gets fewer.
+        const phraseHold = !sub && b===2 && bar%(style==='funk'?8:4)===(style==='funk'?7:3) && !spare;
+        if (at >= (v.leadUntil ?? -Infinity) && (headPlays || phraseHold || turnaround || (solo && (step+bar)%3===0))
             && (!spare || (!sub && (b===0 || b===2)) || (answer && b===3))) {
           const pitch=turnaround && name==='outro' ? score.chord('verse',0) : score.lead(name,bar,b,sub);
           const hasRoom = band.leadBars[slot][(step+1)%8] === '.';
           const held = style !== 'funk' && hasRoom && (b === 0 || (answer && b === 2));
-          const length = held ? Math.min(beat * 1.5,eighth * band.length + beat * .48) : eighth * band.length;
+          const length = phraseHold ? beat*(style==='funk'?1.3:style==='folk'?1.85:2.4) : held ? Math.min(beat * 1.5,eighth * band.length + beat * .48) : eighth * band.length;
+          v.leadUntil=phraseHold?at+length:-Infinity;
           note(v.lead,'lead',pitch,at,length,leadGain[style]*(sub?.8:1),band.attack);
         }
         const bassStep=band.bassBars[slot][step];

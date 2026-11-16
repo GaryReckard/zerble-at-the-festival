@@ -55,8 +55,11 @@ export function createStageWorkshop({band, cam, applyCam, play, stop, finishSong
     update(seconds) {
       time = seconds;
       const cue = animateStageBand(band, held ? heldTime : seconds, held);
+      const inspected=band.performers[Number(player.value)];
+      const roaming=inspected.userData.stageRoam;
+      const travel=roaming?`\nStage position x ${inspected.position.x.toFixed(1)} · z ${inspected.position.z.toFixed(1)}`:'';
       const text = `${held ? 'Held visual pose · ' : ''}${cue.style} · ${cue.state} · ${cue.section || 'waiting'} · beat ${cue.beat + 1}\n` +
-        ['lead','bass','chord','kick','snare','hat'].map(key => `${key} ${Math.round(cue[key] * 4)}/4`).join(' · ');
+        ['lead','bass','chord','kick','snare','hat'].map(key => `${key} ${Math.round(cue[key] * 4)}/4`).join(' · ')+travel;
       if (text !== previous) {state.textContent = text;previous = text;}
       return cue;
     },

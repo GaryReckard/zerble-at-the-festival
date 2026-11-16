@@ -1,0 +1,58 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Box3,Vector3} from 'three';
+import {buildStage,placeBandOnStage} from '../src/models/stage.js';
+import {mulberry32} from '../src/rng.js';
+import {disposeSceneResources} from '../src/sceneResources.js';
+const cue={playing:true,time:0,beat:0,beatPhase:.2,intensity:.7,lead:.5,bass:.5,chord:.5,kick:.2,snare:.2,hat:.2,leadPitch:220,bassPitch:82};
+for(const isMain of [true,false])for(const scale of [.82,1.4])for(const style of ['jam','funk','folk','world','dub']){
+ const stage=buildStage({isMain,scale}),band=placeBandOnStage(stage.group,null,{...stage,rng:mulberry32(124),style});
+ const initial=band.map(p=>p.position.clone()),ranges=band.map(()=>({min:Infinity,max:-Infinity}));
+ try{
+  for(let f=0;f<=180;f++){
+   cue.time=f/5;cue.beat=Math.floor(cue.time*2);
+   for(const p of band)p.userData.animate(cue.time,cue);
+   stage.group.updateMatrixWorld(true);
+   const bounds=band.map((p,i)=>{
+    ranges[i].min=Math.min(ranges[i].min,p.position.x);ranges[i].max=Math.max(ranges[i].max,p.position.x);
+    const box=new Box3().setFromObject(p,true);
+    assert(box.min.x>-stage.deckWidth/2&&box.max.x<stage.deckWidth/2,'performer stays on deck');
+    assert(box.max.z<stage.frontZ-1,`clear of downstage wedges ${style} main=${isMain} scale=${scale} role=${p.userData.instrument} z=${box.max.z} limit=${stage.frontZ-1} time=${cue.time}`);
+    assert(box.min.y>=stage.deckHeight-.008,'feet do not enter the deck: '+box.min.y);
+    return box;
+   });
+   for(let i=0;i<band.length;i++)for(let j=i+1;j<band.length;j++){
+    // Rotated instrument bounding boxes are conservative, so even these must clear.
+    assert(!bounds[i].intersectsBox(bounds[j]),`${style} collision ${band[i].userData.instrument}/${band[j].userData.instrument} at ${cue.time}`);
+   }
+  }
+  for(const [i,p] of band.entries()){
+   const role=p.userData.instrument,range=ranges[i].max-ranges[i].min;
+   if(role==='lead_vocal')assert(range>stage.deckWidth*.15,'singer uses the stage');
+   else if(p.userData.stageRoam)assert(range>.2&&range<.7,'instrument player keeps a small corridor');
+   else assert.equal(p.position.distanceTo(initial[i]),0,'stationary equipment stays put');
+   const at=p.position.clone();cue.playing=false;
+   for(let f=1;f<20;f++){cue.time+=.1;p.userData.animate(cue.time,cue);}
+   assert.equal(p.position.x,at.x);assert.equal(p.position.z,at.z,'gap cannot slide the musician home');
+   const fixed=p.position.clone();p.userData.animate(cue.time,cue);assert(p.position.equals(fixed),'held transport freezes feet');
+   cue.playing=true;
+  }
+ }finally{disposeSceneResources(stage.group);}
+}
+// A changing render phase cannot restart a walk while the audio context is suspended.
+const st=buildStage({isMain:false}),[guitar]=placeBandOnStage(st.group,null,{...st,rng:mulberry32(1),style:'folk'});
+cue.time=0;cue.playing=true;guitar.userData.animate(0,cue);
+for(let i=1;i<300;i++){cue.time=i/60;guitar.userData.animate(cue.time,cue);}
+cue.playing=false;const before=guitar.position.clone();
+for(let i=0;i<100;i++)guitar.userData.animate(i,cue);
+assert(guitar.position.equals(before));disposeSceneResources(st.group);
+const snapshots=[];
+for(const hz of [30,60,120]){
+ const stage=buildStage({isMain:true});
+ const [singer]=placeBandOnStage(stage.group,null,{...stage,rng:mulberry32(12),style:'jam'});
+ cue.playing=true;
+ for(let i=0;i<=12*hz;i++){cue.time=i/hz;singer.userData.animate(i/hz,cue);}
+ snapshots.push(singer.position.clone());disposeSceneResources(stage.group);
+}
+assert(snapshots.every(p=>p.distanceTo(snapshots[0])<.01),'presentation rate cannot change the route');
+console.log('PASS roaming: singer traverses a clear front corridor, strings move subtly, actual morphed feet stay on deck, equipment and players clear each other, gap/suspension/hold preserve placement.');

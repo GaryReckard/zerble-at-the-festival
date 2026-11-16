@@ -1,6 +1,7 @@
 import {copyPersonHairGeometry} from '../crowdHair.js';
 import {performerContacts,stickTips,samplePerformerPose} from '../performerMotion.js';
 import {hash2} from '../rng.js';
+import {sampleStageRoaming} from '../stageRoaming.js';
 import {addStrideMorphs} from './personLocomotion.js';
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
@@ -253,14 +254,14 @@ function template(instrument,variant){
       if(trom)tube(GOLD,[[-.10,1.46,-.43],[-.10,1.46,-1.08],[.08,1.46,-1.08],[.08,1.46,-.43]],.023,1);
       if(trom)rod(SILVER,[-.10,1.46,-.45],[.08,1.46,-.45],.021,1);
     }else{
-      rod(BLACK,[0,.05,-.43],[0,1.53,-.43],.018);
-      for(let j=0;j<3;j++)rod(BLACK,[0,.20,-.43],[Math.cos(j*2.094)*.22,.03,-.43+Math.sin(j*2.094)*.22],.015);
-      rod(SILVER,[0,1.52,-.43],[0,1.62,-.27],.025);
-      oval(0x4c4c54,[0,1.625,-.237],[.058,.072,.057]);
-      tube(BLACK,[[0,1.52,-.43],[.06,.75,-.47],[.12,.03,-.40],[.55,.025,.2]],.008);
+      // A handheld wireless mic lets the singer leave the centre mark.
+      rod(SILVER,[-.04,1.49,-.41],[-.015,1.61,-.29],.025,1);
+      oval(0x4c4c54,[-.008,1.625,-.27],[.058,.072,.057],1);
     }
   });
-  if(instrument==='trombone'){
+  if(instrument==='lead_vocal'){
+    morphTagged(gear,1,new THREE.Matrix4().makeTranslation(.02,.06,.04));
+  }else if(instrument==='trombone'){
     morphTagged(gear,1,new THREE.Matrix4().makeTranslation(0,0,-.36));
   }else if(instrument==='drum'){
     const hinge=(y,z,angle)=>new THREE.Matrix4().makeTranslation(0,y,z)
@@ -313,13 +314,14 @@ export function buildPerformer(instrument,rng=Math.random,{locomotion=false}={})
   root.userData.strideMesh=mesh('Planted legs',legGeometry,root);
   const torso=mesh('Performer torso',t.body,upper);torso.castShadow=true;
   const arms=mesh('Articulated arms',t.arms,upper);
-  const fixed=['drum','keys','lead_vocal','sound'].includes(instrument);
+  const fixed=['drum','keys','sound'].includes(instrument);
   const gear=mesh('Performance gear',t.gear,fixed&&instrument!=='sound'?root:upper);
   const phase=hash2(Math.floor(roll*4294967296),0x706f7365)/4294967296*Math.PI*2;
   const pose={};
   root.userData.instrument=instrument;
   root.userData.animate=(seconds,performance=null)=>{
     samplePerformerPose(instrument,seconds,performance,phase,pose);
+    sampleStageRoaming(root,performance);
     // Keep both drumstick and keyboard contacts exact; the torso alone shifts
     // between the fixed hands and legs when a player is at a stationary rig.
     const moving=fixed?torso:spine;
@@ -333,6 +335,7 @@ export function buildPerformer(instrument,rng=Math.random,{locomotion=false}={})
       arms.morphTargetInfluences[3]=pose.keyRight;
     }
     if(instrument==='trombone')gear.morphTargetInfluences[0]=pose.right;
+    if(instrument==='lead_vocal')gear.morphTargetInfluences[0]=pose.left;
     if(instrument==='sound')gear.rotation.copy(torso.rotation);
     if(instrument==='drum'){
       gear.morphTargetInfluences[0]=pose.kick;

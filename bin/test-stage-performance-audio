@@ -148,6 +148,12 @@ assert.equal(clock.sample(frame).bassPitch,82.4);
 context.currentTime=1.51; assert.equal(clock.sample(frame).bassPitch,110);
 context.currentTime=1.75; assert.equal(clock.sample(frame).bassPitch,0);
 assert.equal(frame.bass,0);
+const longClock=createStagePerformanceClock(context,'jam');
+longClock.beat(1,.5,0,'verse',.7);longClock.note('lead',1,1.2,220);
+longClock.beat(1.5,.5,1,'verse',.7);longClock.beat(2,.5,2,'verse',.7);
+context.currentTime=2.1;longClock.sample(frame);
+assert.equal(frame.leadPitch,220);assert(frame.lead>0,'held notes remain visible into their third beat');
+context.currentTime=2.21;longClock.sample(frame);assert.equal(frame.leadPitch,0);
 const restart = harness(), sample = {};
 restart.adoptContext(restart.audio);
 const stage = restart.Sound.attachStageMusic(0,0,0,124,'jam');
@@ -179,16 +185,17 @@ for (const style of ['folk','funk','brass','jam']) {
   function capture(seed) {
     const rng=mulberry32(seed), h=harness();
     const voice=genre.makeVoices(h.audio,{},rng,196,987653);
-    const phrase = {};
+    const phrase = {};let sectionStart=0;
     for (const name of ['intro','verse','chorus','solo','outro']) {
       const section={name,intensity:.8};
       const notes=phrase[name]=[];
       for (let bar=0;bar<8;bar++) for (let b=0;b<4;b++) {
-        const t=bar*4+b;
+        const t=sectionStart+bar*4+b;
         genre.playBeat({t, beat:1, beatInBar:b, barInSection:bar, section,
           voices:voice.voices, gainMod:.7, fill:bar===7,
-          cue:(lane,at,duration,pitch) => notes.push({lane,at,duration,pitch})});
+          cue:(lane,at,duration,pitch) => notes.push({lane,at:at-sectionStart,duration,pitch})});
       }
+      sectionStart+=32;
     }
     voice.teardown.forEach(stop=>stop());
     assert(h.nodes.every(node=>!node.connected));
@@ -196,6 +203,14 @@ for (const style of ['folk','funk','brass','jam']) {
   }
   const a=capture(31), b=capture(32);
   assert.deepEqual(a,capture(31));
+  const leads=a.verse.filter(n=>n.lane==='lead');
+  const held=leads.filter(n=>n.duration>(style==='funk'?1.2:1.6));
+  assert(held.length>0 && held.length<leads.length*.3,style+' occasional sustained phrase endings');
+  for(const note of held){
+    const next=leads.find(n=>n.at>note.at);
+    if(next)assert(next.at>=note.at+note.duration-1e-8,'held lead must not be retriggered early');
+  }
+
   assert.notDeepEqual(a.verse.map(n=>n.pitch),b.verse.map(n=>n.pitch),style+' song families');
   assert(a.chorus.length>a.intro.length*1.4,style+' contrast in density');
   assert(a.chorus.length>a.outro.length*1.4,style+' winds down');

@@ -10,6 +10,7 @@
 // the group.
 
 import * as THREE from 'three';
+import {configureStageRoaming} from '../stageRoaming.js';
 import { buildPerformer, bakePerformancePart } from './performer.js';
 import { register as registerContextLight } from '../contextLights.js';
 import { STAGE_SHAPES, STAGE_SURFACES } from '../festivalShapes.js';
@@ -367,9 +368,9 @@ export function placeBandOnStage(stageGroup, instruments, opts) {
     if (style != null && legacySlots.length === roles.length) {
       const variant = rng();
       if (legacySlots[index] === 'guitar') rng();
-      performer = buildPerformer(role, () => variant);
+      performer = buildPerformer(role, () => variant, {locomotion:['lead_vocal','guitar','bass'].includes(role)});
     } else {
-      performer = buildPerformer(role, rng);
+      performer = buildPerformer(role, rng, {locomotion:['lead_vocal','guitar','bass'].includes(role)});
     }
     const flank = wings.indexOf(index);
     // Open a window between the centre mic and the inside flank for the kit.
@@ -382,6 +383,7 @@ export function placeBandOnStage(stageGroup, instruments, opts) {
       onRiser ? -d * .25 - .18 * scale : lead ? d * .14 : d * .06,
     );
     performer.rotation.y = Math.PI;
+    configureStageRoaming(performer,w,d,onRiser);
     stageGroup.add(performer);
     return performer;
   });

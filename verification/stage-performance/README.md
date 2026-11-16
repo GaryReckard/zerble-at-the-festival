@@ -43,3 +43,12 @@ The [layout regression](../../bin/test-stage-layout) measures static main-stage 
 ## Limits
 
 Music remains synthesized, and hand positions are a stylized mapping of the actual played pitch rather than fingering for every real instrument. Lead singers use the melodic cue without synthesizing lyrics. Healing Arts follows its own night track but does not receive the stage-front applause population added to regular and covered stages. No new shadow casters or geometry per animation frame were added. Physical-device frame cost and subjective listening have not been accepted by these desktop checks.
+
+
+## Follow-up: stage walking and sustained phrases
+
+Gary’s listening pass accepted the musical refresh and requested stage movement and occasional longer notes. Singers now use a handheld mic and a front-stage walk/pause corridor; guitar and bass make smaller, delayed movements. Drums, keys, engineers and musicians on the riser remain stationary. New held phrase endings last 1.85 beats in folk, 2.4 in jam/brass, and 1.3 every second phrase in funk; other attacks and percussion remain crisp. The lead avoids retriggering until its held note has finished, and the cue buffer includes the third beat of that note.
+
+`bin/test-stage-roaming` samples actual posed geometry across main/side stages, two scales and five styles for 36 seconds, checking feet, deck edges, downstage equipment clearance and other players, plus stop/suspension/held placement and route agreement at 30/60/120 Hz. The audio suite checks both brief and held notes, no early retrigger of the new sustains, and visible pitch through the third beat. No new render meshes, shadow casters or audio voices were introduced; the singer’s removed stand reduces geometry. A Low main-stage browser readout showed 40 draws / 21,009 triangles and 24 textures after uploading stride and microphone morphs, compared with 40 / 21,361 and 19 textures for the previous main-stage implementation. This is a resource tradeoff, not a device timing result.
+
+Browser Noon and Midnight captures show the handheld singer and the stage position readout changing from centre to both sides; hold and stop kept the current position. See [Noon](singer-roaming-noon-low.jpg) and [Midnight](singer-roaming-midnight-low.jpg). The complete `npm run check` chain passed, followed by the expanded roaming clearance/cadence test and production build. The audio test remains muted; Gary’s next listening pass can judge how the selected sustained phrases feel.

@@ -13,7 +13,7 @@ export function silentPerformance(out, state, style, time = 0) {
 }
 
 export function createStagePerformanceClock(ctx, style) {
-  // Eight beats cover the 0.6s lookahead plus the longest 1.8-beat note.
+  // Eight beats cover the 0.6s lookahead plus the longest 2.4-beat note.
   // The busiest current beat uses eight attacks. Reuse all slots on rollover.
   const slots = Array.from({ length: 8 }, () => ({
     start: -Infinity, duration: 0, beat: 0, section: '', intensity: 0, count: 0,
@@ -58,9 +58,9 @@ export function createStagePerformanceClock(ctx, style) {
           out.beat = s.beat; out.beatPhase = (now - s.start) / s.duration;
           out.section = s.section; out.intensity = s.intensity;
         }
-        // Notes never extend beyond two beats. Ignore older slots, including
+        // Notes never extend beyond three beats. Ignore older slots, including
         // slots from a previous song across its 4.5-second cheer gap.
-        if (now >= s.start + s.duration * 2) break;
+        if (now >= s.start + s.duration * 3) break;
         for (let i = s.count - 1; i >= 0; i--) {
           const age = now - s.times[i];
           if (age < 0) continue;
