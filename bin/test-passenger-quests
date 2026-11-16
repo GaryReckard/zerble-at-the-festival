@@ -254,6 +254,8 @@ assert.equal(planOffer([{ kind: 'food_court', x: 10, z: 0 }], origin), null, 'no
   engine.update(0.1, { x: 0, z: -140, speed: 5 });
   chip = chipState(quest, { x: 0, z: -140, heading: 0 });
   assert.equal(chip.text, 'Stop here!'); assert.equal(chip.inside, true);
+  assert.equal(chipState(quest, { x: 0, z: -140, heading: 0, speed: 6 }).text, 'Slow down!', 'inside the stop but too fast to let anyone off');
+  assert.equal(chip.label, 'Potty!!!');
 }
 
 // --- a party speaks in its own voice but shows the real destination --------
@@ -337,4 +339,81 @@ assert.equal(planOffer([{ kind: 'food_court', x: 10, z: 0 }], origin), null, 'no
   again.reset(); assert.equal(createQuestLog(storage).total, 0);
 }
 
-console.log('passenger quests: catalog, picking, offers, arrival, missed, patience, remarks, urgent, summit, party voice, mountaintop source and waypoint, quest log and compass OK');
+// --- the trip minimum is measured to the edge of the stop -------------------
+{
+  // A camp village 100 m away with a 60 m radius is only a 40 m trip: too short.
+  assert.equal(candidatesInBand([{ kind: 'camp_village', x: 100, z: 0, radius: 60 }], origin, QUEST.MIN_DIST, QUEST.MAX_DIST).length, 0);
+  assert.equal(candidatesInBand([{ kind: 'camp_village', x: 130, z: 0, radius: 60 }], origin, QUEST.MIN_DIST, QUEST.MAX_DIST).length, 1);
+}
+
+// --- runtime: hailing, the cap, toast priority and stop() --------------------
+{
+  const { QuestRuntime } = await import('../src/quests/runtime.js');
+  const entries = new Map([[1, { position: { x: 0, z: 150 } }], [2, { position: { x: 180, z: 0 } }], [3, { position: { x: 0, z: -200 } }]]);
+  const registry = { byKind: new Map([['beach', new Set([1, 2, 3])]]), entries };
+  const make = () => {
+    const people = new Map();   // handle -> { x, z, state }
+    const calls = { hold: [], board: [], wave: 0, hailing: new Map(), toasts: [], spawned: 0 };
+    const crowd = {
+      forEachHailCandidate(zerble, min, max, visit) { for (const [h, p] of people) { const d = Math.hypot(p.x - zerble.position.x, p.z - zerble.position.z); if (p.state === 'idle' && !calls.hailing.get(h) && d >= min && d <= max) visit(h, p.x, p.z, d); } },
+      walkerInfo(h, out) { const p = people.get(h); out.boarding = p?.state === 'boarding'; out.available = !!p && (p.state === 'idle' || out.boarding); if (!p) return false; out.x = p.x; out.z = p.z; out.y = 2; return out.available; },
+      setHailing(h, on) { calls.hailing.set(h, on); },
+      hailWave() { calls.wave++; return true; },
+      hailBoard(h) { const p = people.get(h); if (!p || p.state !== 'idle') return false; p.state = 'boarding'; calls.board.push(h); return true; },
+      riderInfo(h, out) { out.riding = people.get(h)?.state === 'riding'; return out.riding; },
+      holdRide(h, on) { calls.hold.push([h, on]); return true; }, setRideMood() {}, endRide(h) { people.get(h).state = 'idle'; return true; }, sendToPotty() { return false; },
+    };
+    const zerble = { position: { x: 0, y: 0, z: 0 }, speed: 0, heading: 0 };
+    const runtime = new QuestRuntime({ crowd, zerble, smiles: { spawn() { calls.spawned++; } }, registry, worldgen: false, random: seq(0.5), toast: (msg, ms, opts) => calls.toasts.push({ msg, low: !!opts?.low }) });
+    return { runtime, people, calls, zerble };
+  };
+
+  // A person in range starts hailing; stopping beside them boards them with the SAME request.
+  let { runtime, people, calls, zerble } = make();
+  people.set('ann', { x: 30, z: 0, state: 'idle' });
+  zerble.speed = 6;
+  runtime.update(QUEST.HAIL_FIRST + 0.1);
+  assert.equal(runtime.hails.length, 1); assert.equal(calls.hailing.get('ann'), true);
+  const shown = runtime.hails[0].plan.dest;
+  runtime.update(1); assert.equal(calls.board.length, 0, 'a moving cart picks nobody up');
+  zerble.position.x = 22; zerble.speed = 0;
+  runtime.update(0.1); assert.deepEqual(calls.board, ['ann']);
+  runtime.update(0.1); assert.equal(runtime.hails.length, 1, 'still theirs while they walk to the seat');
+  people.get('ann').state = 'riding';
+  const quest = runtime.onBoard('ann');
+  assert(quest); assert.equal(quest.x, shown.x); assert.equal(quest.z, shown.z); assert.equal(runtime.hails.length, 0);
+  assert.equal(calls.hailing.get('ann'), false, 'the hailing flag is cleared on boarding');
+  assert.deepEqual(calls.hold.at(-1), ['ann', true]);
+  assert(calls.toasts.at(-1).low, 'a rider remark is low priority');
+
+  // Driving off leaves the hail behind; patience also ends it.
+  ({ runtime, people, calls, zerble } = make());
+  people.set('bo', { x: 30, z: 0, state: 'idle' });
+  runtime.update(QUEST.HAIL_FIRST + 0.1); assert.equal(runtime.hails.length, 1);
+  zerble.position.x = -200; runtime.update(0.1);
+  assert.equal(runtime.hails.length, 0); assert.equal(calls.hailing.get('bo'), false);
+
+  // Hails hold their places: with one rider quest and two hails, a walk-up gets nothing
+  // and the hailer who boards still receives a request.
+  ({ runtime, people, calls, zerble } = make());
+  for (const [h, x] of [['r1', 0], ['h1', 30], ['h2', -30]]) people.set(h, { x, z: 0, state: 'idle' });
+  people.get('r1').state = 'riding';
+  assert(runtime.onBoard('r1', { force: 'beach' }));
+  zerble.speed = 6;
+  runtime.update(QUEST.HAIL_FIRST + 0.1); runtime.update(QUEST.HAIL_EVERY + 0.1);
+  assert.equal(runtime.hails.length, 2); assert.equal(runtime.startHail(), null, 'never more than two hailers');
+  people.set('walkup', { x: 5, z: 0, state: 'riding' });
+  runtime.random = seq(0.0);   // would pass the walk-up chance roll
+  assert.equal(runtime.onBoard('walkup'), null, 'a walk-up cannot take a hailer\'s place');
+  const hailer = runtime.hails[0].handle; people.get(hailer).state = 'riding';
+  assert(runtime.onBoard(hailer), 'the hailer keeps their request');
+
+  // stop(): everything is cancelled and nothing more is offered (run over, or a capture).
+  runtime.stop();
+  assert.equal(runtime.hails.length, 0); assert.equal(runtime.active.length, 0);
+  assert([...calls.hailing.values()].every((v) => v === false));
+  runtime.update(60); assert.equal(runtime.hails.length, 0);
+  assert.equal(runtime.onBoard('r1', { force: 'beach' }), null);
+}
+
+console.log('passenger quests: catalog, picking, offers, arrival, missed, patience, remarks, urgent, summit, party voice, mountaintop source and waypoint, quest log, runtime hailing and compass OK');

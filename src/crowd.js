@@ -1208,7 +1208,9 @@ export class Crowd {
     // doesn't scatter people in front of the cart.
     // dx/dz point NPC->Zerble, so (-dx,-dz) is the cart->NPC vector the
     // shared corridor test wants. Suppressed under star power / while locked.
-    const dodging = !fleeingLocked && !this.starActive &&
+    // Someone flagging the cart down WANTS it to come to them, so a hailer
+    // neither dodges its lane nor bolts when it gets close.
+    const dodging = !fleeingLocked && !this.starActive && !npc.hailing &&
       laneDodgeTest(-dx, -dz, zerble.forwardWorld.x, zerble.forwardWorld.z, zerble.speed);
 
     if (dodging) {
@@ -1224,7 +1226,7 @@ export class Crowd {
         // NPC stops and stares (falls through to watching/approaching) instead
         // of bolting. applyStarLove can't rescue an NPC already in 'fleeing'
         // (it's in STAR_LOVE_SKIP), so the gate has to be here at the trigger.
-        if (!this.starActive && npc.skittish > 0.55 && dToZerble < SMILE_RANGE * 0.6) {
+        if (!this.starActive && !npc.hailing && npc.skittish > 0.55 && dToZerble < SMILE_RANGE * 0.6) {
           npc.state = 'fleeing';
         } else if (npc.curiosity > 0.65 && dToZerble < NOTICE_RANGE && dToZerble > 4) {
           npc.state = 'approaching';
@@ -2196,6 +2198,12 @@ export class Crowd {
   forEachHailCandidate(zerble, minDist, maxDist, visit) {
     for (const npc of this.npcs) {
       if (npc.party || npc.isPhotographer || npc.hailing || npc.curiosity < 0.3 || !ORDINARY_SOCIAL_STATES.has(npc.state) || npc.cheerTimer > 0 || npc.frownTimer > 0) continue;
+      // The same conditions _reservePassenger enforces, checked up front so
+      // nobody advertises a ride they could never take: no activity claim, no
+      // scripted corridor walk, and (for terrain-bound people) a cart that
+      // shares a surface with them.
+      if (npc.seatSlot || npc.corridorRoute || this.activityClaims.current.has(npc.personHandle)) continue;
+      if (npc.surfaceBinding && !zerble.surfaceBinding) continue;
       const d = Math.hypot(npc.pos.x - zerble.position.x, npc.pos.z - zerble.position.z);
       if (d >= minDist && d <= maxDist) visit(npc.personHandle, npc.pos.x, npc.pos.z, d);
     }
@@ -2219,7 +2227,7 @@ export class Crowd {
   // A short arms-up wave toward the cart, so a hail reads from a distance.
   hailWave(handle, zerble) {
     const npc = this.peopleHandles.resolve(handle);
-    if (!npc || !ORDINARY_SOCIAL_STATES.has(npc.state)) return false;
+    if (!npc || !ORDINARY_SOCIAL_STATES.has(npc.state) || npc.corridorRoute) return false;
     npc.cheerTimer = 1.1; npc.cheerX = zerble.position.x; npc.cheerZ = zerble.position.z;
     return true;
   }
@@ -2253,7 +2261,12 @@ export class Crowd {
   endRide(handle, zerble, { celebrate = 0, flee = false } = {}) {
     const npc = this.peopleHandles.resolve(handle);
     if (!npc || npc.state !== 'riding' || npc.party || npc.seatSlot?.vehicle) return false;
-    if (!this._exitRide(npc, zerble, true)) { npc.rideHold = false; npc.rideTimer = 0; return false; }
+    // Same guard as the ordinary exit: nobody steps off a cart that is in the
+    // air or half under water. Dropping the hold lets them leave once it lands.
+    const unsafe = zerble.physicsDriven && (!zerble.grounded || (zerble.engineState?.immersion ?? 0) > 0.4);
+    if (unsafe || !this._exitRide(npc, zerble, true)) { npc.rideHold = false; npc.rideTimer = 0; return false; }
+    // They got where they were going; they are done with the cart for a while.
+    npc.disinterestedUntil = (this.actorTime ?? 0) + 45;
     if (flee) { npc.state = 'fleeing'; npc.fleeUrgency = 1.5; npc.stateTimer = 3; }
     else if (celebrate > 0) {
       npc.cheerTimer = celebrate; npc.cheerX = zerble.position.x; npc.cheerZ = zerble.position.z;
@@ -3004,7 +3017,7 @@ export class Crowd {
       // their reserved seat slot first; the per-frame activePassengers recount
       // sees them leave 'boarding' next frame, so the cap auto-decrements.
       // 'riding' stays exempt — they're physically tied to the cart.
-      if (fwd && npc.state !== 'riding') {
+      if (fwd && npc.state !== 'riding' && !npc.hailing) {
         const d2 = dx * dx + dz * dz;
         const dot = (dx * fwd.x + dz * fwd.z) * vDir;   // forward along travel direction
         const inFront = d2 < frontSq && dot > FRONT_CONE_DOT;

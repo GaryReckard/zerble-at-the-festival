@@ -240,6 +240,7 @@ function clearToastTap() {
   $toast.classList.remove('tappable');
 }
 
+let toastUntil = 0, toastLow = false;   // when the current toast expires, and whether it is chatter
 export const HUD = {
   setDamage(fraction,submersion=0) {
     if(!$damageMeter)return;
@@ -576,6 +577,11 @@ export const HUD = {
   // listener; the toast also clears on its own when ms elapses or when any
   // subsequent toast() call replaces it.
   toast(msg, ms = 1600, opts = {}) {
+    // `opts.low` marks chatter (passenger remarks): it yields to any ordinary
+    // toast still on screen, so it can never bury a warning.
+    const now = performance.now();
+    if (opts.low && !toastLow && now < toastUntil) return;
+    toastLow = !!opts.low; toastUntil = now + ms;
     clearToastTap();
     $toast.textContent = msg;
     $toast.classList.remove('hidden');

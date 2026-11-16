@@ -32,9 +32,10 @@ export class QuestCompass {
     const icon = document.createElement('img');
     icon.className = 'quest-icon'; icon.alt = ''; icon.src = this.iconURL(state.icon); icon.draggable = false;
     const arrow = document.createElement('span'); arrow.className = 'quest-arrow'; arrow.textContent = '▲'; arrow.setAttribute('aria-hidden', 'true');
+    const name = document.createElement('span'); name.className = 'quest-name'; name.textContent = state.label;
     const text = document.createElement('span'); text.className = 'quest-dist';
     const clock = document.createElement('span'); clock.className = 'quest-clock';
-    el.append(icon, arrow, text, clock);
+    el.append(icon, name, arrow, text, clock);
     this.root.append(el);
     return { el, arrow, text, clock, last: {} };
   }
@@ -48,7 +49,13 @@ export class QuestCompass {
       let chip = this.chips.get(state.id);
       if (!chip) { chip = this._create(state); this.chips.set(state.id, chip); }
       const last = chip.last;
-      if (last.angle !== state.angle) chip.arrow.style.transform = `rotate(${state.angle}deg)`;
+      if (last.angle !== state.angle) {
+        // Accumulate the shortest turn so the arrow never spins the long way
+        // round when the bearing crosses straight behind (the ±180° wrap).
+        const from = chip.shown ?? state.angle;
+        chip.shown = from + ((((state.angle - from) % 360) + 540) % 360 - 180);
+        chip.arrow.style.transform = `rotate(${chip.shown}deg)`;
+      }
       if (last.text !== state.text) chip.text.textContent = state.text;
       if (last.clock !== state.clock) chip.clock.textContent = state.clock;
       if (last.warm !== state.warm) chip.el.style.setProperty('--warm', String(state.warm));

@@ -80,7 +80,7 @@ export class QuestPresentation {
     }
     if (this.compass && (quests.length || this.compass.chips.size)) {
       const p = this.zerble.position;
-      this._player.x = p.x; this._player.z = p.z; this._player.heading = this.zerble.heading;
+      this._player.x = p.x; this._player.z = p.z; this._player.heading = this.zerble.heading; this._player.speed = this.zerble.speed || 0;
       this.compass.sync(quests, this._player);
     }
     if (this._pinsDirty && this.festivalMap) {
@@ -91,7 +91,7 @@ export class QuestPresentation {
         if (q.via && !q.viaReached) pins.push({ id: `quest:${q.id}:via`, x: q.via.x, z: q.via.z, label: 'Road up' });
       }
       this.festivalMap.setObjectives(pins);
-      if (this._track) { this.festivalMap.track(this._track); this._track = null; }
+      if (this._track) { if (this.festivalMap.selected == null) this.festivalMap.track(this._track); this._track = null; }
     }
   }
 

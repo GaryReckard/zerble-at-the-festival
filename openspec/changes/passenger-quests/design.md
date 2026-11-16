@@ -39,21 +39,23 @@ src/questHud.js              DOM    compass strip
 - `crowd.riderInfo(handle, out)`: head position and whether the person still rides Zerble.
 - `crowd.holdRide(handle, on)`: suspends the ordinary ride timer while a quest is active.
 - `crowd.endRide(handle, {celebrate, flee})`: releases the seat through the existing disembark path, then sets `cheerTimer` or the `fleeing` state.
-- `crowd.onRideEnd(handle)`: fires on every exit path so the engine can cancel.
+- No exit hook was needed (an `onRideEnd` hook was planned and not built): the runtime polls `crowd.riderInfo` for each active rider every frame, which catches every way a rider can leave.
+- Later additions: `zerbleRiders`, `setRideMood`, `sendToPotty`, and the hailing surface `forEachHailCandidate`, `walkerInfo`, `setHailing`, `hailWave`, `hailBoard`.
 
 ## Constants (first pass, all in `src/quests/catalog.js`)
 
 | Name | Value | Why |
 | --- | --- | --- |
-| `QUEST_CHANCE` | 0.30 | Design doc "how rare" lean |
+| `QUEST.CHANCE` | 0.08 (was 0.30 before hailing) | Hailing is the main source; walk-ups must not fill the strip |
+| Hailing | at most 2 people, 10 to 75 m away, one new hail per 9 s, 50 s patience, 120 m leash, pickup within 14 m | Easy to find a fare without saturating the grounds |
 | First boarder of a session | always a quest | So the feature is discovered early |
 | `MAX_ACTIVE` | 3 | Compass strip legibility |
-| Distance band | 80 to 300 m | Design doc |
+| Distance band | at least 60 m to the edge of the stop, at most 300 m to its centre | A wide venue must not yield a trip of a few metres |
 | Arrive radius | Per kind in the catalog (16 to 45 m); a camp village supplies `min(60, footprint + 10)` and the larger value wins; stages are aimed at their dance floor instead of the deck | Big venues are entered, not touched |
 | Arrive speed | under 2 m/s | Design doc |
 | Stall patience | 75 s without getting 5 m closer | Replaces the fixed 90 s clock; see session-log D3 |
 | Missed | was inside the arrive radius, then beyond 60 m | Halves the bonus once |
-| Reward | `6 + floor(startDist / 50)`, so 7 to 12 raw smiles | Under the Worker's placeholder 40 raw/min even back to back |
+| Reward | `6 + floor(startDist / 50)`, so 7 to 12 raw smiles | Sized against the Worker's placeholder 40 raw/min for the original 30% boarding roll. **Not re-derived for hailing:** the adversarial audit estimates farming could approach or pass that rate. Unmeasured; see questions-for-human Q2. |
 | Urgent chance | 12% of quests, when a potty is 60 to 220 m away | Rare by design |
 | Urgent clock | `30 + dist / 5` s | 42 to 74 s |
 | Urgent reward / penalty | 10 plus up to 5 for spare time / minus 2 | Light stakes |

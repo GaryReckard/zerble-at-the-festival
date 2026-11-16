@@ -7,13 +7,13 @@ export const QUEST = Object.freeze({
   // want a ride, and the player chooses whom to stop for.
   HAIL_MAX: 2,             // people flagging the cart down at once
   HAIL_MIN_DIST: 10, HAIL_MAX_DIST: 75,   // metres from the cart when chosen
-  HAIL_FIRST: 2, HAIL_EVERY: 5,           // seconds before the first / between later hails
+  HAIL_FIRST: 2, HAIL_EVERY: 9,           // seconds before the first / between later hails
   HAIL_PATIENCE: 50,       // seconds a hail waits before giving up
   HAIL_LEASH: 120,         // metres; the cart drove off, so the hail lapses
   HAIL_PICKUP: 14,         // stop this close and they climb aboard
   VIA_RADIUS: 45,          // reaching a waypoint this closely counts
   MAX_ACTIVE: 3,           // compass legibility, independent of the seat count
-  MIN_DIST: 80,            // closer feels trivial
+  MIN_DIST: 60,            // to the edge of the stop; closer feels trivial
   MAX_DIST: 300,           // farther feels like a chore
   ARRIVE_RADIUS: 25,
   ARRIVE_SPEED: 2,         // m/s; the cart must nearly stop to let someone off
@@ -25,16 +25,16 @@ export const QUEST = Object.freeze({
   HINT_GAP: 7,             // seconds between remarks across ALL riders
   HINT_MIN: 14, HINT_SPAN: 12,   // per-rider gap between ambient remarks
   URGENT_CHANCE: 0.12,
-  URGENT_MIN: 60, URGENT_MAX: 220,
+  URGENT_MIN: 45, URGENT_MAX: 220,     // min is to the edge of the stop
   URGENT_BASE_SECONDS: 30, URGENT_METRES_PER_SECOND: 5,
   URGENT_REWARD: 10, URGENT_BONUS: 5, URGENT_PENALTY: 2,
   SUMMIT_CHANCE: 0.10,
-  SUMMIT_MIN: 200, SUMMIT_MAX: 900,
+  SUMMIT_MIN: 160, SUMMIT_MAX: 900,
   PARTY_REWARD_EACH: 3,
 });
 
 const GENERIC_WARM = ['This way!', 'Getting closer!', 'Yes, yes, keep going!', 'Ooh, I think I see it!'];
-const GENERIC_COLD = ['Hmm, I think it was the other way…', 'Are we taking the scenic route?', 'We seem to be getting farther…'];
+const GENERIC_COLD = ['Hmm, I think it might be back the other way…', 'No rush! I think we passed the turn, though.', 'Ooh, pretty over here. My stop is behind us, I think.'];
 const GENERIC_THANKS = ['Thanks for the ride!', 'That was rad!', 'Far out!', 'Cheers, friend!'];
 
 // `weight` biases how often a kind is requested. `radius` is the minimum

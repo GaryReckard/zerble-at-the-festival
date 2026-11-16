@@ -21,6 +21,7 @@ last_answer: null
 **Context:** Quests pay 7 to 12 raw smiles, urgent runs 10 to 15, mountaintop more. These multiply with combo and Lurleen like any smile.
 **Question:** After a playtest, should these go up or down?
 **Impact:** Constants in `src/quests/catalog.js`. Proceeding with the table in design.md.
+**Update after audit 001:** hailing can supply fares much faster than the boarding roll the table was sized for. The audit's paper estimate is 40 to 55 raw smiles a minute while farming, against the Worker's placeholder ceiling of 40. This needs a measured playtest before the branch merges if Festival Run scores matter.
 
 ### Q1: Should 30% of boarders carry a quest?
 **Date:** 2026-11-15

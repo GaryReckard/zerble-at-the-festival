@@ -904,7 +904,7 @@ crowd.onFrown = () => {
 // the rules; thought bubbles, the compass and map pins subscribe to it.
 const quests = new QuestRuntime({
   crowd, zerble, smiles, registry, worldgen: USE_WORLDGEN_V2,
-  toast: (msg, ms) => HUD.toast(msg, ms), sound: Sound, analytics: Analytics,
+  toast: (msg, ms, opts) => HUD.toast(msg, ms, opts), sound: Sound, analytics: Analytics,
   deductSmiles: (n) => { Scoring.deduct(n); HUD.setSmiles(Scoring.current); },
   extraDestinations: (origin) => summitDestinations(origin, landscapeRuntime),
   log: createQuestLog((() => { try { return localStorage; } catch { return null; } })()),
@@ -922,6 +922,10 @@ const questView = new QuestPresentation({
   reducedMotion: () => A11y.reducedMotion,
   hum: (warmth) => Sound.playQuestHum(warmth),
 });
+// Measurement sessions (the performance lab, device autopilot, timed captures)
+// must not carry quest work that their baselines never had, and their fixed
+// routes should not be interrupted by riders, so quests stay off there.
+if (PERFORMANCE_LAB || DEVICE_AUTOPILOT || PERF_CAPTURE_TIMING || LAYOUT_CAPTURE_MODE) quests.stop();
 crowd.onBoard = (handle, { party = false } = {}) => {
   Analytics.passengerBoard();
   if (passportCanCollect()) playerStats.record('passengers');
@@ -2065,6 +2069,7 @@ function registerPeopleHit(hit) {
 // ---- Festival Run death + rescue ----
 function endFestivalRun(cause) {
   if (!RunState.endRun(cause)) return;
+  quests.stop();   // no requests resolve or pay out after the run is over
   playerStats.flush();
   reportPassport('run_end');
   zerble.sputtering = false;
@@ -2102,7 +2107,7 @@ function runEndMessage(cause,days){
 }
 function endVehicleRun(cause){
   if(vehicleGameOver)return;
-  vehicleGameOver=cause;controlsLocked=true;
+  vehicleGameOver=cause;controlsLocked=true;quests.stop();
   if(RunMode.isFestival()){endFestivalRun(cause);return;}
   playerStats.flush();reportPassport('run_end');
   Sound.stopSputterLoop();Sound.playRunEndSting(cause);

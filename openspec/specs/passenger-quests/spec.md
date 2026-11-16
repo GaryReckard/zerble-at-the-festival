@@ -17,10 +17,10 @@ cheer and a burst of smile pickups.
 
 ## ADDED Requirements
 
-### Requirement: Offer chance and first boarder
+### Requirement: Walk-up offer chance
 
-A boarding rider SHALL carry a request with probability `QUEST.CHANCE` (0.30), and
-the first boarder of a session SHALL always carry one. No offer SHALL be made while
+An un-hailed boarding rider SHALL carry a request with probability `QUEST.CHANCE`
+(0.08); there is no first-boarder guarantee, because hailing is the main source. No offer SHALL be made while
 `QUEST.MAX_ACTIVE` (3) requests are active, regardless of free seats. A request
 SHALL hold the rider's ordinary ride timer open, so a quest rider never times out
 the way an ordinary rider does (`engine.js` `rollOffer`, `offer`; `runtime.js`
@@ -51,7 +51,7 @@ and a summit request an admitted district 200 to 900 m away (`pick.js`
 
 ### Requirement: Destinations come from the plan first, with lake rejection
 
-Candidates SHALL be gathered once per boarding, never per frame, from the worldgen
+Candidates SHALL be gathered once per boarding or hail attempt, never per frame, from the worldgen
 plan (`festivalPlan`, `campVillagesNear`) so unstreamed areas qualify, then from the
 live registry for beaches, hammocks, forest drum circles and exact porta-potties.
 Stage requests SHALL aim at the dance floor in front of the stage along its facing.
@@ -204,7 +204,7 @@ polling `crowd.riderInfo` for each active request, at most three, each frame
 
 ### Requirement: Presentation is pooled and the compass avoids the controls
 
-`QuestBubbles` SHALL pool at most four sprites with shared canvas icon textures owned
+`QuestBubbles` SHALL pool at most five sprites (three riders and two hailers) with shared canvas icon textures owned
 by one instance, with `dispose()` as the only teardown path. A bubble SHALL brighten with proximity, pulse when almost there and jitter for
 an urgent request, honouring reduced motion. The compass strip SHALL list one chip per
 request with a nose-relative arrow and the distance left, read "Stop here!" inside the
@@ -250,3 +250,21 @@ A summit candidate SHALL carry a `via` waypoint at the end of the district's `ma
 
 - **WHEN** the cart first comes within 45 m of the waypoint
 - **THEN** a `via` event fires once and the arrow swings to the summit
+
+### Requirement: Quests stay out of measurement sessions and finished runs
+
+`QuestRuntime.stop()` SHALL cancel every hail and request and prevent further offers. It SHALL be called at boot under the performance lab, device autopilot, timed captures and layout capture, and when a Festival Run or the vehicle ends (`src/main.js`).
+
+#### Scenario: Fixed-route device capture
+
+- **WHEN** the game boots with a capture or autopilot flag
+- **THEN** no person hails, no request is offered and no destination search runs
+
+### Requirement: A hailer waits for the cart
+
+While `npc.hailing` is set, a person SHALL NOT lane-dodge, flee on proximity or be honk-scattered, and only people who could board (no activity claim, no corridor route, a shared surface) SHALL be chosen (`src/crowd.js`).
+
+#### Scenario: Driving up to a hailer
+
+- **WHEN** the cart approaches a hailing person at cruising speed
+- **THEN** the person holds their ground and the hail remains until pickup, patience or the leash ends it

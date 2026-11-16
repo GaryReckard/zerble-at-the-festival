@@ -472,6 +472,7 @@ body {
   color: hsl(calc(215 + 130 * var(--warm)) 90% 78%);
   transition: transform 0.18s linear;
 }
+.quest-name { font-size: 12px; opacity: 0.86; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .quest-clock:empty { display: none; }
 .quest-clock { font-weight: 700; color: #ffb3c4; }
 .quest-chip.is-inside { border-color: #ffe59b; }
@@ -490,12 +491,16 @@ body {
     gap: 5px;
   }
   .quest-chip { height: 34px; font-size: 13px; padding: 0 10px 0 5px; }
+  .quest-name { display: none; }   /* no room beside the thumbstick; the icon carries it */
   .quest-icon { width: 26px; height: 26px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .quest-arrow { transition: none; }
   .quest-chip.is-urgent { animation: none; border-color: #ff6f9c; }
 }
+/* The in-game Reduced motion setting, which may differ from the OS one. */
+body.reduced-motion .quest-arrow { transition: none; }
+body.reduced-motion .quest-chip.is-urgent { animation: none; border-color: #ff6f9c; }
 
 #toast {
   position: absolute;

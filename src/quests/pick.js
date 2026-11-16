@@ -4,11 +4,14 @@ import { QUEST, DESTINATIONS } from './catalog.js';
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
+// `min` is measured to the EDGE of the stop (its arrive radius), so a wide
+// venue cannot yield a trip of a few metres; `max` is to its centre.
 export function candidatesInBand(candidates, origin, min, max) {
   const out = [];
   for (const c of candidates) {
     const d = distance(c, origin);
-    if (d >= min && d <= max) out.push({ ...c, dist: d });
+    const radius = Math.max(DESTINATIONS[c.kind]?.radius ?? 0, c.radius ?? 0);
+    if (d - radius >= min && d <= max) out.push({ ...c, dist: d });
   }
   return out;
 }

@@ -57,7 +57,8 @@ export class QuestRuntime {
       return quest;
     }
     if (!force && !this.engine.rollOffer()) return null;
-    if (this.engine.full) return null;
+    // People already hailing have a claim on the remaining places.
+    if (this.engine.full || (!force && this.engine.active.length + this.hails.length >= QUEST.MAX_ACTIVE)) return null;
     const origin = this._player();
     const started = performance.now();
     const candidates = gatherDestinations(origin, {
@@ -82,6 +83,7 @@ export class QuestRuntime {
   // party picks an ordinary destination but speaks in its own voice.
   offerParty(key, party, members, { voice = 'monk_party', force = null } = {}) {
     if (!this.enabled || this.engine.full || this.engine.has(key)) return null;
+    if (!force && this.engine.active.length + this.hails.length >= QUEST.MAX_ACTIVE) return null;
     const origin = this._player();
     const candidates = gatherDestinations(origin, { registry: this.registry, worldgen: this.worldgen, reach: QUEST.MAX_DIST });
     const plan = planOffer(candidates, origin, { random: this.random, activeKinds: this.engine.activeKinds(), allowUrgent: false, allowSummit: false, force });
@@ -147,7 +149,7 @@ export class QuestRuntime {
       if (hail.waveIn <= 0 && d < 45) {
         hail.waveIn = 3.2 + this.random() * 2;
         this.crowd.hailWave(hail.handle, this.zerble);
-        if (!this._hailTip && d < 30) { this._hailTip = true; this.toast('Someone is flagging you down. Stop beside them to give them a lift!', 3600); }
+        if (!this._hailTip && d < 30) { this._hailTip = true; this.toast('Someone is flagging you down. Pull up beside them and stop to give them a lift!', 3600, { low: true }); }
       }
     }
     if (!this.hailing) return;
@@ -156,6 +158,7 @@ export class QuestRuntime {
   }
 
   update(dt) {
+    if (!this.enabled) return;
     this._updateHails(dt);
     if (!this.engine.active.length) return;
     // Notice riders who left for any other reason (ordinary timeout cannot
@@ -166,6 +169,10 @@ export class QuestRuntime {
     }
     this.engine.update(dt, this._player(), this._emit);
   }
+
+  // Shut quests down: cancel everything and offer nothing more (a run ended,
+  // or a performance capture needs a frame with no unseeded work in it).
+  stop() { this.clear(); this.enabled = false; this.hailing = false; }
 
   clear() { for (const hail of [...this.hails]) this._endHail(hail, 'reset'); for (const q of [...this.engine.active]) if (q.type !== 'party') this.crowd.holdRide(q.riderId, false); this.engine.clear(this._emit); }
 
@@ -188,12 +195,12 @@ export class QuestRuntime {
     const say = (icon, line, tail = '') => (solo ? `${icon} “${line}”${tail}` : `🙏 ${line}${tail}`);
     switch (type) {
       case 'offered':
-        this.toast(say('💭', data.line), quest.type === 'urgent' ? 3600 : 3000);
+        this.toast(say('💭', data.line), quest.type === 'urgent' ? 3600 : 3000, { low: true });
         this.sound?.playQuestAsk?.(quest.type === 'urgent');
         this.analytics?.questOffered?.(quest.type, quest.kind, quest.startDist);
         break;
       case 'hint': case 'near': case 'missed': case 'via':
-        this.toast(say('💭', data.line), 2400);
+        this.toast(say('💭', data.line), 2400, { low: true });
         break;
       case 'arrived':
         if (solo) {

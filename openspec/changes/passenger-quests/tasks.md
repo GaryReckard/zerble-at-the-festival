@@ -61,3 +61,14 @@
 - [x] 11.4 Mountaintop guidance: road-foot waypoint, "Road up" pin, automatic map tracking.
 - [ ] 11.5 A player-facing ride-log page (Festival Passport is the natural home).
 - [ ] 11.6 Look at a hailer from the chase camera on a real GPU: is the bubble and wave noticeable at 30 to 75 m?
+
+## 12. Adversarial audit 001 and first-time-player read (2026-11-15)
+- [x] 12.1 Hailers no longer dodge, flee or scatter; only boardable people may hail.
+- [x] 12.2 Quests stop at run end and stay off under the performance lab, autopilot and timed captures.
+- [x] 12.3 Chatter is a low-priority toast; hails hold their place in the cap; delivered riders wait 45 s before boarding again; no exit from an airborne or submerged cart.
+- [x] 12.4 Trip minimum measured to the edge of the stop; hail refill slowed to 9 s.
+- [x] 12.5 Compass: place names, "Slow down!", shortest-turn arrow, in-game reduced motion; summit tracking respects the player's map selection.
+- [x] 12.6 "How to play" explains lifts; gentler "wrong way" lines; docs corrected where the audit found them overstated.
+- [ ] 12.7 **Drive up to a hailer at cruising speed on a real GPU** and confirm they wait and board. Also honk near one. This is the audit's main finding and has only been fixed by code reading and tests.
+- [ ] 12.8 Re-derive the reward table against the leaderboard ceiling now that hailing exists (audit finding 4); measure raw smiles per minute while farming.
+- [ ] 12.9 Audit leftovers not done: a ground ring at the drop-off and around a hailer in range, distinct icons for stage/tent and lotus/monk, a guided first ride, and showing the urgent twist under physics driving.

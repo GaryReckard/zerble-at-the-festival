@@ -4,12 +4,14 @@
 
 ## Where it stands
 
-_Last update: 2026-11-15, after the hailing commit._
+_Last update: 2026-11-15, after the audit-fix commit._
 
 - **Branch: `passenger-quests`** (local only, not pushed). Local `main` equals `origin/main`.
 - Built and committed: the engine and tests, the core loop, thought bubbles, compass, map pins, sounds, analytics, the Settings toggle, the urgent porta-potty run with its squirm, the mountaintop request, monk-party shared quests, and the docs.
 - Also built after Gary's first read: hailing (people on foot ask and the player stops for them), the ride log, four quest-earned bubble types and mountaintop road guidance (task group 11).
+- **Read `adversarial-audit-001.md`.** Its findings 1 to 3 and most of 5 to 8 are fixed (task group 12); finding 4 (economy) is open.
 - Open, in order of value:
+  -1. Task 12.7: drive up to a hailer on a real GPU. The audit's main finding is fixed only on paper until this is seen.
   0. Tasks 11.5 and 11.6: a ride-log page, and a real-GPU look at hailers from a distance.
   1. Task 10.x: Gary plays it on real hardware and judges rewards.
   2. Task 7.3: see a mountaintop request live.
@@ -41,6 +43,7 @@ Without a GPU browser, the project's fallback is `bin/verify-headless` (one `--e
 ## Known gaps and traps
 
 - The plan can describe a place its builder later omitted, so a rider may occasionally be dropped at a spot with little there. Not yet observed; if it shows up, check the registry near the destination at offer time.
+- Software WebGL cannot drive the cart at speed (a few metres in thirteen seconds), so anything that depends on approach speed must be checked on a GPU. `__dbg.hailGo()` teleports and therefore proves nothing about the approach.
 - After `__dbg.teleport` the chase camera can end up behind a tree. Use `__dbg.camLock(...)` for screenshots.
 - `HUD.toast` holds one message, so a quest remark replaces whatever toast was showing.
 - Phones are landscape only (portrait shows "Rotate your phone"), so test touch layouts at 844×390, not 390×844.

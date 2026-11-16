@@ -1,7 +1,7 @@
 ---
 change: passenger-quests
 status: in_progress
-current_task: "11.5"
+current_task: "12.7"
 blocked_by: null
 open_questions: 3
 started: 2026-11-15
@@ -65,3 +65,8 @@ ref: ROADMAP "Gameplay verbs" passenger quests bullet; .claude/passenger-quests-
 **Event:** decision
 **What:** Built after Gary's first read. On seed 1234 (Low, software WebGL, clean console) a person hailed within seconds, boarded when the cart stopped beside them with the request their bubble showed, and was delivered; a forced urgent run then unlocked Relief Bubbles and the log read two rides after being stored. The hailer's bubble was not caught in a chase-camera screenshot, so its legibility at distance is unverified (task 11.6). The mountaintop waypoint is covered only by the Node test.
 **Refs:** -> D10, -> D11, -> Tasks 11.x
+
+### 2026-11-15 -- Audit 001 and a new-player read; fixes applied
+**Event:** discovery
+**What:** Gary asked for `/council:challenge` and a first-time-player pass. The Adversary's main finding was correct and was the builder's miss: `npc.hailing` only filtered candidates, so hailers kept the full ambient behaviour and a normal approach could end the hail; verification had used a teleport. One audit claim was wrong: a check and build did pass after the hailing slice, but the verification record had not said so. Fixed in this slice: hailer exemptions and eligibility, a `stop()` used at run end and under capture flags, low-priority chatter toasts, the cap race, the re-boarding cooldown, the airborne exit guard, an edge-measured trip minimum, compass corrections, and the overstated doc claims. Not fixed: the economy re-derivation (needs play data), ground rings, clearer icons and a guided first ride. The hailer fix could not be watched live because software rendering cannot move the cart at speed here.
+**Refs:** adversarial-audit-001.md, -> Tasks 12.x

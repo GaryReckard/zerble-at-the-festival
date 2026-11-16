@@ -75,3 +75,11 @@ errors.
 Seed 1234, Low, software WebGL, zero console errors. A person began hailing for the vendor row within seconds of the crowd appearing, and a destination search from their position took 1.3 ms. Parking beside them (`__dbg.hailGo()`) brought them aboard with that same request, and `questGo` delivered them. A forced urgent run was then delivered: the log read two rides (one ride, one urgent), the record was present in `localStorage`, and Relief Bubbles were reported as earned.
 
 Not verified: how noticeable a hailer's bubble and wave are from the chase camera at 30 to 75 m, the three other new bubble types' unlocks in the game, how any of the four new bubbles look when emitted, and the mountaintop waypoint in the live game (Node test only).
+
+## Addendum: after adversarial audit 001 and a first-time-player read
+
+`npm run check` and `npm run build` passed after the hailing slice (commit `2277934`) and again after the audit fixes. [Audit 001](../../openspec/changes/passenger-quests/adversarial-audit-001.md) found, by code trace, that a hailer still dodged, fled and scattered like any bystander, so a normal approach could cancel the hail; the earlier check had only teleported the cart beside them. Hailers are now exempt from all three, and `bin/test-passenger-quests` covers the runtime's hailing, cap and shutdown with a fake crowd.
+
+**That fix has not been seen working in the game.** Two attempts to drive up to a hailer in this environment failed for a reason unrelated to the feature: under software rendering the cart advanced only a few metres in thirteen seconds. A real drive-up at cruising speed on a GPU is the open acceptance check, along with a honk near a hailer and a skittish hailer at close range.
+
+Also unverified in the game: the low-priority toast rule, quests stopping at run end and under capture flags, the 45-second re-boarding cooldown, the airborne exit guard, and the new chip text.

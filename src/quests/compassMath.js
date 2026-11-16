@@ -1,5 +1,6 @@
 // Pure helpers for the quest compass strip, kept apart from the DOM so Node
 // tests cover the bearing convention.
+import { QUEST } from './catalog.js';
 
 // Signed angle (radians) from the cart's nose to the destination, positive
 // CLOCKWISE as seen from above, which is also clockwise on screen for the
@@ -26,11 +27,12 @@ export function formatClock(seconds) {
 // What a chip shows, quantized so the DOM is only touched when it changes.
 export function chipState(quest, player) {
   const inside = quest.dist <= quest.radius;
+  const fast = inside && Math.abs(player.speed || 0) >= QUEST.ARRIVE_SPEED;
   return {
     id: quest.id, icon: quest.icon, label: quest.short,
     urgent: quest.type === 'urgent',
     angle: Math.round(relativeBearing(player, quest.aim || quest) * 180 / Math.PI / 6) * 6 + 0,   // + 0 folds -0 into 0
-    text: inside ? 'Stop here!' : formatDistance(Math.max(0, quest.dist - quest.radius)),
+    text: fast ? 'Slow down!' : inside ? 'Stop here!' : formatDistance(Math.max(0, quest.dist - quest.radius)),
     clock: quest.type === 'urgent' ? formatClock(quest.timeLeft) : '',
     warm: Math.round(quest.warmth * 10) / 10,
     inside, missed: quest.missed,
