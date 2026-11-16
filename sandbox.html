@@ -1249,12 +1249,15 @@ import {buildShrub} from './src/models/shrub.js';
                 cam.target.set(0,.7,0);cam.dist=16;cam.yaw=.42;cam.pitch=.55;applyCam();break;
             }
             case 'cornhole_activity': {
-                const preview=createCornholePreview();scene.add(preview.group);entityRoot=preview.group;currentEntity=preview;
+                const preview=createCornholePreview({onInspectPickup:v=>{
+                    cam.target.set(v.x,v.y+.8,v.z);cam.dist=4.5;cam.yaw=v.heading+Math.PI/2+.25;cam.pitch=.2;applyCam();
+                }});scene.add(preview.group);entityRoot=preview.group;currentEntity=preview;
                 preview.group.userData.cleanup=()=>preview.dispose();
                 puppetControls=document.createElement('div');document.getElementById('hud').insertBefore(puppetControls,info);
                 for(const [label,action] of [
                     ['Start game',()=>preview.start()],['Advance one round',()=>preview.advanceRound()],
                     ['Finish game',()=>preview.finishGame()],['Show celebration',()=>preview.showPhase('reacting')],
+                    ['Show bag pickup',()=>preview.showPhase('pickup')],
                     ['Show handshake',()=>preview.showPhase('handshake')],['Resume game',()=>preview.resume()],
                     ['Interrupt game',()=>preview.interrupt()],
                     ['Unload court',()=>preview.unload()],['Revisit court',()=>preview.revisit()],

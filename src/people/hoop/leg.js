@@ -5,7 +5,7 @@ export const HOOP_ANKLE_HEIGHT=.07;
 export const HOOP_HIP_HEIGHT=.65;
 
 export function sampleHoopAnkle(foot,out){
-  const h=HOOP_ANKLE_HEIGHT,x=foot.qx,y=foot.qy,z=foot.qz,w=foot.qw;
+  const h=foot.ankleHeight??HOOP_ANKLE_HEIGHT,x=foot.qx,y=foot.qy,z=foot.qz,w=foot.qw;
   out.x=foot.x+2*(x*y-w*z)*h;
   out.y=foot.y+(1-2*(x*x+z*z))*h;
   out.z=foot.z+2*(y*z+w*x)*h;return out;

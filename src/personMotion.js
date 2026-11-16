@@ -161,7 +161,9 @@ vec3 flowHoopLeg(vec3 v,bool normalOnly,bool shoe){
  float side=right?1.0:-1.0;
  vec3 sole=target.xyz,origin=vec3(side*.12,0.0,0.0);
  if(shoe)return normalOnly?hoopFootRotate(q,v):sole+hoopFootRotate(q,v-origin);
- vec3 hip=vec3(side*.12,.65,0.0),ankle=sole+hoopFootRotate(q,vec3(0.0,.07,0.0));
+ // 0 disables planting, 1 uses the usual cuff, 2+h supplies its height.
+ float ankleHeight=target.w>=2.0?target.w-2.0:.07;
+ vec3 hip=vec3(side*.12,.65,0.0),ankle=sole+hoopFootRotate(q,vec3(0.0,ankleHeight,0.0));
  vec3 delta=ankle-hip;
  float distance=length(delta);
  vec3 axis=delta/max(distance,.000001),forward=vec3(0.0,0.0,-1.0);

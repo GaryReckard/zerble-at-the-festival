@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
 import {PeopleRuntime} from '../src/people/runtime.js';
+import {sampleHoopKnee} from '../src/people/hoop/leg.js';
 import {mulberry32} from '../src/rng.js';
 globalThis.window={innerWidth:1280,innerHeight:720};
 const {CornholeSession,CORNHOLE_WAIT}=await import('../src/people/cornholeSession.js');
@@ -29,7 +30,7 @@ const phases=new Set();let last=f.people.npcs.map(n=>n.pos.clone()),steps=0;
 while(f.session.phase!=='idle'&&steps++<200000){
  phases.add(f.session.phase);f.tick();
  for(const npc of f.people.npcs.slice(0,2)){const local=f.court.group.worldToLocal(new THREE.Vector3(npc.pos.x,0,npc.pos.z));for(const z of [-4.2,4.2])assert(Math.hypot(Math.max(0,Math.abs(local.x)-.35),Math.max(0,Math.abs(local.z-z)-.65))>=.3-1e-8,'full game keeps body capsule outside both decks');}
- if(['aiming','flying','handshake'].includes(f.session.phase))assert(f.people.npcs.slice(0,2).every(n=>!n._reactionPose),'pickup bends must not persist into tossing or handshake');
+ if(['aiming','flying','handshake'].includes(f.session.phase))assert(f.people.npcs.slice(0,2).every(n=>!n._activityArmPose?.hipPitch),'pickup bends must not persist into tossing or handshake');
  if(f.session.phase==='flying'){const bag=f.session.flying,targetZ=f.session.end===0?4.6:-4.6,d=Math.hypot(bag.point.x,bag.point.z-targetZ);if(bag.points===1)assert(d>=.20,'board bags clear hole including bag radius');if(bag.points===3)assert(d<.095,'hole bags land inside opening');}
  f.people.npcs.forEach((n,i)=>{assert(Math.hypot(n.pos.x-last[i].x,n.pos.z-last[i].z)<.069,'people walk without teleports');last[i].copy(n.pos);});
 }
@@ -55,9 +56,77 @@ const {terrainHeight}=await import('../src/worldgen/terrain.js');
 for(let i=0;i<8;i++){const bag=dropped.court.cornhole.bags[i];assert.equal(bag.position.x,beforeDrop[i].x);assert.equal(bag.position.z,beforeDrop[i].z);const world=dropped.court.group.localToWorld(bag.position.clone());assert(Math.abs(world.y-terrainHeight(world.x,world.z)-.025)<1e-8,'carried/flying bags settle onto ground');}
 dropped.people.removePerson(dropped.handles[0]);dropped.people.removePerson(dropped.handles[1]);assert(dropped.session.start(...dropped.handles.slice(2,4)));let gatherSteps=0;while(dropped.session.phase!=='aiming'&&dropped.session.phase!=='idle'&&gatherSteps++<10000)dropped.tick();assert.equal(dropped.session.phase,'aiming','replacement players physically gather dropped bags');dropped.session.dispose();
 const landed=fixture();landed.session.start(...landed.handles.slice(0,2));const landedPositions=landed.court.cornhole.bags.map(b=>b.position.clone());landed.session.finish('honk');landed.court.cornhole.bags.forEach((b,i)=>assert(b.position.equals(landedPositions[i]),'already landed bags remain untouched'));
-const poses=fixture();poses.session.start(...poses.handles.slice(0,2));
-for(const action of ['relaxed','underhand','celebrate','handshake']){poses.session.arms(0,'pickup',1,.05);assert(poses.people.npcs[0]._reactionPose);poses.session.arms(0,action,1,.05);assert.equal(poses.people.npcs[0]._reactionPose,null,`${action} restores upright body`);}
-poses.session.dispose();
+// Use the production Crowd publisher for the articulated reach. World-space
+// instance matrices capture a flipped bend or detached hand that a pose flag misses.
+globalThis.window.addEventListener=()=>{};
+globalThis.document={addEventListener(){}};
+const {Crowd}=await import('../src/crowd.js');
+const crowd=new Crowd({spawn(){},spawnLost(){}});
+const actor=crowd.spawn({pos:new THREE.Vector3(10,0,20),rng:mulberry32(4),allowPhotographer:false});
+actor.dance=0;
+const other=crowd.spawn({pos:new THREE.Vector3(8,0,20),rng:mulberry32(5),allowPhotographer:false});
+const poses=new CornholeSession({people:crowd,court:f.court,isLive:()=>true,rng:mulberry32(9)});
+assert(poses.start(actor.personHandle,other.personHandle));
+const matrix=mesh=>{const m=new THREE.Matrix4();mesh.getMatrixAt(actor.idx,m);return m;};
+crowd.writeActivityPose(poses.claims[0],actor.pos.x,actor.pos.y,actor.pos.z,.73);
+const shoes=matrix(crowd.shoesMesh);
+const localPoint=(mesh,height)=>new THREE.Vector3(0,height,0).applyMatrix4(matrix(mesh)).applyMatrix4(shoes.clone().invert());
+let lastHeadZ=0;
+for(let frame=0;frame<=20;frame++){
+ const time=frame*.05;
+ poses.reach(0,time,.05);
+ const head=localPoint(crowd.headMesh,1.65);
+ const pelvis=localPoint(crowd.bodyMesh,.62);
+ assert(pelvis.distanceTo(localPoint(crowd.legsMesh,.62))<1e-5,'hip stays attached to thighs');
+ assert(head.z<=1e-5&&Math.abs(head.z-lastHeadZ)<.23,'head eases forward, then back upright');
+ for(const side of ['Left','Right']){
+   const data=(mesh,part)=>new THREE.Vector4().fromBufferAttribute(mesh.geometry.getAttribute('flow'+side+part),actor.idx);
+   const sole=data(crowd.shoesMesh,'Foot'),q=data(crowd.legsMesh,'Quat');
+   assert(sole.equals(data(crowd.legsMesh,'Foot'))&&q.equals(data(crowd.shoesMesh,'Quat')),'shoe and leg shaders receive the same targets');
+   const x=side==='Left'?-.12:.12;
+   const localSole=sole.w?new THREE.Vector3(sole.x,sole.y,sole.z):new THREE.Vector3(x,0,0);
+   const worldSole=localSole.applyMatrix4(matrix(crowd.shoesMesh));
+   assert(worldSole.distanceTo(new THREE.Vector3(x,0,0).applyMatrix4(shoes))<1e-5,'sole stays fixed in world space throughout pickup');
+   assert.equal(q.w,1);
+   if(frame===11){
+     assert(sole.w>=2,'grounded leg shader is active at contact');
+     const foot={x:sole.x,y:sole.y,z:sole.z,qx:q.x,qy:q.y,qz:q.z,qw:q.w,ankleHeight:sole.w-2};
+     const knee=sampleHoopKnee(foot,side.toLowerCase(),{});
+     assert(knee.z<-.28,'both knees project forward from the hip to the planted ankles');
+   }
+ }
+ if(frame===11){
+   assert(pelvis.y<.30&&pelvis.y>.24,'deep knee flexion lowers the hip');
+   assert(head.z<-.82&&head.y>.68&&head.y<.85,'forward-leaning torso retains an upward slope during the squat');
+   const hand=new THREE.Vector3();crowd.readActivityHand(poses.claims[0],hand);hand.applyMatrix4(shoes.clone().invert());
+   assert(hand.y<.09&&hand.z<-.64,'right hand reaches the ground in front of the feet');
+ }
+ lastHeadZ=head.z;
+}
+assert(Math.abs(lastHeadZ)<1e-5,'fully upright before moving');
+// The two approach directions must aim the real hand at the same bag on a
+// rotated court. Repeat at deck height as well as on the ground.
+for(const side of [-1,1]){
+ for(const bagHeight of [.035,.23]){
+   const bagX=.12,bagZ=-4.2,spot=poses.world(bagX+side*.80*actor.scale,0,bagZ).clone();
+   crowd.writeActivityPose(poses.claims[0],spot.x,0,spot.z,0);
+   crowd.readPerson(actor.personHandle,poses.views[0]);
+   poses.faceBag(0,bagX,bagZ);
+   for(let frame=0;frame<=11;frame++)poses.reach(0,frame*.05,.05,bagHeight);
+   const bag=poses.world(bagX,0,bagZ).clone();
+   bag.y=actor.pos.y+bagHeight*actor.scale;
+   const hand=new THREE.Vector3();crowd.readActivityHand(poses.claims[0],hand);
+   assert(hand.distanceTo(bag)<.11*actor.scale,'hand contacts bag from either edge at the sampled height');
+   poses.reach(0,1,.05);
+ }
+}
+crowd.writeActivityPose(poses.claims[0],actor.pos.x,actor.pos.y,actor.pos.z,.73);
+const prePout=matrix(crowd.shoesMesh);
+poses.arms(0,'pout',.5,.05);
+assert(new THREE.Vector3(0,1.65,0).applyMatrix4(matrix(crowd.headMesh)).applyMatrix4(prePout.clone().invert()).z<-.09&&matrix(crowd.shoesMesh).equals(prePout),'disappointed player slumps forward with feet planted');
+poses.dispose();
+assert(!actor._activityArmPose,'releasing the borrowed player clears the hinge');
+crowd.dispose();
 const dead=fixture();dead.session.start(...dead.handles.slice(0,2));dead.people.removePerson(dead.handles[0]);assert.equal(dead.people.activityClaims.current.size,0);assert.equal(dead.session.phase,'idle');
 const u=fixture();u.session.start(...u.handles.slice(0,2));u.unload();u.tick();assert.equal(u.people.activityClaims.current.size,0);assert.equal(u.resets,0,'do not mutate an unloaded model');
 const m=fixture(),runtime=new PeopleRuntime();const id=registry.add({kind:'cornhole_game',...m.court,footprint:0});const activity=new CornholeActivity({people:m.people,runtime});activity.discover();const slot=activity.slots.get(id);assert(slot);slot.nextAvailable=0;

@@ -1645,6 +1645,9 @@ export class Crowd {
       }
       return;
     }
+    const armPose=npc._activityArmPose;
+    const hasArmPose=!!armPose&&this.activityClaims.canWrite(armPose.claim);
+    const pickupDrop=!reaction&&hasArmPose?armPose.pickupDrop:0;
     const walk=reaction?(this._reactionWalkPose??={active:false,stride:0,arm:0,bob:0}):sampleWalkMotion(npc,this._walkPose??={});
     const m = this._mat4;
     const photo=npc.isPhotographer
@@ -1690,7 +1693,7 @@ export class Crowd {
     // Chair contact stays fixed even near dancefloors or while smiling. A
     // feet-origin bob/tilt moves the pelvis through the supporting fabric.
     if (npc.state === 'camp_seated' || npc.picnicCrossLegged || npc.campMusic) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
-    if(reaction){bobY=0;danceTilt=0;danceYawWiggle=0;}
+    if(reaction||pickupDrop){bobY=0;danceTilt=0;danceYawWiggle=0;}
 
     let quat;
     if (npc.state === 'hammock_riding') {
@@ -1769,6 +1772,7 @@ export class Crowd {
     // A planted score owns its full pelvis height; generic happy/cheer hops
     // would slide both authored soles through their fixed ground contacts.
     if(flowFeet)feetY=npc.pos.y+flowSupport;
+    if(pickupDrop)feetY=npc.pos.y-pickupDrop*npc.scale;
     feetY-=photo.crouchDrop*npc.scale;
 
     // CRITICAL: position and scale must be DISTINCT Vector3 instances.
@@ -1815,12 +1819,20 @@ export class Crowd {
     // Keep the relaxed knee bend between shots, but leave travel and special
     // activities to their own leg poses. Photo soles cancel the pelvis drop.
     const plantedPhoto=npc.isPhotographer&&(photographing||ORDINARY_SOCIAL_STATES.has(npc.state))&&!walk.active&&!seated&&!hula&&!cheering;
-    this._writeHoopFeet(npc,flowFeet??(plantedPhoto?photo.feet:null));
+    let plantedFeet=flowFeet??(plantedPhoto?photo.feet:null);
+    if(pickupDrop){
+      plantedFeet=this._pickupFeet??={left:{x:-.12,z:0,qx:0,qy:0,qz:0,qw:1},right:{x:.12,z:0,qx:0,qy:0,qz:0,qw:1}};
+      plantedFeet.left.y=plantedFeet.right.y=pickupDrop;
+      // Ordinary standing legs end at the sole. Ease the cuff overlap into
+      // the IK solve so the knee starts straight on the first crouch frame.
+      plantedFeet.left.ankleHeight=plantedFeet.right.ankleHeight=Math.min(.07,pickupDrop);
+    }
+    this._writeHoopFeet(npc,plantedFeet);
     const folded=!reaction&&!!npc.picnicCrossLegged&&npc.state==='table_seated';
     for(const mesh of [this.legsMesh,this.shoesMesh]){const a=mesh.geometry.getAttribute('crossLegged');a.setX(npc.idx,folded?1:0);a.needsUpdate=true;}
     for(const mesh of [this.legsMesh,this.shoesMesh]){
       const stride=mesh.geometry.getAttribute('walkStride');
-      stride.setX(npc.idx,articulated?(hula.stride??0):folded||seated||photo.crouch||hula||stageDancing||danceActivity?0:walk.stride);
+      stride.setX(npc.idx,articulated?(hula.stride??0):folded||seated||pickupDrop||photo.crouch||hula||stageDancing||danceActivity?0:walk.stride);
       stride.needsUpdate=true;
     }
     if(folded){this.legsMesh.setMatrixAt(npc.idx,m);this.shoesMesh.setMatrixAt(npc.idx,m);}
@@ -1841,9 +1853,14 @@ export class Crowd {
       this.legsMesh.setMatrixAt(npc.idx, m);
       this.shoesMesh.setMatrixAt(npc.idx, m);
     }
+    if(!reaction && hasArmPose && armPose.hipPitch) {
+      // Feet and legs already have their standing matrix. Hinge the torso,
+      // face, shoulders and hand socket together about the hip.
+      const pitch=armPose.hipPitch, hipY=.62;
+      m.multiply(this._tmpDanceMat.makeRotationX(pitch)
+        .setPosition(0,hipY*(1-Math.cos(pitch)),-hipY*Math.sin(pitch)));
+    }
     this.bodyMesh.setMatrixAt(npc.idx, m);
-    const armPose=npc._activityArmPose;
-    const hasArmPose=!!armPose&&this.activityClaims.canWrite(armPose.claim);
     const holdingCamera=npc.isPhotographer&&(photographing||ORDINARY_SOCIAL_STATES.has(npc.state)||walk.active)&&!seated&&!npc.campInstrument&&!npc.campMusic&&!hasArmPose&&!hula&&!cheering;
     this.shoppingBagMesh?.setMatrixAt(npc.idx, npc.shoppingBagTime > 0 && !holdingCamera ? m : this._zeroMat);
     const dancing=!holdingCamera&&!seated&&!npc.campMusic&&!npc.campInstrument&&!photographing&&!npc.seatSlot&&npc.frownTimer<=0&&(stageDancing||danceActivity);
@@ -2811,20 +2828,25 @@ export class Crowd {
     this._publishPerson(npc);return true;
   }
 
-  writeActivityArmPose(claim,action,amount=0,dt=.05) {
+  writeActivityArmPose(claim,action,amount=0,dt=.05,pickupHeight=.04) {
     if(!this.activityClaims.canWrite(claim))return false;
     if((!['relaxed','catch','throw','celebrate','pout','handshake','pickup','underhand'].includes(action))||!Number.isFinite(amount)||amount<0||amount>1||!Number.isFinite(dt)||dt<0||dt>.05)throw new TypeError('Invalid activity arm pose.');
     const npc=this.peopleHandles.resolve(claim.person);
     if(npc._activityBinding?.hidden||npc.party)return false;
     const pose=npc._activityArmPose??={claim,hand:new THREE.Vector3()};
+    if(action==='pickup'&&!Number.isFinite(pickupHeight))throw new TypeError('Pickup height must be finite.');
     const target=sampleThrowPose(action,amount,this._armTarget??={}),alpha=1-Math.exp(-14*dt);
     if(action==='underhand'){target.x=amount<.55?-.7*amount/.55:-.7+1.6*(amount-.55)/.45;target.z=.08;target.elbow=-.08;}
     else if(action==='celebrate'){target.z=2.65*amount;target.leftZ=-2.65*amount;target.elbow=-.20*amount;}
     else if(action==='pout'){target.x=.28*amount;target.z=.04;target.leftZ=-.04;}
     else if(action==='handshake'){target.x=1.15*amount;target.z=.12;target.elbow=-.3*amount;}
-    else if(action==='pickup'){target.x=-.32*amount;target.z=.05;target.elbow=0;}
+    else if(action==='pickup'){target.x=1.25*amount;target.z=.10*(1-amount);target.elbow=0;}
     if(pose.x===undefined){pose.x=target.x;pose.z=target.z;pose.elbow=target.elbow;pose.leftZ=target.leftZ;}
     else {pose.x+=(target.x-pose.x)*alpha;pose.z+=(target.z-pose.z)*alpha;pose.elbow+=(target.elbow-pose.elbow)*alpha;pose.leftZ+=(target.leftZ-pose.leftZ)*alpha;}
+    // With the torso pitched 1.08 rad and the arm .17 rad forward of
+    // vertical, the straight arm ends .39 above the standing ground plane.
+    pose.pickupDrop=action==='pickup'?Math.min(.38,Math.max(0,.39-pickupHeight))*amount:0;
+    pose.hipPitch=action==='pickup'?-1.08*amount:action==='pout'?-.20*amount:0;
     pose.claim=claim;this._publishPerson(npc);return true;
   }
 
@@ -2971,7 +2993,7 @@ export class Crowd {
         const left=side===0,attr=mesh.geometry?.getAttribute(left?'flowLeftFoot':'flowRightFoot');
         if(!attr)continue;
         const quat=mesh.geometry.getAttribute(left?'flowLeftQuat':'flowRightQuat'),foot=feet?.[left?'left':'right'];
-        if(foot){attr.setXYZW(npc.idx,foot.x,foot.y,foot.z,1);quat.setXYZW(npc.idx,foot.qx,foot.qy,foot.qz,foot.qw);}
+        if(foot){attr.setXYZW(npc.idx,foot.x,foot.y,foot.z,foot.ankleHeight===undefined?1:2+foot.ankleHeight);quat.setXYZW(npc.idx,foot.qx,foot.qy,foot.qz,foot.qw);}
         else{attr.setXYZW(npc.idx,0,0,0,0);quat.setXYZW(npc.idx,0,0,0,1);}
         attr.needsUpdate=true;quat.needsUpdate=true;
       }

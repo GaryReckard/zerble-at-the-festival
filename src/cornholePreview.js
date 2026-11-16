@@ -8,7 +8,7 @@ import {terrainHeight} from './worldgen/terrain.js';
 
 // The sandbox uses real Crowd claims and the production session. Fast-forward
 // advances bounded simulation steps; it never changes points or winning score.
-export function createCornholePreview(){
+export function createCornholePreview({onInspectPickup=()=>{}}={}){
   const group=new THREE.Group(),people=new Crowd({spawn(){},spawnLost(){}});
   group.name='CornholePreview';group.add(people.group);
   const key='sandbox-cornhole';
@@ -25,7 +25,7 @@ export function createCornholePreview(){
   return {group,session,people,
     start,
     interrupt(){fast=null;session.finish('honk');},
-    advanceRound(){if(session.phase!=='idle')fast={round:session.round};},
+    advanceRound(){if(session.phase!=='idle'){paused=false;fast={round:session.round};}},
     finishGame(){paused=false;if(session.phase!=='idle')fast={finish:true};},
     showPhase(phase){if(session.phase==='idle')start();paused=false;fast={until:phase};},
     resume(){paused=false;fast=null;},
@@ -36,6 +36,8 @@ export function createCornholePreview(){
       const steps=fast?32:1;
       for(let i=0;i<steps;i++){
         step(Math.min(.033,dt));
+        const collector=fast?.until==='pickup'&&session.phase==='collecting' ? session.pickTimers?.findIndex(t=>t>=.42&&t<.54) : -1;
+        if(collector>=0){fast=null;paused=true;onInspectPickup(session.views[collector]);break;}
         if(fast?.until===session.phase){for(let settle=0;settle<8;settle++)step(.025);fast=null;paused=true;break;}
         if(fast&&!fast.finish&&session.round>fast.round){fast=null;break;}
       }

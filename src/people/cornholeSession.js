@@ -10,12 +10,12 @@ export const cornholeEligible=v=>!v.claimed&&!v.grouped&&!v.photographer&&!v.sea
 export class CornholeSession {
   constructor({people,court,isLive,rng,now=()=>0,onFinish=()=>{}}){
     Object.assign(this,{people,court,isLive,rng,now,onFinish});
-    this.activityKey='cornhole';this.interruptibleByCart=true;this.phase='idle';this.persons=[];this.claims=[];this.views=[{},{}];this.end=0;this.clock=0;this.point=new THREE.Vector3();this.hand=new THREE.Vector3();this.bodyRotation=new THREE.Quaternion();this.bodyEuler=new THREE.Euler();this.rules=new CornholeRules();this.bagStates=[];this.bent=[false,false];this.detours=[null,null];this.disposed=false;
+    this.activityKey='cornhole';this.interruptibleByCart=true;this.phase='idle';this.persons=[];this.claims=[];this.views=[{},{}];this.end=0;this.clock=0;this.point=new THREE.Vector3();this.hand=new THREE.Vector3();this.rules=new CornholeRules();this.bagStates=[];this.detours=[null,null];this.disposed=false;
   }
   get score(){return this.rules.score;} get round(){return this.rules.round;} get winner(){return this.rules.winner;}
   start(a,b){
     if(this.disposed||this.phase!=='idle'||a===b||![a,b].every((p,i)=>this.people.readPerson(p,this.views[i])&&cornholeEligible(this.views[i])))return false;
-    this.persons=[a,b];this.bent=[false,false];this.detours=[null,null];this.phase='approaching';this.end=0;this.clock=0;this.rules=new CornholeRules();
+    this.persons=[a,b];this.detours=[null,null];this.phase='approaching';this.end=0;this.clock=0;this.rules=new CornholeRules();
     this.bagStates=this.court.cornhole.bags.map((mesh,i)=>({mesh,player:i%2,state:'landed',point:mesh.position.clone(),origin:new THREE.Vector3()}));
     try{
       for(let i=0;i<2;i++){
@@ -57,16 +57,18 @@ export class CornholeSession {
     return clear&&(!this.people.hasPersonWithin||!this.people.hasPersonWithin(x,z,.55,this.persons[i]));
   }
   arms(i,action,amount,dt){
-    if((action==='pickup'||action==='pout')&&this.people.writeReactionPose){
-      const v=this.views[i];this.bodyEuler.set(action==='pickup'?.65:.22,v.heading??0,0,'YXZ');this.bodyRotation.setFromEuler(this.bodyEuler);
-      this.people.writeReactionPose(this.claims[i],{position:{x:v.x,y:v.y,z:v.z},rotation:this.bodyRotation});this.bent[i]=true;
-    }else if(this.bent[i]){
-      // Reaction transforms outrank ordinary animation. Clear the borrowed bend
-      // on transition, using the current pose so a movement write is never undone.
-      const v=this.views[i];if(this.people.readPerson(this.persons[i],v))this.people.writeActivityPose(this.claims[i],v.x,v.y,v.z,v.heading);
-      this.bent[i]=false;
-    }
     this.people.writeActivityArmPose(this.claims[i],action,amount,dt);
+  }
+  faceBag(i,x,z){
+    const v=this.views[i],target=this.world(x,0,z);
+    const dx=target.x-v.x,dz=target.z-v.z,distance=Math.hypot(dx,dz);
+    // Aim the right-hand socket at the bag across the player's shoulder width.
+    const yaw=Math.atan2(-dx,-dz)+Math.asin(Math.min(1,.30*v.scale/Math.max(.001,distance)));
+    this.people.writeActivityPose(this.claims[i],v.x,v.y,v.z,yaw);
+  }
+  reach(i,time,dt,bagHeight=.04){
+    const t=Math.max(0,Math.min(1,time/.42,(1-time)/.4));
+    this.people.writeActivityArmPose(this.claims[i],'pickup',t*t*(3-2*t),dt,bagHeight);
   }
   enter(phase){this.phase=phase;this.clock=0;}
   prepareThrow(){this.timer=3+this.rng()*3;this.enter('aiming');}
@@ -95,29 +97,61 @@ export class CornholeSession {
         let ready=true;for(let i=0;i<2;i++){this.arms(i,'relaxed',0,dt);if(!this.move(i,this.stand(i),dt))ready=false;}
         if(ready){this.pickTimers=[0,0];this.enter('collecting');}
       }else if(this.phase==='collecting'){
-        const collector=this.bagStates.find(b=>b.state==='landed')?.player;let done=true;
+        const bag=this.bagStates.find(b=>b.state==='landed'||b.state==='lifting');
+        const done=!bag;
         for(let i=0;i<2;i++){
-          if(collector!==undefined&&i!==collector){done=false;this.arms(i,'relaxed',0,dt);this.move(i,this.world(i===0?-CORNHOLE_WAIT.x:CORNHOLE_WAIT.x,0,this.end===0?-CORNHOLE_WAIT.z:CORNHOLE_WAIT.z),dt);continue;}
-          const b=this.bagStates.find(b=>b.player===i&&b.state==='landed');if(!b){this.arms(i,'relaxed',0,dt);continue;}done=false;
-          // Reach from beside the board, including bags underneath its hole.
-          const target=this.world(Math.abs(b.point.x)<.65?(i===0?-.9:.9):b.point.x+Math.sign(b.point.x)*.35,0,b.point.z);
-          if(this.move(i,target,dt)){this.pickTimers[i]+=dt;this.arms(i,'pickup',Math.min(1,this.pickTimers[i]/.65),dt);if(this.pickTimers[i]>=1){b.state='carried';this.pickTimers[i]=0;}}
+          if(!bag){this.arms(i,'relaxed',0,dt);continue;}
+          if(i!==bag.player){
+            this.arms(i,'relaxed',0,dt);
+            this.move(i,this.world(i===0?-CORNHOLE_WAIT.x:CORNHOLE_WAIT.x,0,this.end===0?-CORNHOLE_WAIT.z:CORNHOLE_WAIT.z),dt);
+            continue;
+          }
+          // Approach the near edge even for a bag tucked under the hole.
+          const side=Math.sign(bag.point.x)||(i===0?-1:1);
+          const target=this.world(bag.point.x+side*.80*this.views[i].scale,0,bag.point.z);
+          if(!this.move(i,target,dt)){this.arms(i,'relaxed',0,dt);continue;}
+          this.faceBag(i,bag.point.x,bag.point.z);
+          this.pickTimers[i]+=dt;
+          const bagY=this.world(bag.point.x,bag.point.y,bag.point.z).y;
+          this.reach(i,this.pickTimers[i],dt,(bagY-this.views[i].y)/this.views[i].scale);
+          if(this.pickTimers[i]>=.54)bag.state='lifting';
+          if(this.pickTimers[i]>=1){bag.state='carried';this.pickTimers[i]=0;}
         }
         if(done){if(this.winner!==null)this.enter('reacting');else {if(this.rules.throws.length===8)this.rules.nextRound();this.enter('returning');}}
       }else if(this.phase==='reacting'){
-        for(let i=0;i<2;i++)this.arms(i,i===this.winner?'celebrate':'pout',1,dt);
+        const weight=Math.max(0,Math.min(1,this.clock/.45,(3.5-this.clock)/.45));
+        for(let i=0;i<2;i++)this.arms(i,i===this.winner?'celebrate':'pout',weight,dt);
         if(this.clock>3.5)this.enter('meeting');
       }else if(this.phase==='meeting'){
         let ready=true;for(let i=0;i<2;i++){const p=this.world(i===0?-.42:.42,0,this.end===0?-3.05:3.05);if(!this.move(i,p,dt))ready=false;}
         if(ready)this.enter('handshake');
       }else if(this.phase==='handshake'){
         for(let i=0;i<2;i++){const v=this.views[i],o=this.views[1-i];this.people.writeActivityPose(this.claims[i],v.x,v.y,v.z,Math.atan2(v.x-o.x,v.z-o.z));this.arms(i,'handshake',1,dt);}
-        if(this.clock>2)this.enter('tidying');
+        if(this.clock>2){this.tidyTime=0;this.enter('tidying');}
       }else if(this.phase==='tidying'){
-        let done=true;for(let i=0;i<2;i++){if(!this.move(i,this.stand(i),dt))done=false;else this.arms(i,'pickup',1,dt);}
-        if(done&&this.clock>1){for(const b of this.bagStates){b.state='stored';b.mesh.position.set(b.player===0?-.72:.72,.06+Math.floor(this.bagStates.indexOf(b)/2)*.055,this.end===0?-4.2:4.2);}this.finish('completed');return;}
+        let ready=true;
+        const z=this.end===0?-4.2:4.2;
+        for(let i=0;i<2;i++){
+          const side=i===0?-1:1;
+          if(!this.move(i,this.world(side*(.72+.80*this.views[i].scale),0,z),dt))ready=false;
+        }
+        if(ready)this.tidyTime+=dt;
+        for(let i=0;i<2;i++){
+          if(ready){
+            this.faceBag(i,i===0?-.72:.72,z);
+            this.reach(i,this.tidyTime,dt);
+          }else this.arms(i,'relaxed',0,dt);
+        }
+        if(this.tidyTime>=.54){
+          this.bagStates.forEach((bag,index)=>{
+            if(bag.state==='stored')return;
+            bag.state='stored';
+            bag.mesh.position.set(bag.player===0?-.72:.72,.06+Math.floor(index/2)*.055,z);
+          });
+        }
+        if(this.tidyTime>=1){this.finish('completed');return;}
       }
-      for(const b of this.bagStates)if(b.state==='carried'){
+      for(const b of this.bagStates)if(b.state==='carried'||b.state==='lifting'){
         if(this.people.readActivityHand(this.claims[b.player],this.hand)){this.court.group.worldToLocal(this.hand);b.mesh.position.copy(this.hand);b.mesh.position.y+=Math.floor(this.bagStates.indexOf(b)/2)*.045;b.mesh.rotation.set(0,0,0);}
       }
     }catch(error){this.finish('failed');throw error;}
@@ -144,7 +178,7 @@ export class CornholeSession {
     // Interrupted players leave a physical court behind. Preserve landed bags,
     // and drop borrowed/flying bags vertically for the next pair to retrieve.
     if(reason!=='completed'&&this.isLive())try{
-      for(const bag of this.bagStates)if(bag.state==='carried'||bag.state==='flying'){
+      for(const bag of this.bagStates)if(bag.state==='carried'||bag.state==='lifting'||bag.state==='flying'){
         this.world(bag.mesh.position.x,bag.mesh.position.y,bag.mesh.position.z,this.hand);
         this.hand.y=terrainHeight(this.hand.x,this.hand.z)+.025;
         this.court.group.worldToLocal(this.hand);bag.mesh.position.y=this.hand.y;

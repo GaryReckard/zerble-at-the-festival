@@ -56,3 +56,7 @@ Managed in-app browser checks covered Low and Mid, Noon and Midnight, muted boar
 The [first full check](initial-check-failure.log) exposed the existing isolated camp-layout fixture's missing new placement dependency; the fixture now explicitly stubs that separate feature while retaining all 6,000 packing assertions, and cornhole admission is tested through the actual completed hub and streaming paths. Earlier passing check/build runs were followed by targeted live-recruitment and waiting-clearance improvements, with final focused/full results retained here.
 
 The final full `npm run check` and `npm run build` passed. The [full check](check.log), [production build](build.log), [placement](placement.log), [activity](activity.log), [native board physics](board-physics.log), and [camp compatibility](camp-compatibility.log) logs record verification. Desktop/native evidence does not establish physical iOS audio, device frame delivery, subjective one-wheel feel or naturally observed busy/idle balance; those remain in ROADMAP. The separate iPad performance investigation and its retained far-field stall target are unchanged by this feature.
+
+## Pickup animation follow-up
+
+[The November 16 stoop correction](pickup-pose/README.md) replaces the backward rigid lean with a planted-foot bent-knee reach, validates rendered hand contact and adds a visible paused inspection control.

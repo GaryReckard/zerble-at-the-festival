@@ -2,6 +2,14 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-11-16
+
+### Added
+- **Cornhole pickup inspection.** The production NPC sandbox has a Show bag pickup control that pauses and frames a real reach, with round advance resuming correctly from inspection.
+
+### Fixed
+- **Cornhole players stoop toward bags instead of tipping backward.** Retrieval uses an eased, planted-foot knee bend and forward hip hinge, faces the bag and adjusts for board height, then lifts it with the hand while standing. Walking, the loser reaction and final tidying restore the correct posture without borrowing a rigid whole-body reaction transform. [Verification](verification/cornhole/pickup-pose/README.md).
+
 ## 2026-11-15
 
 ### Added

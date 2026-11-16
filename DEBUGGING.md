@@ -1002,7 +1002,7 @@ See [the lab guide](docs/performance-lab.md) for verified runner/analyzer comman
 
 ### Cornhole development views
 
-Open `/sandbox.html?entity=cornhole&mute=1` for the idle boards, or `/sandbox.html?entity=cornhole_activity&mute=1` for the production session on real Crowd rigs. Start, interrupt, unload and revisit controls exercise lifecycle paths. Advance one round and Finish game use bounded simulation steps without changing points or the winning score; Show celebration and Show handshake pause the corresponding real phases for visual inspection. Resume game lets participants tidy and return to ordinary walking.
+Open `/sandbox.html?entity=cornhole&mute=1` for the idle boards, or `/sandbox.html?entity=cornhole_activity&mute=1` for the production session on real Crowd rigs. Start, interrupt, unload and revisit controls exercise lifecycle paths. Advance one round and Finish game use bounded simulation steps without changing points or the winning score; Show celebration and Show handshake pause the corresponding real phases for visual inspection. Show bag pickup pauses a real mid-reach and frames the collector, so the knees, feet and hand contact can be inspected at Noon or Midnight. Resume game lets participants tidy and return to ordinary walking.
 
 In the game, `/inspect people` includes the `cornhole` controller's active/vacant courts, scores, phases and availability timers. `/tp cornhole` visits a loaded court when one exists. The clear seed-4 campsite fixture starts at `/?seed=4&x=57&z=-107&mute=1`; a neighboring-chunk-first start can legitimately reject that court because trees already occupy its clearing. [Current evidence](verification/cornhole/README.md).
 
