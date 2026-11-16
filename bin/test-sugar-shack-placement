@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import { setSeed } from '../src/worldgen/index.js';
 import { heartInCell } from '../src/worldgen/hearts.js';
 import { festivalPlan, spawnHeart, welcomeFoodCourt } from '../src/worldgen/festival.js';
+import {sugarShackCourtEligible} from '../src/worldgen/sugarShacks.js';
+import {FESTIVAL_TUNING as T,setFestivalTuning,MODEL_DIMS} from '../src/worldgen/tuning.js';
+import {bumpWorldgen} from '../src/worldgen/constants.js';
+import {heartsInBounds} from '../src/worldgen/hearts.js';
 import { foodCourtShackFallback } from '../src/worldgen/placement.js';
 
 let firstWelcomeSeed;
@@ -41,3 +45,27 @@ assert.equal(foodCourtShackFallback(0, 0, 25, angles, 0, () => false), null,
 setSeed(1234);
 assert.equal(welcomeFoodCourt().clusterSeed, firstWelcomeSeed, 'changing seeds invalidates the selection cache');
 console.log('PASS  welcome court selection and safe Sugar Shack fallback');
+
+
+let checked=0,retained=0;
+for(const seed of [2641474229,1234,42,932033385,0]){
+ setSeed(seed);
+ const courts=heartsInBounds(-600,-600,600,900).flatMap(heart=>festivalPlan(heart).filter(d=>d.kind==='food_court'));
+ const admitted=courts.filter(sugarShackCourtEligible);
+ const radius=T.FOOD_COURT_SHACK_MIN_SPACING+2*(T.FOOD_COURT_RING_MULT*MODEL_DIMS.FOOD_TRUCK_SCALE+T.FOOD_COURT_SHACK_RING_PAD);
+ for(let i=0;i<admitted.length;i++)for(const other of admitted.slice(i+1))assert(Math.hypot(admitted[i].x-other.x,admitted[i].z-other.z)>=radius,'even opposite ring edges retain the named-vendor minimum');
+ const first=admitted.map(d=>d.clusterSeed).sort();
+ setSeed(seed+1);setSeed(seed);
+ assert.deepEqual(courts.slice().reverse().filter(sugarShackCourtEligible).map(d=>d.clusterSeed).sort(),first,'query order and seed roundtrip do not change selection');
+ checked+=courts.length;retained+=admitted.length;
+}
+setSeed(2641474229);
+const other=festivalPlan(heartInCell(0,3)).find(d=>d.kind==='food_court');
+assert(!sugarShackCourtEligible(other));
+const spacing=T.FOOD_COURT_SHACK_MIN_SPACING;
+try{
+ setFestivalTuning({FOOD_COURT_SHACK_MIN_SPACING:0});bumpWorldgen();
+ assert(sugarShackCourtEligible(other),'tuning epoch invalidates the admission cache');
+}finally{setFestivalTuning({FOOD_COURT_SHACK_MIN_SPACING:spacing});bumpWorldgen();}
+assert(!sugarShackCourtEligible(other));
+console.log(`PASS ${checked} final food courts across five seeds: ${retained} named vendors, conservative spacing, negative coordinates, seed/query order and tuning invalidation.`);

@@ -18,6 +18,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **Stage equipment has a working layout.** Speaker stacks stand at the audience edge, monitor wedges point back at the band, and a lighting bridge spans the deck. The model sandbox can isolate any musician, hold a playing pose, and show the notes driving it. [Stage workshop instructions](DEBUGGING.md#stage-performance-workshop).
 
 ### Fixed
+- **Nearby food courts no longer duplicate the Sugar Shack.** Generated courts now resolve the named vendor from seeded plans with a 150 m centre-to-centre minimum, giving the welcome court priority and keeping the result stable across loading order and revisits. The reported seed `2641474229` had two Shacks 62.03 m apart; it now retains the welcome vendor. Omitted stalls preserve the former model draws and temporary ring reservation so the other trucks, tables and vendors keep their placement. [Reproduction and checks](verification/sugar-shack-spacing/README.md).
 - **Cornhole players stoop toward bags instead of tipping backward.** Retrieval uses an eased, planted-foot knee bend and forward hip hinge, faces the bag and adjusts for board height, then lifts it with the hand while standing. Walking, the loser reaction and final tidying restore the correct posture without borrowing a rigid whole-body reaction transform. [Verification](verification/cornhole/pickup-pose/README.md).
 
 ## 2026-11-15

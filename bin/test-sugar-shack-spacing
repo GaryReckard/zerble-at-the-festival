@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {Scene} from 'three';
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:720,__perfProfile:'low'};
+globalThis.document={addEventListener(){},createElement:()=>({getContext:()=>new Proxy({measureText:()=>({width:100}),createLinearGradient:()=>({addColorStop(){}}),createRadialGradient:()=>({addColorStop(){}})},{get:(o,k)=>k in o?o[k]:()=>{}})})};
+const {setSeed}=await import('../src/worldgen/index.js');
+const {setTerrainEnabled}=await import('../src/worldgen/terrain.js');
+const {setLandscapeVersion}=await import('../src/worldgen/landscapeCandidates.js');
+const {heartInCell}=await import('../src/worldgen/hearts.js');
+const {buildHubPreview,disposeChunkByKey,worldgenDrawCounts}=await import('../src/chunks.js');
+const {registry}=await import('../src/registry.js');
+setTerrainEnabled(true);setLandscapeVersion(2);
+const snapshot=order=>{
+ setSeed(2641474229);const scene=new Scene(),hubs=[],shacks=[],other=[];
+ try{
+  for(const [cx,cz] of order)hubs.push(buildHubPreview(scene,heartInCell(cx,cz)));
+  for(const hub of hubs){
+   hub.group.traverse(o=>{if(o.userData.kind==='sugarShack')shacks.push({x:o.position.x,z:o.position.z,key:hub.key});});
+  }
+  for(const hub of hubs)for(const e of registry.byChunk(hub.key)){
+   if(!['truck','picnic_table','bubble_vendor'].includes(e.kind))continue;
+   if(shacks.some(s=>Math.hypot(s.x-e.position.x,s.z-e.position.z)<.01))continue;
+   other.push([e.kind,e.position.x,e.position.y,e.position.z,e.footprint]);
+  }
+  const draws=[...worldgenDrawCounts].filter(([key])=>key.startsWith('food_court@')).sort();
+  return {shacks:shacks.sort((a,b)=>a.x-b.x||a.z-b.z),other:other.sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))),draws};
+ }finally{for(const hub of hubs)disposeChunkByKey(scene,hub.group,hub.key,null);}
+};
+const result=snapshot([[-1,3],[0,3]]);
+if(process.argv.includes('--record-baseline')){
+ assert.equal(result.shacks.length,2,'reproduce both reported vendors before the fix');
+ writeFileSync(new URL('../verification/sugar-shack-spacing/baseline.json',import.meta.url),JSON.stringify({source:'8ef50de',seed:2641474229,...result},null,2)+'\n');
+ console.log('REPRO',JSON.stringify(result.shacks),'distance',Math.hypot(result.shacks[0].x-result.shacks[1].x,result.shacks[0].z-result.shacks[1].z));
+}else{
+ const baseline=JSON.parse(readFileSync(new URL('../verification/sugar-shack-spacing/baseline.json',import.meta.url),'utf8'));
+ assert.equal(result.shacks.length,1,'nearby courts must not duplicate the named vendor');
+ assert.equal(result.shacks[0].key,'hub:-1,3','retain the entrance festival’s guaranteed vendor');
+ assert.deepEqual(result.other,baseline.other,'unrelated food trucks, tables and vendors stay put');
+ assert.deepEqual(result.draws,baseline.draws,'declining a duplicate preserves each court RNG cursor');
+ assert.deepEqual(snapshot([[0,3],[-1,3]]).shacks,result.shacks,'load order cannot choose the winner');
+ assert.deepEqual(snapshot([[-1,3],[0,3]]),result,'unload and rebuild cannot restore the duplicate');
+ console.log('PASS reported Sugar Shack duplicate: one welcome vendor, unchanged neighboring props/RNG, reverse load order and unload/rebuild.');
+}

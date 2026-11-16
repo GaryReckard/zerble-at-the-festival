@@ -118,6 +118,8 @@ entry when behavior ships.
 
 ## Road surfaces and audience placement
 
+- [Sugar Shack spacing, November 16](sugar-shack-spacing/README.md): reported duplicate, deterministic neighborhood selection, retained welcome vendor, unchanged surrounding placement and RNG, and browser comparison.
+
 - [October 28 road surfaces and organic seating](roads/2026-10-28/README.md): deterministic major-hub asphalt/dirt assignment, shared procedural textures, terrain/distant-road safety, rear chair groups, multi-person blankets, native Low/Mid and real-game evidence.
 
 - [October 28 junction and dirt-repeat corrections](roads/2026-10-28-junctions/README.md): both reported mixed-surface junctions, geometry subtraction, camera-angle checks, a larger dirt tile, fixed-capacity proxy safety and full-game evidence.

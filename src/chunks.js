@@ -25,6 +25,8 @@ import { registerCampsite, canPlaceCampsite, registerStageChair } from './campRe
 
 import * as THREE from 'three';
 import { registry } from './registry.js';
+import {sugarShackCourtEligible} from './worldgen/sugarShacks.js';
+import {sampleSugarShackVariation} from './sugarShackVariation.js';
 import { tryPlaceCornhole } from './cornholePlacement.js';
 import { hash2, worldHash, mulberry32 } from './rng.js';
 import { Sound } from './sound.js';
@@ -1348,7 +1350,7 @@ function buildWorldgenKind(ctx, d) {
     case 'food_court': {
       const welcome = welcomeFoodCourt();
       const isWelcome = welcome?.clusterSeed === d.clusterSeed && welcome.x === d.x && welcome.z === d.z;
-      buildFoodCourtAt(cctx, d.x, d.z, { isWelcome, clusterSeed: d.clusterSeed });
+      buildFoodCourtAt(cctx, d.x, d.z, { isWelcome, clusterSeed: d.clusterSeed,shackEligible:sugarShackCourtEligible(d) });
       break;
     }
     case 'vendor_row':    buildVendorRowAt(cctx, d.x, d.z, d.yaw); break;
@@ -1666,11 +1668,11 @@ function buildVendorRowAt(ctx, x, z, yaw) {
 }
 
 // A food-truck court ring centered at (x,z) — the festival's food street. Ported from
-// buildFoodPlaza (3-5 trucks on a ~24 m ring, inward-facing, usually ~35% one sugar shack,
+// buildFoodPlaza (3-5 trucks on a ~24 m ring, inward-facing, a ~35% Sugar Shack candidate before neighborhood spacing,
 // a bubble vendor at the edge), world-positioned, with an inter-truck overlap guard
 // the legacy ring lacked (the only thing that kept it from overlapping was the
 // spawn-corridor hack — D2.3 surgery).
-function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}) {
+function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0,shackEligible = true } = {}) {
   const T = FESTIVAL_TUNING;
   const count = T.FOOD_COURT_COUNT_BASE + Math.floor(ctx.rng() * T.FOOD_COURT_COUNT_SPAN);
   const ring = T.FOOD_COURT_RING_MULT * FOOD_TRUCK_SCALE;
@@ -1689,6 +1691,12 @@ function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}
   let shackPlaced = false;
   const placeShack = (sx, sz) => {
     if (!shackClear(sx, sz)) return false;
+    // Retain the former site's draws and temporary reservation even when the
+    // named vendor yields to a neighboring court. Everything else stays put.
+    if(!shackEligible){
+      sampleSugarShackVariation(ctx.rng);
+      placed.push({x:sx,z:sz,r:shackHalf});shackPlaced=true;return true;
+    }
     const shack = buildSugarShack(ctx.rng);
     shack.position.set(sx, terrainHeight(sx, sz), sz);
     shack.rotation.y = Math.atan2(x - sx, z - sz);

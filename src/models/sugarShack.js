@@ -1,3 +1,4 @@
+import {sampleSugarShackVariation} from '../sugarShackVariation.js';
 import {makePersonHair} from '../crowdHair.js';
 import {bindLocomotion,tickLocomotion} from './personLocomotion.js';
 // Sugar Shack — long white gable canopy behind a stand-alone signage facade.
@@ -738,6 +739,7 @@ const COUNTER_H = 1.05;
 const COUNTER_D = 0.65;
 
 export function buildSugarShack(rng = Math.random) {
+  const variation=sampleSugarShackVariation(rng);
   const g = new THREE.Group();
   g.userData.kind = 'sugarShack';
 
@@ -961,7 +963,8 @@ export function buildSugarShack(rng = Math.random) {
   tom.position.set(-0.45, 0, DEPTH / 2 - COUNTER_D - 0.6);
   g.add(tom);
 
-  const cook = buildApronCook(rng);
+  let cookRoll=0;
+  const cook = buildApronCook(()=>variation.cook[cookRoll++]);
   cook.userData.noMerge = true;
   g.add(cook);
 
@@ -982,7 +985,7 @@ export function buildSugarShack(rng = Math.random) {
     { x:  0.55,   z: CTR_Z,   facing:  Math.PI,     holdMin: 3.0, holdMax: 6.0 }, // counter (next to Tom)
   ];
   // Start at a random waypoint, already in position.
-  const startIdx = Math.floor(rng() * waypoints.length);
+  const startIdx = Math.floor(variation.start * waypoints.length);
   cook.position.set(waypoints[startIdx].x, 0, waypoints[startIdx].z);
   cook.rotation.y = waypoints[startIdx].facing;
   const cookEntry = {
@@ -990,8 +993,8 @@ export function buildSugarShack(rng = Math.random) {
     waypoints,
     currentIdx: startIdx,
     targetIdx: startIdx,
-    holdLeft: 1.0 + rng() * 3.0,
-    walkSpeed: 1.1 + rng() * 0.4,
+    holdLeft: 1.0 + variation.hold * 3.0,
+    walkSpeed: 1.1 + variation.speed * 0.4,
     chunkKey: null,                                        // set by chunks.js
   };
   sugarShackCooks.push(cookEntry);
@@ -1062,9 +1065,8 @@ export function buildSugarShack(rng = Math.random) {
     g.add(bracket);
   }
 
-  // Tiny per-instance rotation jitter so two side-by-side shacks don't look
-  // like exact clones.
-  g.rotation.y = (rng() - 0.5) * 0.02;
+  // A little handmade variation for standalone models and distant stalls.
+  g.rotation.y = (variation.tilt - 0.5) * 0.02;
 
   if (MODEL_DECOR_MERGE_ENABLED) {
     mergeStaticDecor(g, { castShadow: (mesh) => mesh.castShadow });
