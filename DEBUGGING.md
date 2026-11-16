@@ -622,6 +622,8 @@ Open `/sandbox.html?entity=stage_main&style=funk&mute=1`, then click **Play this
 
 Select a musician and click **Musician close-up**. The readout includes the selected roaming player’s stage position, plus the section, beat and activity of the lead, bass, chords, kick, snare and hi-hat. **Hold pose** freezes the visual so you can orbit around a strum, slide or pedal stroke while the song continues. **Live motion** returns to the current note, **Between songs** triggers the break, and **Rest / stop music** lets you inspect the idle pose. Use **Full stage** and the Noon and Midnight presets to inspect the backline and lighting.
 
+**Beam fans** toggles the translucent shafts independently from the real lights, and **Calm lighting** disables moving fans and musical accents for a steady wash. A held musician pose also holds the lighting cue, so toggling fans gives a useful matched render-counter comparison. Preview pages load the saved/OS Reduced Motion setting; the local Calm checkbox only adds a restriction and does not change that preference. `healing_arts_activity` shows the real yoga-to-party changeover with the same lighting controls and a dance/dub **Night set style** selector.
+
 The **Stage audience** selector offers empty, four-person and 24-person populations using the production Crowd controller. **Applaud audience** triggers a response, while **Between songs** exercises the real song-end callback; the readout reports count, duration and intensity. Changing to an empty audience releases its people and registry entry. The initial full-stage camera looks beneath the roof, and individual close-ups remain available.
 
 For integration, start the real game from a ready mode plank and visit a populated stage. `window.__game.sound._debugEndSong()` ends the current songs through the audio clock. Standing and seated listeners should react at different times while passers-by continue their activities. [Evidence and limits](verification/stage-performance/README.md), [audience reactions](bin/test-stage-audience-reactions), [preview lifecycle](bin/test-stage-audience-preview), [venue ownership](bin/test-stage-venue-ownership), [audio](bin/test-stage-performance-audio), [band integration](bin/test-stage-band), [layout](bin/test-stage-layout) and [performers](bin/test-stage-performers) cover the implementation.
@@ -920,10 +922,8 @@ The production parade preview remains
 `/sandbox.html?entity=puppet_parade&mute=1&perf=low`; its local clock drives preview
 nightness and its ground follows the route. Use
 `/sandbox.html?entity=brass_population&mute=1&perf=low` for the actual seven-musician
-controller, route/scatter and owned music cleanup, rather than only the stationary
-model lineup. `node bin/test-formations-ownership` compares 400 frozen legacy frames
-per formation, while `node bin/test-stage-audio-lifecycle` covers cancelled deferred
-stage descriptors and the existing adoption delay. Both run in the routine suite.
+controller. Click **Play marching band** to start its audio clock, even on a muted launch. The readout shows the current phrase with separate trumpet, lower-horn, tuba and snare cues. **Honk at formation** should silence the band for its sidestep while the feet continue moving. **Dispose formation** releases the live identities and the music handle.
+`node bin/test-formations-ownership` compares 400 legacy route frames per formation and checks the scatter/recovery gate. `node bin/test-stage-performance-audio` exercises the entire sixteen-bar marching form and its moving audio source. Both run in the routine suite.
 
 
 The `monk_party` sandbox uses the public group boundary and includes **Clear group**

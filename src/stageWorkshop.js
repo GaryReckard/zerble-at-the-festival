@@ -3,7 +3,7 @@ import {animateStageBand, sampleStageBand} from './stageBand.js';
 
 // The viewer borrows the same band and audio handle used by production. Hold is
 // a visual inspection only; it never pauses or rewrites the audio scheduler.
-export function createStageWorkshop({band, cam, applyCam, play, stop, finishSong, changeStyle}) {
+export function createStageWorkshop({band, cam, applyCam, play, stop, finishSong, changeStyle, lighting=null}) {
   const root = document.createElement('div');
   root.className = 'stage-workshop';
   const style = document.createElement('select');
@@ -46,6 +46,11 @@ export function createStageWorkshop({band, cam, applyCam, play, stop, finishSong
   player.onchange = focus;
   button('Musician close-up', focus);
   button('Full stage', () => {cam.target.copy(original.target);Object.assign(cam,{yaw:original.yaw,pitch:original.pitch,dist:original.dist});applyCam();});
+  if(lighting)for(const [label,key,checked] of [['Beam fans','fansEnabled',true],['Calm lighting','calm',false]]){
+    const row=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=checked;
+    input.onchange=()=>{lighting[key]=input.checked;};row.append(input,document.createTextNode(label));root.append(row);
+  }
+
   const state = document.createElement('div'); state.className = 'stage-performance-state';
   state.style.cssText = 'font:11px/1.4 monospace;padding:6px 0;white-space:pre-wrap';
   state.setAttribute('aria-label', 'Stage performance'); root.append(state);

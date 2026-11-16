@@ -545,6 +545,8 @@
 </div>
 
 <script type="module">
+    import {A11y} from './src/a11y.js';
+    A11y.init();
     import * as THREE from 'three';
     import {Sound} from './src/sound.js';
     import {TimeOfDay} from './src/timeOfDay.js';
@@ -576,6 +578,7 @@ import {buildShrub} from './src/models/shrub.js';
     import {leafBannerTextures} from './src/models/leafBanner.js';
     import {buildStage, placeBandOnStage} from './src/models/stage.js';
     import {createStageBand} from './src/stageBand.js';
+    import {PERF} from './src/perf.js';
     import {createStageWorkshop} from './src/stageWorkshop.js';
     import {createStageAudiencePreview} from './src/stageAudiencePreview.js';
     import {buildTentStage} from './src/models/tentStage.js';
@@ -871,9 +874,11 @@ import {buildShrub} from './src/models/shrub.js';
         const workshop = createStageWorkshop({band,cam,applyCam,
             play:restart => playWorkshopMusic(style,restart), stop:stopSandboxMusic,
             finishSong:() => Sound._debugEndSong(),
-            changeStyle:changeBandStyle,
+            changeStyle:changeBandStyle, lighting:stage?.lightShow??stage?.group.userData.stageLighting,
         });
         if(stage){
+            const lightShow=stage.lightShow??stage.group.userData.stageLighting;
+            lightShow.fan.userData.raysPerSource=PERF.name==='low'?1:2;
             stageAudiencePreview=createStageAudiencePreview({stage,controls:workshop.root,
                 playApplause:summary=>{ensureSoundInit();return Sound.playCrowdCheer(summary.x,summary.z,summary);}
             });
@@ -1787,7 +1792,7 @@ import {buildShrub} from './src/models/shrub.js';
                 scene.add(t.group);
                 entityRoot = t.group;
                 let elapsed=0;
-                const tickBand=dt=>{elapsed+=dt;workshop.update(elapsed);stageAudiencePreview.update(dt);t.animateLights(elapsed,tod.nightness);};
+                const tickBand=dt=>{elapsed+=dt;const cue=workshop.update(elapsed);stageAudiencePreview.update(dt);t.animateLights(elapsed,tod.nightness,cue);};
                 cam.target.set(0, name==='soundboard'?1.3:2, name==='soundboard'?t.mixerPos.z:t.stagePos.z+4);
                 cam.dist = name==='soundboard'?7:38;
                 cam.pitch=.04;cam.yaw=.12;
@@ -1806,7 +1811,7 @@ import {buildShrub} from './src/models/shrub.js';
                     deckHeight: stage.deckHeight, rng: mulberry32(1977), style: bandStyle(name),
                 });
                 let elapsed=0;
-                const tickBand=dt=>{elapsed+=dt;workshop.update(elapsed);stageAudiencePreview.update(dt);stage.group.userData.animateLights(elapsed,tod.nightness);};
+                const tickBand=dt=>{elapsed+=dt;const cue=workshop.update(elapsed);stageAudiencePreview.update(dt);stage.group.userData.animateLights(elapsed,tod.nightness,cue);};
                 entityRoot = stage.group;
                 cam.target.set(0, 3.5, 0);
                 cam.dist = isMain ? 26 : 18;
@@ -2089,13 +2094,19 @@ import {buildShrub} from './src/models/shrub.js';
                 currentEntity=population;entityRoot=population.group;
                 population.group.userData.cleanup=()=>population.dispose();
                 const panel=document.createElement('div'),status={};
-                const describe=()=>{population.inspect(status);info.textContent=`${status.disposed?'Disposed':'Running'} · ${status.population} musicians · ${status.music?'owned music handle':'no music handle'}`;};
+                const describe=()=>{
+                    population.inspect(status);
+                    info.textContent=`${status.state} · ${status.section || 'waiting'} · beat ${status.beat==null?'–':status.beat+1} · ${status.population} marchers · trumpet ${Math.round(status.lead*4)}/4 · lower horns ${Math.round(status.counter*4)}/4 · tuba ${Math.round(status.bass*4)}/4 · snare ${Math.round(status.snare*4)}/4`;
+                };
                 for(const [label,action] of [
+                    ['Play marching band',ensureSoundInit],
                     ['Honk at formation',()=>{const lead=population.members[0];if(lead)population.scatter({position:new THREE.Vector3(lead.position.x,0,lead.position.z+4),forwardWorld:new THREE.Vector3(0,0,-1)});}],
                     ['Dispose formation',()=>population.dispose()]
                 ]){const button=document.createElement('button');button.textContent=label;button.addEventListener('click',()=>{action();describe();});panel.appendChild(button);}
                 info.after(panel);puppetControls=panel;
-                updateFn=dt=>{population.update(dt,null);const lead=population.members[0];if(lead){groundGroup.position.set(lead.position.x,0,lead.position.z);cam.target.set(lead.position.x,1.8,lead.position.z);applyCam();}describe();};
+                updateFn=dt=>{population.update(dt,null);const lead=population.members[0];if(lead){groundGroup.position.set(lead.position.x,0,lead.position.z);cam.target.set(lead.position.x,1.8,lead.position.z);applyCam();
+                    if(soundInitialised){camera.getWorldDirection(_audioForward);Sound.updateAudioListener(camera.position.x,camera.position.y,camera.position.z,_audioForward.x,_audioForward.y,_audioForward.z);}
+                }describe();};
                 cam.target.set(0,1.8,0);cam.dist=16;cam.yaw=.3;cam.pitch=.35;applyCam();
                 break;
             }
@@ -2528,6 +2539,17 @@ import {buildShrub} from './src/models/shrub.js';
                         chunkKey:'healing-demo',rng,allowPhotographer:false});
                     g.userData.activity = activity;
                 }
+                const lights=g.userData.healingArts.lighting;
+                lights.fan.userData.raysPerSource=PERF.name==='low'?1:2;
+                puppetControls=document.createElement('div');
+                for(const [label,key,checked] of [['Beam fans','fansEnabled',true],['Calm lighting','calm',false]]){
+                    const row=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=checked;
+                    input.onchange=()=>{lights[key]=input.checked;};row.append(input,document.createTextNode(label));puppetControls.append(row);
+                }
+                const nightStyle=document.createElement('select');nightStyle.setAttribute('aria-label','Night set style');
+                for(const style of ['dance','dub']){const option=document.createElement('option');option.value=style;option.textContent=style;nightStyle.append(option);}
+                nightStyle.onchange=()=>{if(entityMusic){Sound.detachStageMusic(entityMusic);entityMusic=null;}};
+                puppetControls.append(nightStyle);document.getElementById('hud').insertBefore(puppetControls,info);
                 const healingDjCue = {};
                 let elapsed = 0;
                 updateFn = dt => {
@@ -2544,7 +2566,7 @@ import {buildShrub} from './src/models/shrub.js';
                     } else info.textContent = `Healing Arts · ${g.userData.healingArts.participantCount} participants`;
 
                     if (tod.nightness > 0.5 && soundInitialised && !entityMusic) {
-                        entityMusic = Sound.attachStageMusic(0, 1.5, -5.75, 1977, 'dance');
+                        entityMusic = Sound.attachStageMusic(0, 1.5, -5.75, 1977, nightStyle.value);
                     } else if (tod.nightness <= 0.5 && entityMusic) {
                         Sound.detachStageMusic(entityMusic);
                         entityMusic = null;

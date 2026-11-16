@@ -1,6 +1,7 @@
 import {getPersonHairGeometry} from '../crowdHair.js';
 import * as THREE from 'three';
 import {HEALING_DANCE_REST,sampleHealingDancePoint} from '../personMotion.js';
+import {createHealingPartyLighting} from '../stageLighting.js';
 import { register } from '../contextLights.js';
 
 // The open tensile roof and the participant rig are shared by the game and sandbox.
@@ -202,7 +203,8 @@ export function buildHealingArts({ rng = () => 0.5 } = {}) {
   const glow = mesh(booth, BOX, mat(0xa369bc, { emissive: 0x9a3cb4, emissiveIntensity: 1 }), 0, .75, -5.335, 2.25, .16, .015);
   const light = new THREE.PointLight(0xffc48b, 2, 20, 2);
   light.position.set(0, 3.1, .5); light.castShadow = false; group.add(light); register(light);
-  group.userData.healingArts = { footprintRadius: 14, participantCount, light, glowsticks,
+  const lighting=createHealingPartyLighting(group,light);
+  group.userData.healingArts = { lighting,footprintRadius: 14, participantCount, light, glowsticks,
     positions: new Float32Array(participantCount*2), poleColliders, participants, mats, bodies, heads, hair, bulbs, booth, glow, nightMix: 0, pose: new Float32Array(33) };
   const u=group.userData.healingArts;
   for(let i=0;i<participants.length;i++){
@@ -215,13 +217,14 @@ export function buildHealingArts({ rng = () => 0.5 } = {}) {
 }
 
 /** Display consumes the owner's cached pose; dt remains reserved for rendering. */
-export function updateHealingArts(group, dt, time, nightness, djCue = null) {
+export function updateHealingArts(group, dt, time, nightness, djCue = null, nearLights=true) {
   const u = group.userData.healingArts;
   if (!u) return;
   const n = THREE.MathUtils.smoothstep(Number.isFinite(nightness) ? nightness : 0, .2, .75);
   const t = Number.isFinite(time) ? Math.max(0, time) : 0;
   u.nightMix = n; u.mats.visible = true; u.booth.visible = n > .35; u.bulbs.visible = n > .05;
-  u.light.intensity = 2 + n * 33;
+  u.light.intensity=2+n*33;
+  u.lighting?.update(djCue,time,nightness,nearLights);
   const motion=u.motion??u,positions=motion.positions;
   for (let i = 0; i < motion.participants.length; i++) {
     const p = motion.participants[i], visual=u.participants[i], cycle = (t / 9 + p.phase) % POSES.length;

@@ -93,12 +93,17 @@ export function updateHealingArtsTents(dt, time, nightness, playerPos, display =
     }
     entry.night = night;
     const near = !playerPos || entry.group.position.distanceToSquared(playerPos) < 180 * 180;
+    const partyLights=entry.group.userData?.healingArts?.lighting;
+    if(partyLights){
+      partyLights.fan.userData.raysPerSource=PERF.name==='low'?1:2;
+      if(!near)partyLights.fan.visible=false;
+    }
     if (near || changed) {
       if(entry.activity)entry.activity.sample(time,nightness);
       else sampleHealingArtsPreview(entry.group,time,nightness);
       if (display) {
         const cue = entry.music?.samplePerformance?.(entry.djCue ??= {});
-        updateHealingArts(entry.group, dt, time, nightness, cue);
+        updateHealingArts(entry.group, dt, time, nightness, cue, !playerPos||entry.group.position.distanceToSquared(playerPos)<80*80);
       }
     }
   }
@@ -147,127 +152,35 @@ export function updateStagePerformers(t) {
   }
 }
 
-// Stage-light show: during the day the lenses just sit there with their
-// baseline emissive. At night they pulse and cycle through a club-like
-// rainbow palette and the audience-facing SpotLight beams sweep across
-// the crowd. `t` is seconds since start, `nightness` 0..1 from the
-// time-of-day system, `zerblePos` is THREE.Vector3 used to pool the
-// closest beams (only MAX_ACTIVE_STAGE_LIGHTS SpotLights are lit per frame).
-const MAX_ACTIVE_STAGE_LIGHTS = 6;
-const _showColors = [0xff3380, 0xffae33, 0xffe066, 0x66ff88, 0x33d9ff, 0xc080ff];
-const _tmpC1 = new THREE.Color();
-const _tmpC2 = new THREE.Color();
-// Scratch vector to avoid per-frame allocation when computing distances.
-const _tmpVec = new THREE.Vector3();
-// Scratch buffers for the beam-distance sort — lazily resized, reused every frame.
-let _beamDistances = new Float32Array(64);
-let _beamIndices = Array.from({ length: 64 }, (_, i) => i);
-let _beamScratchCap = 64;
-export function updateStageLightShow(t, nightness, zerblePos) {
-  // ---- Lens colors / pulse ----
-  for (let i = 0; i < stageLightLenses.length; i++) {
-    const entry = stageLightLenses[i];
-    const mat = entry.lens.material;
-    if (nightness < 0.05) {
-      mat.emissiveIntensity = 2.4 + Math.sin(t * 1.5 + i) * 0.2;
-      const base = _tmpC1.setHex(entry.baseColor);
-      mat.color.lerp(base, 0.05);
-      mat.emissive.lerp(base, 0.05);
-    } else {
-      const phase = t * 1.4 + i * 0.7;
-      const colorIdx = Math.floor((t * 0.4 + i) % _showColors.length);
-      const nextIdx = (colorIdx + 1) % _showColors.length;
-      const blend = (t * 0.4 + i) % 1;
-      _tmpC1.setHex(_showColors[colorIdx]);
-      _tmpC2.setHex(_showColors[nextIdx]);
-      const c = _tmpC1.lerp(_tmpC2, blend);
-      mat.color.copy(c);
-      mat.emissive.copy(c);
-      const pulse = 0.5 + 0.5 * Math.sin(phase);
-      mat.emissiveIntensity = 2.0 + pulse * 5.0 * nightness;
+// Existing context-light carriers share a score with the sandbox. Rank the
+// nearest six carriers without allocating a Set or changing shader light counts.
+const MAX_ACTIVE_STAGE_LIGHTS=6;
+let _beamDistances=new Float32Array(64),_beamIndices=Array.from({length:64},(_,i)=>i),_beamActive=new Uint8Array(64);
+let _lightFrame=0;
+const compareStageBeamDistance=(a,b)=>_beamDistances[a]-_beamDistances[b];
+export function updateStageLightShow(t,nightness,zerblePos){
+  const count=stageBeamRefs.length;
+  if(count>_beamDistances.length){
+    _beamDistances=new Float32Array(count);_beamIndices=Array.from({length:count},(_,i)=>i);_beamActive=new Uint8Array(count);
+  }
+  _beamActive.fill(0);_beamIndices.length=count;
+  for(let i=0;i<count;i++){
+    const pos=stageBeamRefs[i].stageWorldPos;
+    _beamDistances[i]=pos&&zerblePos?(pos.x-zerblePos.x)**2+(pos.z-zerblePos.z)**2:0;
+    _beamIndices[i]=i;
+  }
+  _beamIndices.sort(compareStageBeamDistance);
+  for(let i=0;i<Math.min(count,MAX_ACTIVE_STAGE_LIGHTS);i++)_beamActive[_beamIndices[i]]=1;
+  _lightFrame++;
+  // Update each whole stage once before individual pool exclusions are applied.
+  for(let i=0;i<count;i++){
+    const ref=stageBeamRefs[i],show=ref.show;
+    if(show&&show.frame!==_lightFrame){
+      show.frame=_lightFrame;show.fan.userData.raysPerSource=PERF.name==='low'?1:2;
+      show.update(t,nightness,show.band?sampleStageBand(show.band,t):null,_beamDistances[i]<80*80);
     }
   }
-
-  // ---- Audience-facing SpotLight beams ----
-  // Beams swing left/right + forward/back in lissajous patterns so each
-  // stage paints a moving rainbow across the crowd. Three beams per stage
-  // chase different patterns so they don't lockstep.
-  //
-  // Performance pool: rank all loaded beams by their stage's distance to
-  // Zerble and only enable the closest MAX_ACTIVE_STAGE_LIGHTS. Beams
-  // outside the pool get intensity = 0 so the GPU skips their fragment
-  // work entirely. Animation state (target position, color) still advances
-  // every frame for all beams so there's no visual pop when a stage enters
-  // or leaves the active pool.
-  const PATTERNS = [
-    // {ax: amplitudeX, az: amplitudeZ, rateX, rateZ, phaseZ}
-    { ax: 6, az: 3, rateX: 0.9, rateZ: 1.3, phaseZ: 0.0 },     // wide sweep
-    { ax: 2, az: 5, rateX: 1.4, rateZ: 0.7, phaseZ: 1.5 },     // depth pump
-    { ax: 5, az: 4, rateX: 0.6, rateZ: 1.1, phaseZ: 2.4 },     // diagonal
-  ];
-  const beamOn = THREE.MathUtils.smoothstep(nightness, 0.15, 0.7);
-  const totalBeams = stageBeamRefs.length;
-
-  // Build a sorted distance list only when we have more beams than the pool
-  // size AND we have a valid zerblePos to compare against. When beam count is
-  // within the pool cap, every beam is active — no sorting needed.
-  let activeSet = null; // null means "all beams are active"
-  if (zerblePos && totalBeams > MAX_ACTIVE_STAGE_LIGHTS) {
-    // Compute squared distance for each beam (cheap; avoids sqrt).
-    // Group by stage world position so three beams from the same stage share
-    // one distance lookup (each ref carries stageWorldPos).
-    // Grow scratch buffers only when beam count exceeds current capacity.
-    if (totalBeams > _beamScratchCap) {
-      _beamDistances = new Float32Array(totalBeams);
-      _beamIndices = Array.from({ length: totalBeams }, (_, i) => i);
-      _beamScratchCap = totalBeams;
-    }
-    for (let i = 0; i < totalBeams; i++) {
-      const ref = stageBeamRefs[i];
-      if (ref.stageWorldPos) {
-        _tmpVec.copy(ref.stageWorldPos).sub(zerblePos);
-        _beamDistances[i] = _tmpVec.x * _tmpVec.x + _tmpVec.z * _tmpVec.z;
-      } else {
-        // No world position stored — treat as closest so it's never culled.
-        _beamDistances[i] = 0;
-      }
-      _beamIndices[i] = i; // reset before sort (reused buffer)
-    }
-    // Sort indices by distance ascending (in-place on reused array).
-    _beamIndices.length = totalBeams;
-    _beamIndices.sort((a, b) => _beamDistances[a] - _beamDistances[b]);
-    // The active set is the closest MAX_ACTIVE_STAGE_LIGHTS beam indices.
-    activeSet = new Set(_beamIndices.slice(0, MAX_ACTIVE_STAGE_LIGHTS));
-  }
-
-  for (let i = 0; i < totalBeams; i++) {
-    const ref = stageBeamRefs[i];
-    const pattern = PATTERNS[i % PATTERNS.length];
-    const phase = t + ref.phaseOffset;
-
-    // Always advance animation state so beams are in-phase when they re-enter
-    // the active pool — avoids a visible jump in sweep position / color.
-    ref.target.position.x = ref.baseTargetX
-      + Math.sin(phase * pattern.rateX) * (ref.wash ? .4 : pattern.ax) * ref.scale;
-    ref.target.position.z = ref.baseTargetZ
-      + Math.sin(phase * pattern.rateZ + pattern.phaseZ) * (ref.wash ? .25 : pattern.az) * ref.scale;
-    // Color chase — shifts through the palette out of phase with the lens.
-    const colorIdx = Math.floor((t * 0.35 + i * 1.3) % _showColors.length);
-    const nextIdx = (colorIdx + 1) % _showColors.length;
-    const blend = (t * 0.35 + i * 1.3) % 1;
-    _tmpC1.setHex(_showColors[colorIdx]);
-    _tmpC2.setHex(_showColors[nextIdx]);
-    ref.beam.color.copy(_tmpC1.lerp(_tmpC2, blend));
-
-    // Intensity: full animation for active pool; zero for culled beams.
-    const inPool = activeSet === null || activeSet.has(i);
-    if (inPool) {
-      const pulse = 0.55 + 0.45 * Math.sin(phase * 2.2);
-      ref.beam.intensity = beamOn * (ref.wash ? 24 : pulse * 9.0);
-    } else {
-      ref.beam.intensity = 0;
-    }
-  }
+  for(let i=0;i<count;i++)if(!_beamActive[i])stageBeamRefs[i].beam.intensity=0;
 }
 
 // ---------- Chunk generation timing stats ----------
@@ -2113,6 +2026,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
   const tentStyle = pickStageStyle(tentStyleSeed, ['folk', 'jam', 'funk', 'world']);
   const tent = buildTentStage({ rng: ctx.rng, leafTexture: tex, style: tentStyle });
   const band = createStageBand(tent.performers, null, tentStyle);
+  tent.lightShow.band=band;
   const cx = cxArg != null ? cxArg : ctx.cxWorld;
   const cz = czArg != null ? czArg : ctx.czWorld;
   // Worldgen passes a road-facing yaw; the legacy path draws a random one (same
@@ -2127,7 +2041,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
   // Track the tent's stage lights with the rest of the light show.
   for (const lens of tent.stageLights) {
     stageLightLenses.push({
-      lens, chunkKey: ctx.key, baseColor: lens.material.color.getHex(),
+      lens, chunkKey: ctx.key, baseColor: lens.material.color.getHex(), show:tent.lightShow,
     });
   }
   // ...and its audience-facing beams. The tent stage's world position is the
@@ -2135,7 +2049,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
   if (tent.stageBeams) {
     const tentWorldPos = new THREE.Vector3(cx, terrainHeight(cx, cz), cz);
     for (const b of tent.stageBeams) {
-      stageBeamRefs.push({ ...b, chunkKey: ctx.key, scale: tent.stageScale || 1.0, stageWorldPos: tentWorldPos });
+      stageBeamRefs.push({ ...b, chunkKey: ctx.key, scale: tent.stageScale || 1.0, stageWorldPos: tentWorldPos, show:tent.lightShow });
     }
   }
 
@@ -2994,13 +2908,13 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
   const h = stage.deckHeight;
   // Track lens meshes for the day-night light show
   for (const lens of stage.stageLights) {
-    stageLightLenses.push({ lens, chunkKey: ctx.key, baseColor: lens.material.color.getHex() });
+    stageLightLenses.push({ lens, chunkKey: ctx.key, baseColor: lens.material.color.getHex(), show:stage.group.userData.stageLighting });
   }
   // Track audience-facing spotlight beams. Store the stage's world position
   // so the spotlight pool can rank beams by distance to Zerble each frame.
   const stageWorldPos = new THREE.Vector3(x, terrainHeight(x, z), z);
   for (const b of stage.stageBeams) {
-    stageBeamRefs.push({ ...b, chunkKey: ctx.key, scale, stageWorldPos });
+    stageBeamRefs.push({ ...b, chunkKey: ctx.key, scale, stageWorldPos, show:stage.group.userData.stageLighting });
   }
 
   // ----- Colliders: spheres INSCRIBED in the deck rectangle -----
@@ -3135,6 +3049,7 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
     deckWidth: w, deckDepth: d, deckHeight: h, rng: ctx.rng, style: stageStyle,
   });
   const band = createStageBand(performers, handle, stageStyle);
+  stage.group.userData.stageLighting.band=band;
   for (const performer of performers) {
     stagePerformers.push({
       group: performer,

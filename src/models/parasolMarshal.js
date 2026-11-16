@@ -133,11 +133,15 @@ export function buildParasolMarshal() {
 // Per-frame march bob + parasol twirl. Game (BrassBand.update) and
 // sandbox both call this — animation lives in ONE place. Caller still
 // owns formation position / yaw / honk-dodge offset.
-export function tickParasolMarshal(model, dt) {
+export function tickParasolMarshal(model, dt, cue = null) {
   const body = model.children[0];
   if (!body) return;
   const u = model.userData;
   u.animationTime=(u.animationTime??0)+dt;
   tickLocomotion(model,dt);
-  if (u.parasol) u.parasol.rotation.y += dt * 2.4;
+  if (u.parasol) {
+    const flourish = cue?.playing ? Math.max(cue.snare,cue.kick) : 0;
+    u.parasol.rotation.y += dt * (2.4 + flourish*2);
+    u.parasol.rotation.z = flourish*(cue?.section==='shout'?.15:.07);
+  }
 }

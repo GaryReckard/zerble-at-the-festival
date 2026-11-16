@@ -127,3 +127,13 @@ camera position + forward each frame for spatial pan (`sound.js:189-201`,
 
 - **WHEN** the player is near a forest at night
 - **THEN** cricket/frog voices pan toward it and the owl is audible
+
+
+### Requirement: Marching second-line score follows its formation
+
+The marching band's synthesized score SHALL expose audible-time trumpet, lower-horn, tuba and snare cues to its visible musicians, including distinct lower-horn pitches and occasional sustained notes. Its call/answer and drum-break arrangement SHALL remain bounded to six persistent sources. The panner and listener-distance registry SHALL track the live formation position. A honk sidestep SHALL fade playing and clear the visible musical cues while preserving locomotion and score progression; recovery SHALL rejoin that score. Disposing the formation before or after audio unlock SHALL release the pending or real source.
+
+#### Scenario: Scatter without restarting the tune
+
+- **WHEN** the marching band sidesteps Zerble’s honk
+- **THEN** the musicians continue moving with silent playing poses and rejoin the current phrase after the sidestep

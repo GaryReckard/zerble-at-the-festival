@@ -121,3 +121,18 @@ chunk lifecycle churn (`contextLights.js:101-108`).
 
 - **WHEN** a chunk holding a registered light unloads and detaches it
 - **THEN** the next `update` removes it from the registry
+
+
+### Requirement: Music-driven venue lighting with bounded beam geometry
+
+Stages SHALL reuse their band’s accepted-frame audio snapshot for genre, section and note accents, with warm restrained folk lighting and broader dance/dub choreography. Healing Arts SHALL use its own night-track cue. Existing real-light pools and shadow counts SHALL remain unchanged. Visible beam shafts SHALL use at most one shared-material instanced batch per nearby venue, with three/six stage rays and two/four Healing Arts rays on Low versus Mid/High. Daytime, gaps, Reduced Motion and distance SHALL suppress those shafts, and conservative bounds SHALL permit camera-frustum culling. Preview pages SHALL initialize accessibility preferences before presenting the show.
+
+#### Scenario: Reduced Motion and musical rests retain a steady venue
+
+- **WHEN** Reduced Motion is enabled or the audio transport is not playing
+- **THEN** moving shafts are hidden and existing lamps retain a static night wash without note-driven accents
+
+#### Scenario: Inspect the additional render cost
+
+- **WHEN** Beam fans is toggled on a held sandbox performance at night
+- **THEN** the band pose and real-light configuration remain fixed while the single instanced batch can be compared directly

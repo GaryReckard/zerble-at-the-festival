@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Scene,Vector3,Matrix4,PointLight,Group,Frustum,PerspectiveCamera} from 'three';
+import {buildStage} from '../src/models/stage.js';
+import {sampleStageLightCue,createHealingPartyLighting} from '../src/stageLighting.js';
+import {disposeSceneResources} from '../src/sceneResources.js';
+import {update as updateContextLights,_debugRegistrySize} from '../src/contextLights.js';
+const cue={playing:true,time:10,style:'dance',section:'drop',lead:.5,bass:.5,kick:1,snare:.4,chord:.8};
+const quiet=sampleStageLightCue({...cue,style:'folk'},10,1,false);
+const club=sampleStageLightCue(cue,10,1,false);
+assert(quiet.sweep<club.sweep&&quiet.fan<club.fan&&quiet.energy<club.energy);
+assert.deepEqual(sampleStageLightCue({...cue,time:50,kick:0},50,1,true),sampleStageLightCue(cue,10,1,true),'calm ignores audio time and attacks');
+const scene=new Scene(),position=new Vector3();let sharedGeometry,sharedMaterial;
+for(let repetition=0;repetition<3;repetition++){
+ const stage=buildStage({isMain:true}),show=stage.group.userData.stageLighting;
+ scene.add(stage.group);const fan=show.fan;
+ assert.equal(fan.geometry.attributes.color.itemSize,4);
+ assert(!fan.castShadow&&!fan.receiveShadow&&fan.frustumCulled);
+ assert(fan.geometry.userData.shared&&fan.material.userData.shared&&fan.material.depthWrite===false);
+ if(sharedGeometry){assert.equal(fan.geometry,sharedGeometry);assert.equal(fan.material,sharedMaterial);}
+ sharedGeometry=fan.geometry;sharedMaterial=fan.material;
+ const matrix=new Matrix4();fan.getMatrixAt(0,matrix);assert.equal(matrix.elements[0],0,'hidden fan starts with no physical extent');
+ show.update(10,0,cue);assert(!fan.visible);assert(stage.stageBeams.every(b=>b.beam.intensity===0));
+ for(const rays of [1,2]){
+  fan.userData.raysPerSource=rays;show.update(10,1,cue);assert(fan.visible);assert.equal(fan.count,3*rays);
+  for(let i=0;i<fan.count;i++){fan.getMatrixAt(i,matrix);assert(matrix.elements.every(Number.isFinite));}
+ }
+ show.update(10,1,cue,false);assert(!fan.visible,'distant fan incurs no transparent draw');
+ show.fansEnabled=false;show.update(10,1,cue);assert(!fan.visible);
+ show.fansEnabled=true;show.calm=true;show.update(10,1,cue);assert(!fan.visible);
+ show.calm=false;show.update(11,1,{...cue,playing:false});assert(!fan.visible);assert(stage.stageBeams.every(b=>b.beam.intensity>0),'gaps retain quiet static washes');
+ show.update(12,1,cue);stage.group.updateMatrixWorld(true);
+ const camera=new PerspectiveCamera(50,1,.1,200);camera.position.set(0,8,100);camera.lookAt(0,8,150);camera.updateMatrixWorld(true);
+ const frustum=new Frustum().setFromProjectionMatrix(new Matrix4().multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
+ assert(!frustum.intersectsObject(fan),'fan behind the camera is culled');
+ updateContextLights(position,scene);assert.equal(_debugRegistrySize(),3,'no additional real-light carriers');
+ let disposed=0;fan.addEventListener('dispose',()=>disposed++);
+ scene.remove(stage.group);disposeSceneResources(stage.group);assert.equal(disposed,1);updateContextLights(position,scene);assert.equal(_debugRegistrySize(),0);
+}
+const group=new Group(),light=new PointLight(),party=createHealingPartyLighting(group,light);
+party.update(cue,10,0);assert(!party.fan.visible);party.update(cue,10,1);assert(party.fan.visible);assert.equal(party.fan.count,2);
+party.fan.userData.raysPerSource=2;party.update(cue,10,1);assert.equal(party.fan.count,4);
+party.calm=true;party.update(cue,10,1);assert(!party.fan.visible);disposeSceneResources(group);
+console.log('PASS lighting: actual genre/section cues, calm/day/gap/distance gates, fixed tier counts, shared RGBA geometry, camera-frustum rejection, unchanged light carriers and repeated resource teardown.');

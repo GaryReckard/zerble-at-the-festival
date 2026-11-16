@@ -7,7 +7,7 @@ export function silentPerformance(out, state, style, time = 0) {
   out.style = style;
   out.beat = out.beatPhase = out.intensity = 0;
   out.section = '';
-  out.leadPitch = out.bassPitch = 0;
+  out.leadPitch = out.bassPitch = out.counterPitch = out.counter = 0;
   out.lead = out.bass = out.chord = out.kick = out.snare = out.hat = 0;
   return out;
 }
@@ -44,7 +44,7 @@ export function createStagePerformanceClock(ctx, style) {
       else if (now >= gapAt) state = 'gap';
       silentPerformance(out, state, style, now);
       if (state !== 'pending') return out;
-      let active, leadSeen = false, bassSeen = false;
+      let active, leadSeen = false, bassSeen = false, counterSeen = false;
       for (let back = 0; back < slots.length; back++) {
         const s = slots[(index + slots.length - back) % slots.length];
         if (s.start > now) continue;
@@ -71,6 +71,10 @@ export function createStagePerformanceClock(ctx, style) {
             if (leadSeen) continue;
             leadSeen = true;
             if (age < s.lengths[i]) out.leadPitch = s.pitches[i];
+          } else if (lane === 'counter') {
+            if (counterSeen) continue;
+            counterSeen = true;
+            if (age < s.lengths[i]) out.counterPitch = s.pitches[i];
           } else if (lane === 'bass') {
             if (bassSeen) continue;
             bassSeen = true;

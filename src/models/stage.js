@@ -10,6 +10,7 @@
 // the group.
 
 import * as THREE from 'three';
+import {createStageLighting} from '../stageLighting.js';
 import {configureStageRoaming} from '../stageRoaming.js';
 import { buildPerformer, bakePerformancePart } from './performer.js';
 import { register as registerContextLight } from '../contextLights.js';
@@ -290,13 +291,8 @@ export function buildStage(opts = {}) {
     stageBeams.push({ beam, target, wash, baseTargetX: lx, baseTargetZ: target.position.z, phaseOffset: i * 1.7 });
   }
 
-  g.userData.animateLights=(t,nightness)=>{
-    for(const ref of stageBeams){
-      ref.beam.intensity=nightness*(ref.wash?24:8);
-      ref.target.position.x=ref.baseTargetX+Math.sin(t*.5+ref.phaseOffset)*(ref.wash?.4:3)*scale;
-    }
-    for(const lens of stageLights)lens.material.emissiveIntensity=2+nightness*3;
-  };
+  const lightShow=createStageLighting(g,stageLights,stageBeams,scale);
+  g.userData.animateLights=(t,nightness,cue=null)=>lightShow.update(t,nightness,cue);
   const equipment=new THREE.Mesh(stageBackline(isMain),backlineMat);
   equipment.name = 'Stage rig and backline';
   equipment.scale.setScalar(scale);

@@ -34,5 +34,5 @@ const count=current.stages.length+current.cooks.length,before=current.snapshot()
 stageDisplay.dispose();stageDisplay.run(.02,{displayTime:123});assert.equal(current.snapshot(),before);
 runtime.dispose();cookDisplay.run(.02,{});assert.equal(current.snapshot(),before);assert.equal(current.stages.length+current.cooks.length,count,'directory teardown does not dispose or erase borrowed place rigs');
 assert(!Object.hasOwn(stageDisplay,'peopleHandles'));assert(!Object.hasOwn(cookDisplay,'activityClaims'));
-const main=read('../src/main.js');assert(main.indexOf("people.run('place-performers'")<main.indexOf("people.run('late-activities',peopleFrame)"));assert(main.indexOf('updateStageLightShow(nowS')<main.indexOf("people.run('place-cooks'"));
+const main=read('../src/main.js');assert(main.indexOf("people.run('place-performers'")<main.indexOf("people.run('late-activities',peopleFrame)"));assert(main.indexOf('updateStageLightShow(peopleFrame.displayTime')<main.indexOf("people.run('place-cooks'"));
 console.log('PASS place displays: 1200 exact performer/cook frames including RNG and unload/revisit; no interactive identities/query/collision publication; borrowed ownership survives stopped directory; original interleaved barriers');

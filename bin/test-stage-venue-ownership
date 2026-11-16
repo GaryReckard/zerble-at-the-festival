@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import {Scene} from 'three';
+import {Scene,Vector3} from 'three';
 
 globalThis.window = {addEventListener(){}, innerWidth:1280, innerHeight:720, __perfProfile:'low'};
 globalThis.document = {
@@ -14,7 +14,7 @@ globalThis.document = {
 const {setSessionSeed} = await import('../src/rng.js');
 const {registry} = await import('../src/registry.js');
 const {heartInCell} = await import('../src/worldgen/hearts.js');
-const {buildHubPreview, disposeChunkByKey, stagePerformers} = await import('../src/chunks.js');
+const {buildHubPreview, disposeChunkByKey, stagePerformers,stageBeamRefs,updateStagePerformers,updateStageLightShow} = await import('../src/chunks.js');
 const {stageInstruments} = await import('../src/models/stage.js');
 
 const scene = new Scene();
@@ -42,6 +42,17 @@ for (const [cx,cz,kind] of venues) {
     ]);
     assert.equal(area.sourceX, music._pendingX);
     assert.equal(area.sourceZ, music._pendingZ);
+    const refs=stageBeamRefs.filter(ref=>ref.chunkKey===hub.key);
+    assert.equal(refs.length,3);assert(refs.every(ref=>ref.show===refs[0].show&&ref.show.band===band));
+    let reads=0;const originalSample=music.samplePerformance;
+    music.samplePerformance=out=>{reads++;Object.assign(out,{playing:true,state:'playing',style:band.style,time:14,section:'chorus',beat:20,beatPhase:.1,kick:.8,lead:.5,bass:.5,chord:.2,snare:0,hat:0});return out;};
+    try{
+      updateStagePerformers(14);updateStageLightShow(14,1,new Vector3(area.sourceX,0,area.sourceZ));
+      assert.equal(reads,1,'lights and musicians share exactly one accepted-frame transport snapshot');
+      assert(refs[0].show.fan.visible);assert(stageBeamRefs.filter(ref=>ref.beam.intensity>0).length<=6);
+      updateStageLightShow(14,0,new Vector3(area.sourceX,0,area.sourceZ));assert(!refs[0].show.fan.visible);
+    }finally{music.samplePerformance=originalSample;}
+
     const c = Math.cos(area.yaw), s = Math.sin(area.yaw);
     const stage = players[0].group.parent;
     const scale = stage.getObjectByName('Stage rig and backline').scale.x;
@@ -67,5 +78,13 @@ for (const [cx,cz,kind] of venues) {
     if (music) assert.equal(music.samplePerformance({}).state,'stopped');
   }
 }
+const pooled=venues.map(([cx,cz])=>buildHubPreview(scene,heartInCell(cx,cz)));
+try{
+ assert.equal(stageBeamRefs.length,9);
+ updateStageLightShow(100,1,new Vector3());
+ assert.equal(stageBeamRefs.filter(ref=>ref.beam.intensity>0).length,6,'nine loaded carriers retain the six-carrier stage cap');
+ assert(stageBeamRefs.every(ref=>!ref.show.fan.visible),'distant loaded venues incur no beam-fan draws');
+}finally{for(const hub of pooled)disposeChunkByKey(scene,hub.group,hub.key,null);}
+assert.equal(stageBeamRefs.length,0,'venue disposal releases lighting owners');
 assert(outsideFormerBoundary>0,'exercise an actual generated blanket beyond the former boundary');
 console.log('PASS production venues include '+seats+' reserved listening spots and release all three bands and their music.');

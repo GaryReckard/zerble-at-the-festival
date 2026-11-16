@@ -207,6 +207,7 @@ export function buildTentStage(opts = {}) {
     group,
     performers,
     animateLights: stageBuild.group.userData.animateLights,
+    lightShow:stageBuild.group.userData.stageLighting,
     stagePos: new THREE.Vector3(0, 0, stageZ),
     stageWidth: stageBuild.deckWidth,
     stageDepth: stageBuild.deckDepth,

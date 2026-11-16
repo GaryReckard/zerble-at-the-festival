@@ -16,6 +16,7 @@ export class BrassBand {
     this.group = new THREE.Group();
     this.group.name = 'BrassBand';
 
+    this._cue={state:'pending',playing:false};
     this.members=[];this.colliders=[];this._music=null;this._disposed=false;
     this.peopleRuntime=runtime??new PeopleRuntime();
     this.ownerToken=this.peopleRuntime.register({key,controller:this,
@@ -138,7 +139,14 @@ export class BrassBand {
     for(const member of this.members){const distance=Math.hypot(member.position.x-x,member.position.z-z);if(distance>=radius)continue;this.peopleHandles.readOwnedRecord(member,scratch);if(visit(member.userData.personHandle,scratch,distance)===false)return;}
   }
   appendColliders(out){if(!this._disposed&&(!this.surfaceAccess||this.group.visible))for(let i=0;i<this.colliders.length;i++){const c=this.colliders[i],actor=this.members[i];if(!this.surfaceAccess||this.surfaceAccess.collider(c,actor,3))out.push(c);}}
-  inspect(out){out.population=this.members.length;out.disposed=this._disposed;out.music=!!this._music;}
+  inspect(out){
+    out.population=this.members.length;out.disposed=this._disposed;out.music=!!this._music;
+    out.state=this._disposed?'stopped':!this.group.visible?'off route':this._dodgeTimer>0?'scattering':this._cue.state;
+    const live=out.state==='playing';
+    out.section=live?this._cue.section:'';out.beat=live?this._cue.beat:null;
+    out.lead=live?this._cue.lead:0;out.counter=live?this._cue.counter:0;out.bass=live?this._cue.bass:0;
+    out.snare=live?this._cue.snare:0;out.kick=live?this._cue.kick:0;
+  }
   dispose(reason='population-disposed'){
     if(this._disposed)return;this._disposed=true;
     const errors=[],release=fn=>{try{fn();}catch(error){errors.push(error);}};
@@ -160,7 +168,8 @@ export class BrassBand {
         const anchor=this.surfaceAccess.prepareLoop(this.path,this._basePath,this._anchor,zerblePos);
         this._surfaceLoopReady=!!anchor;this._surfaceRetry=2;if(anchor)this._anchor=anchor;resetSurface=true;
       }
-      this.group.visible=this._surfaceLoopReady;if(!this._surfaceLoopReady)return;
+      this.group.visible=this._surfaceLoopReady;
+      if(!this._surfaceLoopReady){this._music?.setPerforming?.(false);return;}
     }
     const totalLen = pathLength(this.path);
     this.distance = (this.distance + this.speed * dt + totalLen * 100) % totalLen;
@@ -182,6 +191,9 @@ export class BrassBand {
       dodgeOZ = this._dodgeDirZ * DODGE_DIST * env;
     }
 
+    const playingFormation = this._dodgeTimer <= 0;
+    this._music?.setPerforming?.(playingFormation);
+    const cue = this._music?.samplePerformance?.(this._cue);
     for (let i = 0; i < this.members.length; i++) {
       const m = this.members[i];
       const off = m.userData.formationOff;
@@ -195,9 +207,9 @@ export class BrassBand {
       // Marching bob + (for the marshal) parasol twirl — both live in
       // the model files now so the sandbox uses the same animation.
       if (m.userData.instrument === 'parasol') {
-        tickParasolMarshal(m, dt);
+        tickParasolMarshal(m, dt, playingFormation ? cue : null);
       } else {
-        tickBandMember(m, dt);
+        tickBandMember(m, dt, playingFormation ? cue : null);
       }
 
       this.colliders[i].position.copy(m.position);

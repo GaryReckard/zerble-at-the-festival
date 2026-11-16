@@ -224,6 +224,52 @@ for (const style of ['folk','funk','brass','jam']) {
 }
 assert.equal(fingerprints.size,4,'four distinct rhythmic signatures');
 
+// Each march covers the same 16-bar form regardless of render cadence. The
+// moving panner and distance-fade registry must follow the same coordinates.
+function march(sampleRate) {
+  const h=harness(), out={}, sections=new Set();
+  h.audio.sampleRate=sampleRate;
+  h.adoptContext(h.audio);
+  const handle=h.Sound.attachStageMusic(2,0,3,0xb4a55,'second_line');
+  const entry=h.Sound.getStageHandleRegistry()[0];
+  handle.setPosition(500,3,-400);
+  assert.deepEqual([entry.x,entry.z],[500,-400]);
+  assert.equal(handle.samplePerformance(out).state,'pending');
+  let activeLead=0,maxLead=0,previousPitch=0,previousLead=0,heardAnswer=false,heardTuba=false,heardBreak=false;
+  for(let i=0;i<50*100;i++) {
+    const t=i/100;
+    if(i%16===0) h.tick(t);
+    h.audio.currentTime=t; handle.samplePerformance(out);
+    if(!out.playing) continue;
+    sections.add(out.section);
+    assert.equal(out.lead>0,out.leadPitch>0);
+    assert.equal(out.counter>0,out.counterPitch>0);
+    activeLead=out.lead===0 ? 0 : out.leadPitch===previousPitch && out.lead<previousLead ? activeLead+1 : 1;
+    previousPitch=out.leadPitch; previousLead=out.lead; maxLead=Math.max(maxLead,activeLead);
+    if(out.section==='drum break'){
+      assert.equal(out.lead+out.counter,0,'wind players breathe while drums take their break');
+      heardBreak ||= out.snare>0;
+    }
+    heardAnswer ||= out.counter>0 && out.lead===0;
+    heardTuba ||= out.bass>0;
+  }
+  assert.equal(sections.size,5);
+  assert(maxLead>60 && heardAnswer && heardTuba && heardBreak,'sustained horn notes, independent answering line, walking tuba and snare break');
+  handle.setPerforming(false);assert.equal(handle.samplePerformance(out).state,'gap');
+  assert.equal(out.lead+out.counter+out.bass+out.kick+out.snare,0);
+  handle.setPerforming(true);assert.equal(handle.samplePerformance(out).state,'playing');
+  h.audio.state='suspended';assert.equal(handle.samplePerformance(out).state,'suspended');
+  h.audio.state='running';h.tick(900);
+  h.audio.currentTime+=.03;handle.samplePerformance(out);
+  assert(out.beat<110,'return from throttling does not race through missed bars');
+  assert.equal(h.nodes.filter(n=>n.started).length,6,'marching voices stay bounded');
+  h.Sound.detachStageMusic(handle);
+  assert.equal(handle.samplePerformance(out).state,'stopped');
+  assert.equal(h.intervals.size,0);assert.equal(h.Sound.getStageHandleRegistry().length,0);
+  assert(h.nodes.filter(n=>n.started).every(n=>n.stopAt===0));
+  return h.events.digest('hex');
+}
+assert.equal(march(22050),march(48000),'marching score reproduces across devices');
 const cheers = harness(true);
 cheers.adoptContext(cheers.audio);
 const nearby={count:3,intensity:.4,duration:1.8,x:2,z:3};
@@ -258,4 +304,5 @@ const natural=cheers.emit(0,0,'jam');
 cheers.nodes.findLast(n=>typeof n.onended==='function').onended(); natural();
 assert(cheers.nodes.every(n=>!n.connected),'natural end releases panner without a timer');
 console.log('PASS stage music: eight complete scores; distinct live grooves, returning hooks, harmonic bass, section contrast, deterministic timing, at most eight sources per band, pitch-correct cues and teardown.');
+console.log('PASS marching second line: calls and replies, sustained horns, two-bar drum break, six bounded sources, mobile distance fade and scatter/suspend/recovery.');
 console.log('PASS audience sound: no applause for empty or distant stages, short small-crowd clapping, bounded larger response, complete natural/early cleanup.');

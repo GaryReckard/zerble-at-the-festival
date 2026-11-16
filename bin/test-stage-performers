@@ -134,10 +134,20 @@ for(const role of Object.keys(performerContacts)){
   assert.notEqual(head.morphTargetInfluences[0],torso.morphTargetInfluences[0],'look phase is private within a costume');
   disposeSceneResources(actor);assert.equal(disposals,0);
 }
-for(const instrument of ['drum','trumpet','trombone','tuba']){
+for(const instrument of ['drum','trumpet','trombone','sax','tuba']){
   const parade=buildBandMember(instrument,113);
   parade.position.x=.06;tickBandMember(parade,.045);
   const stride=parade.children[0].userData.strideMesh;
+  const player=parade.children[0],arms=player.getObjectByName('Articulated arms');
+  const beats={...cue,lead:0,counter:1,counterPitch:170,leadPitch:0,bassPitch:0};
+  tickBandMember(parade,0,beats);
+  const answer=[...arms.morphTargetInfluences];
+  if(instrument==='sax'||instrument==='trombone')assert(answer.some(v=>v>.2),'lower horns take the response');
+  else assert(answer.every(v=>v===0),'trumpet and rhythm section leave room for the answer');
+  tickBandMember(parade,0,{...beats,counter:0,counterPitch:0,lead:.9,leadPitch:330,bass:.8,bassPitch:90,snare:1,kick:.6});
+  if(instrument==='trumpet'||instrument==='tuba'||instrument==='drum')assert(arms.morphTargetInfluences.some(v=>v>.5));
+  tickBandMember(parade,0,{...beats,playing:false});
+  assert(arms.morphTargetInfluences.every(v=>v===0),'nonperforming musician releases the instrument action');
   assert(stride.geometry.userData.shared);assert(stride.morphTargetInfluences.some(v=>v!==0));
   assert(stride.morphTargetInfluences.every(Number.isFinite));
 }

@@ -1619,7 +1619,7 @@ function tickBody(dt) {
     people.run('late-activities',peopleFrame);
     peopleFrameTrace?.mark('healing-arts');
     const stageLightTiming = _perfFrameParts?.enter('lights');
-    updateStageLightShow(nowS, nightness, zerble.position);
+    updateStageLightShow(peopleFrame.displayTime, nightness, zerble.position);
     _perfFrameParts?.leave(stageLightTiming);
     people.run('place-cooks',peopleFrame);
     peopleFrameTrace?.mark('cooks');

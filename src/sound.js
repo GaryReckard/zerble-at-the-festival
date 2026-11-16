@@ -796,6 +796,7 @@ export const Sound = {
   // `style` picks the synth + pattern personality: 'jam' (main stage),
   // 'brass' (side stage), 'drum' (drum circle). Unknown styles default to jam.
   attachStageMusic(x, y, z, seed, style = 'jam', opts = {}) {
+    const entry = {handle:null,x,z};
     if (!ctx) {
       // Deferred handle — Sound.init will adopt a real music instance into
       // this same object once the AudioContext exists. Position updates that
@@ -807,11 +808,17 @@ export const Sound = {
         _pendingX: x, _pendingY: y, _pendingZ: z,
         _adopt(real) {
           this._real = real;
+          if (this._performing === false) real?.setPerforming?.(false);
           if (real && real.setPosition) {
             real.setPosition(this._pendingX, this._pendingY, this._pendingZ);
           }
         },
+        setPerforming(active) {
+          this._performing = active;
+          this._real?.setPerforming?.(active);
+        },
         setPosition(nx, ny, nz) {
+          entry.x = nx; entry.z = nz;
           if (this._real && this._real.setPosition) {
             this._real.setPosition(nx, ny, nz);
           } else {
@@ -849,11 +856,17 @@ export const Sound = {
         },
       };
       _pendingStages.push({ x, y, z, seed, style, opts, handle });
-      _stageHandleRegistry.push({ handle, x, z });
+      entry.handle = handle;
+      _stageHandleRegistry.push(entry);
       return handle;
     }
     const real = createStageMusic(ctx, musicBus, x, y, z, seed, style, opts);
-    _stageHandleRegistry.push({ handle: real, x, z });
+    entry.handle = real;
+    if (style === 'second_line') {
+      const move = real.setPosition;
+      real.setPosition = (nx,ny,nz) => { entry.x = nx; entry.z = nz; move(nx,ny,nz); };
+    }
+    _stageHandleRegistry.push(entry);
     return real;
   },
 
@@ -3117,6 +3130,12 @@ function secondLineStage(ctx, panner, seed) {
   const beat = 60 / tempo;
   const tick = beat / 4;          // 16th-note grid
 
+  const clock = createStagePerformanceClock(ctx,'second_line');
+  const score = makeStageArrangement('brass',rng,baseFreq,seed);
+  const bandGain = ctx.createGain();
+  bandGain.gain.value = 1; bandGain.connect(panner);
+  let performing = true;
+
   // ---- Voices ----
   // Two brass voices: a lead horn (trumpet) + a counter horn (trombone).
   const leadOsc = ctx.createOscillator(); leadOsc.type = 'sawtooth';
@@ -3125,14 +3144,14 @@ function secondLineStage(ctx, panner, seed) {
   const leadBpf = ctx.createBiquadFilter();
   leadBpf.type = 'bandpass'; leadBpf.frequency.value = 1500; leadBpf.Q.value = 1.5;
   leadOsc.connect(leadMix); leadSqr.connect(leadMix);
-  leadMix.connect(leadBpf).connect(panner);
+  leadMix.connect(leadBpf).connect(bandGain);
   leadOsc.start(); leadSqr.start();
 
   const counterOsc = ctx.createOscillator(); counterOsc.type = 'sawtooth';
   const counterMix = ctx.createGain(); counterMix.gain.value = 0;
   const counterBpf = ctx.createBiquadFilter();
   counterBpf.type = 'bandpass'; counterBpf.frequency.value = 900; counterBpf.Q.value = 1.2;
-  counterOsc.connect(counterMix).connect(counterBpf).connect(panner);
+  counterOsc.connect(counterMix).connect(counterBpf).connect(bandGain);
   counterOsc.start();
 
   // Tuba walking bass — square through low-pass.
@@ -3140,13 +3159,13 @@ function secondLineStage(ctx, panner, seed) {
   const tubaLpf = ctx.createBiquadFilter();
   tubaLpf.type = 'lowpass'; tubaLpf.frequency.value = 280;
   const tubaGain = ctx.createGain(); tubaGain.gain.value = 0;
-  tubaOsc.connect(tubaLpf).connect(tubaGain).connect(panner);
+  tubaOsc.connect(tubaLpf).connect(tubaGain).connect(bandGain);
   tubaOsc.start();
 
   // Kick drum — short sine sweep.
   const kickOsc = ctx.createOscillator(); kickOsc.type = 'sine';
   const kickGain = ctx.createGain(); kickGain.gain.value = 0;
-  kickOsc.connect(kickGain).connect(panner);
+  kickOsc.connect(kickGain).connect(bandGain);
   kickOsc.start();
 
   // Snare — short noise burst through a band-pass with envelope. To keep
@@ -3154,126 +3173,104 @@ function secondLineStage(ctx, panner, seed) {
   // gain node each hit.
   const noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
   const nch = noiseBuf.getChannelData(0);
-  for (let i = 0; i < nch.length; i++) nch[i] = Math.random() * 2 - 1;
+  const drumNoise = mulberry32(seed ^ 0x736e6172);
+  for (let i = 0; i < nch.length; i++) nch[i] = drumNoise() * 2 - 1;
   const snareSrc = ctx.createBufferSource();
   snareSrc.buffer = noiseBuf;
   snareSrc.loop = true;
   const snareBpf = ctx.createBiquadFilter();
   snareBpf.type = 'bandpass'; snareBpf.frequency.value = 1800; snareBpf.Q.value = 1.6;
   const snareGain = ctx.createGain(); snareGain.gain.value = 0;
-  snareSrc.connect(snareBpf).connect(snareGain).connect(panner);
+  snareSrc.connect(snareBpf).connect(snareGain).connect(bandGain);
   snareSrc.start();
 
-  // ---- Patterns ----
-  // 16 ticks per bar (4 beats × 4 sixteenths). Numbers are tick positions.
-  const KICK_TICKS = [0, 8];                              // kick on 1 and 3
-  const SNARE_TICKS = [
-    { tick: 4,  vol: 0.30 },   // backbeat 2
-    { tick: 6,  vol: 0.10 },   // ghost
-    { tick: 7,  vol: 0.20 },   // pickup to 3
-    { tick: 12, vol: 0.30 },   // backbeat 4
-    { tick: 13, vol: 0.12 },   // grace
-    { tick: 14, vol: 0.18 },   // roll
-    { tick: 15, vol: 0.22 },   // pickup to 1
+  // A sixteen-bar street head: trumpet call, lower-horn answer, two bars
+  // for the drums, a full-band shout, and a turnaround into the next chorus.
+  // A number is a note's length in sixteenths; zero gives the horn a breath.
+  const calls = [
+    [2,0,0,1, 0,0,2,0, 6,0,0,0, 0,0,0,1],
+    [0,1,2,0, 0,0,0,1, 2,0,0,1, 3,0,0,0],
+    [3,0,0,0, 1,0,0,1, 0,1,0,1, 4,0,0,0],
   ];
-  const SCALE = SCALE_MIXO;
-
-  // Variation pass: 3 tuba walks, 3 lead riffs, 3 counter-horn variants.
-  // Rotate every 32 ticks (= 2 bars) so each variant gets two cycles before
-  // it swaps out. Lead horn drops 18% of phrases (a brass player breathes
-  // when there's nothing to say). Slow ±20% gain breath over 20s.
-  const TUBA_VARIANTS = [
-    [1.0, 1.0, 1.5, 1.5, 16/9, 16/9, 4/3, 4/3],   // I → V → bVII → IV
-    [1.0, 1.0, 4/3, 4/3, 3/2,  3/2,  1.0,  1.0],   // I → IV → V → I
-    [1.0, 5/4, 3/2, 5/4, 1.0,  4/3,  3/2,  4/3],   // walking arpeggio
+  const answers = [
+    [0,0,0,0, 3,0,0,1, 0,0,0,0, 2,0,1,0],
+    [0,0,2,0, 0,1,0,0, 5,0,0,0, 0,0,1,0],
+    [2,0,1,0, 0,0,0,1, 0,0,2,0, 3,0,0,0],
   ];
-  const LEAD_VARIANTS = [
-    [4, -1, 5, 4, -1, 2, -1, 1,  4,  5, 6, 5, 4, 2, 1, -1],
-    [6, -1, 5, -1, 4, -1, 5,  4,  2,  1, -1, 2, 4, -1, 5, -1],
-    [1, 2, 4, 5, -1, 6, 5, 4,  -1, 5, 4, 2, 1, -1, -1, -1],
-  ];
-  const COUNTER_VARIANTS = [
-    [-1, -1, 1, -1, -1, 2, -1, -1, -1, -1, 4, -1, 2,  1, -1, -1],
-    [-1, -1, -1, 4, -1, -1, 2, -1, -1, -1, -1, 5, -1, -1, 4, -1],
-    [-1,  1, -1, -1, 4, -1, -1, 2, -1,  1, -1, -1, 5, -1, -1, 4],
-  ];
-
-  const TICKS_PER_ROTATION = 32;
-  const REST_PROB_LEAD = 0.08;
-  const LFO_PERIOD_S = 20;
-  const LFO_DEPTH = 0.20;
-
-  let nextTick = ctx.currentTime + 0.15;
-  let tickIdx = 0;
+  const snare = [0,0,0,.055, .23,0,.06,.13, 0,0,.045,0, .24,0,.08,.12];
+  let nextBeat = ctx.currentTime + .15, beatIndex = 0;
+  function note(gain,lane,at,length,level,pitch=0,hold=false) {
+    clock.note(lane,at,length,pitch);
+    gain.cancelScheduledValues(at);
+    gain.setValueAtTime(.0001,at);
+    const attack = lane === 'snare' || lane === 'kick' ? .003 : .018;
+    gain.exponentialRampToValueAtTime(level,at+attack);
+    if (hold) gain.exponentialRampToValueAtTime(level*.72,at+length*.64);
+    gain.exponentialRampToValueAtTime(.0001,at+length);
+  }
   function schedule() {
-    const horizon = ctx.currentTime + 0.6;
-    while (nextTick < horizon) {
-      const t = nextTick;
-      const bt = tickIdx % 16;
-      const rot = Math.floor(tickIdx / TICKS_PER_ROTATION);
-      const TUBA_RATIOS = TUBA_VARIANTS[rot % TUBA_VARIANTS.length];
-      const LEAD = LEAD_VARIANTS[rot % LEAD_VARIANTS.length];
-      const COUNTER = COUNTER_VARIANTS[rot % COUNTER_VARIANTS.length];
-      const breath = 1 + LFO_DEPTH * Math.sin((t / LFO_PERIOD_S) * 2 * Math.PI);
-
-      // Kick
-      if (KICK_TICKS.includes(bt)) {
-        kickOsc.frequency.setValueAtTime(105, t);
-        kickOsc.frequency.exponentialRampToValueAtTime(45, t + 0.10);
-        kickGain.gain.cancelScheduledValues(t);
-        kickGain.gain.setValueAtTime(0.0001, t);
-        kickGain.gain.exponentialRampToValueAtTime(0.42 * breath, t + 0.005);
-        kickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.20);
-      }
-      // Snare
-      for (const s of SNARE_TICKS) {
-        if (s.tick === bt) {
-          snareGain.gain.cancelScheduledValues(t);
-          snareGain.gain.setValueAtTime(0.0001, t);
-          snareGain.gain.exponentialRampToValueAtTime(s.vol * breath, t + 0.002);
-          snareGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+    if (ctx.state !== 'running') return;
+    const now = ctx.currentTime;
+    if (nextBeat < now) nextBeat = now + .025;
+    while (nextBeat < now + .6) {
+      const bar = Math.floor(beatIndex/4), phrase = bar % 16, b = beatIndex % 4;
+      const section = phrase < 4 ? 'call' : phrase < 8 ? 'answer' : phrase < 10 ? 'drum break' : phrase < 14 ? 'shout' : 'turnaround';
+      const harmony = phrase < 8 ? 'verse' : phrase < 10 ? 'bridge' : 'chorus';
+      const variant = (Math.floor(bar/2) + Math.floor(bar/16) + score.groove) % 3;
+      const accent = section === 'shout' ? 1 : section === 'drum break' ? .72 : .88;
+      clock.beat(nextBeat,beat,beatIndex,section,accent);
+      for (let sub=0;sub<4;sub++) {
+        const step = b*4 + sub;
+        const at = nextBeat + tick*(sub + (sub%2 ? .14 : 0));
+        const pickup = b === 3 && bar%4 === 3;
+        if (step === 0 || step === 8 || (pickup && sub === 3)) {
+          kickOsc.frequency.setValueAtTime(105,at);
+          kickOsc.frequency.exponentialRampToValueAtTime(45,at+.10);
+          note(kickGain.gain,'kick',at,.18,(sub ? .19 : .34)*accent);
+        }
+        let tap = snare[step];
+        if (sub%2 && (bar+b)%3===0 && !pickup) tap=0;
+        if (pickup && sub===1) tap=.085;
+        if (section==='drum break' && (step===2 || step===9)) tap=.16;
+        if (tap) note(snareGain.gain,'snare',at,tap<.10?.044:.085,tap);
+        if ((sub===0 && (section!=='drum break' || b%2===0)) || (pickup && sub===2)) {
+          const degree = sub ? -1 : [0,2,4,bar%2 ? 2 : 0][b];
+          const pitch = score.bass(harmony,sub?bar+1:bar,degree);
+          tubaOsc.frequency.setValueAtTime(pitch,at);
+          note(tubaGain.gain,'bass',at,tick*(sub?1.5:b===0?3.3:2.4),.24*accent,pitch);
+        }
+        const call = calls[variant][step], answer = answers[variant][step];
+        if (call && section !== 'drum break' && !(section==='answer' && bar%2===0)) {
+          const pitch = score.lead(harmony,bar,b,sub>=2 ? 1 : 0);
+          leadOsc.frequency.setValueAtTime(pitch*1.004,at);
+          leadSqr.frequency.setValueAtTime(pitch*.996,at);
+          note(leadMix.gain,'lead',at,tick*call*.94,.135*accent,pitch,call>=3);
+        }
+        if (answer && section!=='drum break' && !(section==='call' && bar%2===0)) {
+          const pitch=score.chord(harmony,bar,sub>=2 ? 4 : 2)*.5;
+          counterOsc.frequency.setValueAtTime(pitch,at);
+          note(counterMix.gain,'counter',at,tick*answer*.93,.15*accent,pitch,answer>=3);
         }
       }
-      // Tuba on every other tick (8th notes)
-      if (bt % 2 === 0) {
-        const ratio = TUBA_RATIOS[(bt / 2) % TUBA_RATIOS.length];
-        tubaOsc.frequency.setValueAtTime(baseFreq * 0.5 * ratio, t);
-        tubaGain.gain.cancelScheduledValues(t);
-        tubaGain.gain.setValueAtTime(0.0001, t);
-        tubaGain.gain.exponentialRampToValueAtTime(0.30 * breath, t + 0.02);
-        tubaGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.55);
-      }
-      // Lead horn riff
-      const leadIdx = LEAD[bt];
-      if (leadIdx >= 0 && Math.random() >= REST_PROB_LEAD) {
-        const f = baseFreq * SCALE[leadIdx % SCALE.length];
-        leadOsc.frequency.setValueAtTime(f * 1.004, t);
-        leadSqr.frequency.setValueAtTime(f * 0.996, t);
-        leadMix.gain.cancelScheduledValues(t);
-        leadMix.gain.setValueAtTime(0.0001, t);
-        leadMix.gain.exponentialRampToValueAtTime(0.18 * breath, t + 0.015);
-        leadMix.gain.exponentialRampToValueAtTime(0.0001, t + tick * 2.6);
-      }
-      // Counter horn (lower)
-      const counterIdx = COUNTER[bt];
-      if (counterIdx >= 0) {
-        const f = baseFreq * 0.5 * SCALE[counterIdx % SCALE.length];
-        counterOsc.frequency.setValueAtTime(f, t);
-        counterMix.gain.cancelScheduledValues(t);
-        counterMix.gain.setValueAtTime(0.0001, t);
-        counterMix.gain.exponentialRampToValueAtTime(0.14 * breath, t + 0.02);
-        counterMix.gain.exponentialRampToValueAtTime(0.0001, t + tick * 3);
-      }
-
-      nextTick += tick;
-      tickIdx++;
+      nextBeat+=beat; beatIndex++;
     }
   }
   schedule();
   const intervalId = setInterval(schedule, 160);
   return {
     panner,
+    samplePerformance(out) {
+      const cue = clock.sample(out);
+      return !performing && cue.playing ? silentPerformance(out,'gap','second_line',ctx.currentTime) : cue;
+    },
+    setPerforming(active) {
+      if (active === performing) return;
+      performing = active;
+      bandGain.gain.setTargetAtTime(active ? 1 : 0,ctx.currentTime,.023);
+    },
     stop() {
+      clock.stop();
+      bandGain.disconnect();
       clearInterval(intervalId);
       try { leadOsc.stop(); } catch (e) {}
       try { leadSqr.stop(); } catch (e) {}

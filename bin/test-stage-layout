@@ -31,7 +31,7 @@ for (const isMain of [false, true]) {
 
       let meshes = 0, triangles = 0, casters = 0;
       stage.group.traverse(node => {
-        if (!node.isMesh) return;
+        if (!node.isMesh || node.name==='Stage beam fans') return;
         meshes++;
         triangles += (node.geometry.index ?? node.geometry.attributes.position).count / 3;
         if (node.castShadow) casters++;
