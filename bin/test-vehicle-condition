@@ -47,15 +47,17 @@ console.log('PASS vehicle condition: impact severity, persistent-contact dedup, 
 const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
 const terminal=main.slice(main.indexOf('function runEndMessage('),main.indexOf('HUD.onScoreAgain('));
 for(const festival of [false,true])for(const cause of ['wrecked','submerged']){
- const calls={festival:0,screen:0,flush:0,report:0,sound:0};
+ const calls={festival:0,screen:0,flush:0,report:0,sound:0,quests:0};
  const scope={vehicleGameOver:null,controlsLocked:false,RunMode:{isFestival:()=>festival},
   endFestivalRun(value){assert.equal(value,cause);calls.festival++;},
   playerStats:{flush(){calls.flush++;}},reportPassport(){calls.report++;},
   Sound:{stopSputterLoop(){},playRunEndSting(){calls.sound++;},setEngineSpeed(){}},
   HUD:{showScoreScreen(view){calls.screen++;assert(view.cause.includes(cause==='submerged'?'deep':'dents'));}},
-  Scoring:{current:42,bestCombo:1},Leaderboard:{localTop:()=>[]}};
+  Scoring:{current:42,bestCombo:1},Leaderboard:{localTop:()=>[]},
+  quests:{stop(){calls.quests++;}}};
  const end=vm.runInNewContext(terminal+';endVehicleRun',scope);
  end(cause);end(cause);assert.equal(scope.vehicleGameOver,cause);assert.equal(scope.controlsLocked,true);
+ assert.equal(calls.quests,1,'passenger quests stop once when the cart is finished');
  assert.equal(calls.festival,festival?1:0);assert.equal(calls.screen,festival?0:1);
  assert.equal(calls.flush,festival?0:1);assert.equal(calls.report,festival?0:1);
 }
