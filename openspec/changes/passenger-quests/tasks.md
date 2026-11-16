@@ -62,3 +62,13 @@
 - [x] 11.5 Implement the Festival Passport Ride log tab with browser-local totals and the latest 20 deliveries.
 - [ ] 11.6 Look at a hailer from the chase camera on a real GPU: is the bubble and wave noticeable at 30 to 75 m?
 - [x] 11.7 Verify the Ride log in the production browser flow, including keyboard tabs, empty/populated states and storage-failure notice.
+
+## 12. Follow-up audit and flexible facility requests
+- [x] 12.1 Preserve safe-arrival commits, respect hailer/cooldown ownership and release monk quest holds safely at shutdown.
+- [x] 12.2 Suppress offers, hails and destination searches under lab, autopilot and capture flags; retain explicit presentation overhead limits.
+- [x] 12.3 Reconcile stale map objectives and preserve valid player selections; retain shortest-turn arrows and warning-priority toasts.
+- [x] 12.4 Accept any built matching hammock or porta-potty, preserve named destinations and urgent deadlines, and cap alternate-stop distance rewards.
+- [x] 12.5 Register decorative hammock drop-offs without changing collisions, seating, admission footprints or seeded RNG.
+- [x] 12.6 Explain flexible stops and show destination names, arrival-speed and safe-exit guidance in the passenger panel.
+- [x] 12.7 Validate the combined build and desktop browser paths; record physical-device and subjective limits separately.
+- [ ] 12.8 Measure reward economy and hailer readability during real play; see audit finding 5 (hailing economy).

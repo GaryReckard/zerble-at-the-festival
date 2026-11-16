@@ -52,16 +52,16 @@ src/questHud.js              DOM    compass strip
 | `QUEST.CHANCE` | 0.08 | Rare walk-up requests supplement hailing |
 | First boarder of a session | ordinary chance roll | Hailers introduce the feature |
 | `MAX_ACTIVE` | 3 | Compass strip legibility |
-| Distance band | 80 to 300 m | Design doc |
+| Distance band | at least 60 m to the edge of the stop, at most 300 m to its centre | A wide venue must not yield a trip of a few metres |
 | Arrive radius | Per kind in the catalog (16 to 45 m); a camp village supplies `min(60, footprint + 10)` and the larger value wins; stages are aimed at their dance floor instead of the deck | Big venues are entered, not touched |
 | Arrive speed | under 2 m/s | Design doc |
 | Stall patience | 75 s without getting 5 m closer | Replaces the fixed 90 s clock; see session-log D3 |
 | Missed | was inside the arrive radius, then beyond 60 m | Halves the bonus once |
-| Reward | `6 + floor(startDist / 50)`, so 7 to 12 raw smiles | Under the Worker's placeholder 40 raw/min even back to back |
-| Urgent chance | 12% of quests, when a potty is 60 to 220 m away | Rare by design |
+| Reward | `6 + floor(startDist / 50)`, so 7 to 12 raw smiles | Sized against the Worker's placeholder 40 raw/min for the original 30% boarding roll. **Not re-derived for hailing:** the adversarial audit estimates farming could approach or pass that rate. Unmeasured; see questions-for-human Q2. |
+| Urgent chance | 12% of quests, when a potty is at least 45 m from its arrival edge and at most 220 m from its centre | Rare by design |
 | Urgent clock | `30 + dist / 5` s | 42 to 74 s |
 | Urgent reward / penalty | 10 plus up to 5 for spare time / minus 2 | Light stakes |
-| Mountaintop band | 200 to 900 m, reward `10 + floor(dist / 60)` | A journey, not an errand |
+| Mountaintop band | 160 m to the arrival edge, at most 900 m to the centre, reward `10 + floor(dist / 60)` | A journey, not an errand |
 | Monk party reward | 3 per monk | 12 to 18 for the party |
 
 ## Destination kinds
@@ -88,3 +88,9 @@ Every candidate is rejected if `lakeAt` reports water at its point.
 - `bin/test-passenger-quests`: engine, picker and catalog in Node (added to `npm run check`).
 - `sandbox.html?entity=quest_bubbles&mute=1`: every icon at each brightness step.
 - `/?mute=1` with `__dbg.quests()`, `__dbg.giveQuest(kind)`, `__dbg.questGo()` for the real loop.
+
+## Facility versus specific-destination requests
+
+Gary’s November 15 playtest exposed the mismatch between “I need a hammock / porta-potty” and a hidden exact target. These two facility kinds now accept any actually built matching stop. Arrows and map pins suggest a route, while the card explicitly says any matching facility works. Other kinds still name and require a particular destination. This scope does not silently convert a rider’s own camp, stage or summit to an interchangeable location.
+
+Arrival still requires speed below 2 m/s and a safe disembarkation. The HUD says “Slow down!” above that threshold, “Pull over nearby” when the exit is unsafe, and “Find a hammock/potty” when a suggested area contains no built facility. Decorative tree hammocks expose quest metadata without acquiring NPC seats. A closer accepted alternative caps the distance reward; urgent deadlines never restart. Physical-phone and subjective reward acceptance remain separate.

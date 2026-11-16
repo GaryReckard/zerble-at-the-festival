@@ -116,7 +116,17 @@ export class FestivalMap {
   toggle(){this.setExpanded(!this.expanded);}
   setCompact(on){this.compact=!!on;try{localStorage.setItem(MAP_VISIBLE_KEY,on?'1':'0');}catch{}this.host.hidden=!this.expanded&&!this.compact&&!this.transitioning;}
   changeZoom(factor){if(!Number.isFinite(factor)||factor<=0)return;this.zoom=Math.max(.4,Math.min(3,this.zoom*factor));this.lastBackground=0;}
-  setObjectives(markers){this.objectives.clear();for(const m of markers.slice(0,32))if(m.id&&finitePoint(m))this.objectives.set(m.id,{...m,kind:'objective',objective:true});}
+  setObjectives(markers){
+    const selectedObjective = this.objectives.has(this.selected) || (this.selectedMarker?.id === this.selected && this.selectedMarker?.objective);
+    this.objectives.clear();
+    for(const m of markers.slice(0,32))if(m.id&&finitePoint(m))this.objectives.set(m.id,{...m,kind:'objective',objective:true});
+    // Reconcile immediately, including while the map is hidden and tick skips
+    // marker refresh. Keep every still-valid selection, including landmarks.
+    if(selectedObjective && !this.objectives.has(this.selected)){
+      this.selected=null;this.selectedMarker=null;
+    }
+    this.lastModel=0;
+  }
   track(id){this.selected=id;}
   togglePin(id){
     const marker=this.markers?.find(m=>m.id===id);

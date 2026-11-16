@@ -13,7 +13,7 @@ for(const [text,name,args] of [
  ['/npc freeze','npc',['freeze']],['/npc resume','npc',['resume']],['/npc cheer','npc',['cheer']],['/npc status','npc',['status']],
  ['/juice 0','juice',[0]],['/juice','juice',[undefined]],['/smiles 100','smiles',[100]],['/star','star',['find']],['/star spawn','star',['spawn']],['/star trigger','star',['trigger']],['/star end','star',['end']],
  ['/heading 360','heading',[360]],['/stop','stop',[]],['/where','where',[]],['/seed','seed',[]],['/status','status',[]],
- ['/quest status','quest',['status',undefined]],['/quest give urgent','quest',['give','urgent']],['/quest hail food_court','quest',['hail','food_court']],['/quest go','quest',['go',undefined]],
+ ['/quest status','quest',['status',undefined]],['/quest give urgent','quest',['give','urgent']],['/quest give hammock','quest',['give','hammock']],['/quest hail food_court','quest',['hail','food_court']],['/quest go','quest',['go',undefined]],['/quest approach','quest',['approach',undefined]],
  ['/inspect camps','inspect',['camps']],['/inspect audio','inspect',['audio']],
  ['/camera top 240','camera',['top',240]],['/camera chase','camera',['chase']],
  ['/perf','perf',['status']],['/perf on','perf',['on']],['/mute','mute',[undefined]],['/mute on','mute',['on']],

@@ -58,6 +58,25 @@ if(!baseline){
   const {crowd,party}=fixture(currentPath);party.clock=10;
   const cart={position:new Vector(),speed:0,seatSlots:Array.from({length:6},(_,i)=>({name:'seat'+i,occupied:false}))};
   crowd.npcs.forEach(n=>n.pos.set(0,0,0));
+  assert(party.reserve(cart));
+  for(const member of party.members)party.arrive(member.handle,party.reservation);
+  party.questHold=true;
+  const reservation=party.reservation;
+  party.releaseQuest();party.releaseQuest();
+  assert.equal(party.questHold,false);
+  assert.equal(party.vehicle,cart);assert.equal(party.reservation,reservation);
+  assert(crowd.npcs.every(n=>n.state==='riding'),'quest cancellation must not force a physical exit');
+  assert.equal(cart.seatSlots.filter(s=>s.occupied).length,5);
+  party.clock=party.rideUntil;
+  party.update(.05,cart);
+  assert.equal(party.vehicle,null,'ordinary stopped-party lifecycle resumes once its hold is released');
+  assert(cart.seatSlots.every(s=>!s.occupied));
+  party.dispose();
+ }
+ {
+  const {crowd,party}=fixture(currentPath);party.clock=10;
+  const cart={position:new Vector(),speed:0,seatSlots:Array.from({length:6},(_,i)=>({name:'seat'+i,occupied:false}))};
+  crowd.npcs.forEach(n=>n.pos.set(0,0,0));
   const handles=party.members.map(m=>m.handle),slots=cart.seatSlots;
   slots[0].occupied=true;slots[1].occupied=true;
   assert.equal(party.reserve(cart),false);assert(crowd.npcs.every(n=>!n.seatSlot));

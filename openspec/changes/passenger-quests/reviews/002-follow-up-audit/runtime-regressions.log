@@ -1,0 +1,20 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'Find a potty'
+- 'Stop here!'
+
+    at file:///Users/garyreckard/Sites/zerble-at-the-festival/.claude/worktrees/passenger-quests-followup/bin/test-passenger-quests:256:10 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'Find a potty',
+  expected: 'Stop here!',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.10.0

@@ -88,6 +88,11 @@ export class MonkParty {
         if(seated&&this.vehicle!==this.wagon)this.questHold=!!this.onBoardZerble?.(this);
         return seated;
     }
+    releaseQuest() {
+        // Quest shutdown releases only its hold; the party still owns when
+        // and how it leaves the vehicle through the ordinary riding lifecycle.
+        this.questHold=false;
+    }
     leave() {
         if(this._disposed||!this.members.length||!this.vehicle)return;
         const wasZerble=this.vehicle!==this.wagon;this.questHold=false;

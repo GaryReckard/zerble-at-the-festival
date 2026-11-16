@@ -14,11 +14,12 @@ import { FESTIVAL_TUNING } from '../worldgen/tuning.js';
 import { lakeAt } from '../worldgen/water.js';
 import { quantize } from '../rng.js';
 import { QUEST } from './catalog.js';
+export { isGenericFacility, resolveNearbyFacility } from './facilityArrival.js';
 
 const STAGES = new Set(['main_stage', 'side_stage', 'tent_stage']);
 const PLAN_KINDS = new Set(['food_court', 'vendor_row', 'drum_circle', 'arch', 'healing_arts']);
 // registry kind -> quest kind
-const REGISTRY_KINDS = { beach: 'beach', hammock: 'hammock', forest_drum_circle: 'drum_circle', porta_potty: 'porta_potty' };
+const REGISTRY_KINDS = { beach: 'beach', hammock: 'hammock', hammock_dropoff: 'hammock', forest_drum_circle: 'drum_circle', porta_potty: 'porta_potty' };
 const LEGACY_REGISTRY_KINDS = { stage_front: 'side_stage', drum_circle: 'drum_circle', campsite: 'camp_village', arch: 'arch' };
 
 function fromPlan(d) {

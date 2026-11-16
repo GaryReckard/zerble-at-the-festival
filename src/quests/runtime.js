@@ -6,7 +6,7 @@
 import { PassengerQuests } from './engine.js';
 import { planOffer } from './pick.js';
 import { QUEST, DESTINATIONS } from './catalog.js';
-import { gatherDestinations } from './worldSource.js';
+import { gatherDestinations, isGenericFacility, resolveNearbyFacility } from './worldSource.js';
 
 const CELEBRATE_SECONDS = 2.6;
 
@@ -26,16 +26,26 @@ export class QuestRuntime {
     this._hailIn = QUEST.HAIL_FIRST; this._hailId = 1; this._hailTip = false; this._walker = {};
     this.engine = new PassengerQuests({ random });
     this.enabled = true;
-    this.parties = new Map();       // party key -> { leave() }
+    this.parties = new Map();       // party key -> { leave(), releaseQuest() }
     this.listeners = new Set();     // presentation layers: (type, quest, data) => void
     this.lastGatherMs = 0;
     this.lastEvent = null;
     this._rider = {};
+    this._facilityIn = 0;
     this._burst = { x: 0, y: 0, z: 0 };
     this._emit = (type, quest, data = {}) => this._handle(type, quest, data);
     this._prepareArrival = (quest) => {
-      if (this.zerble.physicsDriven && (!this.zerble.grounded || (this.zerble.engineState?.immersion ?? 0) > 0.4)) return false;
-      return quest.type === 'party' || this.crowd.endRide(quest.riderId, this.zerble, { celebrate: CELEBRATE_SECONDS, retainHold: true });
+      // Facility requests need a currently built matching stop, even when the
+      // original suggested location has since unloaded or was only a plan.
+      if (isGenericFacility(quest) && !quest.arrivalTarget) {
+        quest.arrivalBlocked = 'facility_missing'; return false;
+      }
+      if (this.zerble.physicsDriven && (!this.zerble.grounded || (this.zerble.engineState?.immersion ?? 0) > 0.4)) {
+        quest.arrivalBlocked = 'unsafe_exit'; return false;
+      }
+      const ready = quest.type === 'party' || this.crowd.endRide(quest.riderId, this.zerble, { celebrate: CELEBRATE_SECONDS, retainHold: true });
+      if (!ready) quest.arrivalBlocked = 'unsafe_exit';
+      return ready;
     };
   }
 
@@ -61,7 +71,8 @@ export class QuestRuntime {
       return quest;
     }
     if (!force && !this.engine.rollOffer()) return null;
-    if (this.engine.full) return null;
+    // People already hailing have a claim on the remaining places.
+    if (this.engine.full || (!force && this.engine.active.length + this.hails.length >= QUEST.MAX_ACTIVE)) return null;
     const origin = this._player();
     const started = performance.now();
     const candidates = gatherDestinations(origin, {
@@ -82,10 +93,12 @@ export class QuestRuntime {
   }
 
   // A party sharing one destination (monks). `key` identifies the party and
-  // `party` supplies { leave() } so the whole group steps off together. The
+  // `party` supplies { leave(), releaseQuest() } so the whole group steps off
+  // together, while shutdown can release its hold without forcing an exit. The
   // party picks an ordinary destination but speaks in its own voice.
   offerParty(key, party, members, { voice = 'monk_party', force = null } = {}) {
     if (!this.enabled || this.engine.full || this.engine.has(key)) return null;
+    if (!force && this.engine.active.length + this.hails.length >= QUEST.MAX_ACTIVE) return null;
     const origin = this._player();
     const candidates = gatherDestinations(origin, { registry: this.registry, worldgen: this.worldgen, reach: QUEST.MAX_DIST });
     const plan = planOffer(candidates, origin, { random: this.random, activeKinds: this.engine.activeKinds(), allowUrgent: false, allowSummit: false, force });
@@ -151,7 +164,7 @@ export class QuestRuntime {
       if (hail.waveIn <= 0 && d < 45) {
         hail.waveIn = 3.2 + this.random() * 2;
         this.crowd.hailWave(hail.handle, this.zerble);
-        if (!this._hailTip && d < 30) { this._hailTip = true; this.toast('Someone is flagging you down. Stop beside them to give them a lift!', 3600); }
+        if (!this._hailTip && d < 30) { this._hailTip = true; this.toast('Someone is flagging you down. Pull up beside them and stop to give them a lift!', 3600, { low: true }); }
       }
     }
     if (!this.hailing) return;
@@ -160,6 +173,7 @@ export class QuestRuntime {
   }
 
   update(dt) {
+    if (!this.enabled) return;
     this._updateHails(dt);
     if (!this.engine.active.length) return;
     // Notice riders who left for any other reason (ordinary timeout cannot
@@ -168,10 +182,37 @@ export class QuestRuntime {
       if (quest.type === 'party') continue;   // the party owner reports its own exits
       if (!this.crowd.riderInfo(quest.riderId, this._rider)) this.engine.cancel(quest.riderId, this._emit, 'left');
     }
-    this.engine.update(dt, this._player(), this._emit, this._prepareArrival);
+    const player = this._player();
+    for (const quest of this.engine.active) quest.arrivalBlocked = false;
+    this._facilityIn -= dt;
+    if (Math.abs(player.speed) < QUEST.ARRIVE_SPEED || this._facilityIn <= 0) {
+      this._facilityIn = 0.25;
+      for (const quest of this.engine.active) {
+        // Moving carts get bounded-cadence "Slow down" guidance; every actual
+        // drop-off rechecks built facilities without resetting the deadline.
+        quest.arrivalTarget = resolveNearbyFacility(quest, player, this.registry);
+      }
+    }
+    this.engine.update(dt, player, this._emit, this._prepareArrival);
   }
 
-  clear() { for (const hail of [...this.hails]) this._endHail(hail, 'reset'); for (const q of [...this.engine.active]) if (q.type !== 'party') this.crowd.holdRide(q.riderId, false); this.engine.clear(this._emit); }
+  // Shut quests down: cancel everything and offer nothing more (a run ended,
+  // or a performance capture needs a frame with no unseeded work in it).
+  stop() { this._stopped = true; this.enabled = false; this.hailing = false; this.clear(); }
+
+  clear() {
+    if (this._clearing) return;
+    const enabled = this.enabled;
+    this.enabled = false;
+    this._clearing = true;
+    try {
+      for (const hail of [...this.hails]) this._endHail(hail, 'reset');
+      this.engine.clear(this._emit);
+    } finally {
+      this._clearing = false;
+      this.enabled = enabled && !this._stopped;
+    }
+  }
 
   _spawnBurst(count) {
     const p = this.zerble.position;
@@ -192,12 +233,12 @@ export class QuestRuntime {
     const say = (icon, line, tail = '') => (solo ? `${icon} “${line}”${tail}` : `🙏 ${line}${tail}`);
     switch (type) {
       case 'offered':
-        this.toast(say('💭', data.line), quest.type === 'urgent' ? 3600 : 3000);
+        this.toast(say('💭', data.line), quest.type === 'urgent' ? 3600 : 3000, { low: true });
         this.sound?.playQuestAsk?.(quest.type === 'urgent');
         this.analytics?.questOffered?.(quest.type, quest.kind, quest.startDist);
         break;
       case 'hint': case 'near': case 'missed': case 'via':
-        this.toast(say('💭', data.line), 2400);
+        this.toast(say('💭', data.line), 2400, { low: true });
         break;
       case 'arrived':
         if (solo) {
@@ -228,6 +269,7 @@ export class QuestRuntime {
         // The rider is already gone or the world reset; release the hold if
         // they are somehow still seated.
         if (solo) this.crowd.holdRide(quest.riderId, false);
+        else if (data.reason === 'reset') party?.releaseQuest();
         if (data.reason === 'left') this.analytics?.questEnded?.(quest.type, quest.kind, 'left', quest.age);
         break;
     }

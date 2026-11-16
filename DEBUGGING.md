@@ -1009,3 +1009,7 @@ In the game, `/inspect people` includes the `cornhole` controller's active/vacan
 ### Passenger command palette
 
 In a local running game, press `/` and use `/quest status`, `/quest hail`, `/quest pickup`, `/quest give`, `/quest go` or `/quest log` to inspect and exercise production pickup and delivery. `give` and `hail` accept `urgent`, `summit` or a supported destination kind such as `food_court`. These commands use the existing bounded action adapter, without evaluating arbitrary code. Teleports still mark Passport exploration as relocated.
+
+`/quest give hammock` forces a registered hammock request, and `/quest status` includes cart speed, grounded/immersion state and matching built facilities within 100 m. Active quest records include the effective arrival target and blocked-arrival reason, so a playtest can distinguish the suggested location from an accepted alternative. `menu-preview.html?screen=rides&touch=1&mute=1` lays out three production request cards against the real touch-control markup without a running world.
+
+For the actual hailer approach check, create a hail with `/quest hail`, then run `/quest approach`. This places the cart 35 m away facing the person, without boarding or advancing the NPC. Drive forward and brake normally, honk near the hailer, then confirm they stay available and board. `/quest pickup` only parks beside them and cannot establish the natural approach path.

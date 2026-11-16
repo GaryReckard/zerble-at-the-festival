@@ -46,6 +46,7 @@ export class PassengerQuests {
       id: this._nextId++, riderId, type, kind: dest.kind, icon: info.icon, voice: voice || dest.kind,
       label: dest.label || info.label, short: info.short,
       x: dest.x, z: dest.z, radius, members: Math.max(1, members | 0),
+      originX: origin.x, originZ: origin.z,
       startDist, dist: startDist, best: startDist, lastHintDist: startDist,
       age: 0, stall: 0, idle: 0, idleSaid: false,
       entered: false, missed: false, nearSaid: false, senseSaid: false,
@@ -66,10 +67,11 @@ export class PassengerQuests {
 
   reward(quest) {
     let n;
+    const distance = quest.rewardDist ?? quest.startDist;
     if (quest.type === 'urgent') n = QUEST.URGENT_REWARD + Math.round(QUEST.URGENT_BONUS * clamp01(quest.timeLeft / (quest.totalTime || 1)));
-    else if (quest.type === 'summit') n = 10 + Math.floor(quest.startDist / 60);
+    else if (quest.type === 'summit') n = 10 + Math.floor(distance / 60);
     else if (quest.type === 'party') n = QUEST.PARTY_REWARD_EACH * quest.members;
-    else n = 6 + Math.floor(quest.startDist / 50);
+    else n = 6 + Math.floor(distance / 50);
     return quest.missed ? Math.ceil(n / 2) : n;
   }
 
@@ -118,7 +120,12 @@ export class PassengerQuests {
 
       // The host must finish the physical exit before we commit rewards. A
       // rejected landing leaves the quest active so another stop can retry.
-      if (inside && speed < QUEST.ARRIVE_SPEED && (!prepareArrival || prepareArrival(quest))) {
+      const stop = quest.arrivalTarget;
+      const atStop = stop ? Math.hypot(stop.x - player.x, stop.z - player.z) <= stop.radius : inside;
+      if (atStop && speed < QUEST.ARRIVE_SPEED && (!prepareArrival || prepareArrival(quest))) {
+        // Accepting a closer interchangeable facility must not pay the longer
+        // suggested trip's distance bonus. Keep the offered deadline unchanged.
+        if (stop) quest.rewardDist = Math.min(quest.startDist, Math.hypot(stop.x - quest.originX, stop.z - quest.originZ));
         this._remove(quest);
         this.completed++;
         emit?.('arrived', quest, { reward: this.reward(quest), line: this._line(quest.voice, 'thanks') });

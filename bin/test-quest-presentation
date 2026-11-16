@@ -1,67 +1,104 @@
 #!/usr/bin/env node
+// Real map and presentation lifecycle with DOM/render boundaries stubbed.
 import assert from 'node:assert/strict';
-import { Scene, Texture } from 'three';
-import { QuestBubbles } from '../src/models/questBubble.js';
-import { QuestCompass } from '../src/questHud.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+import { pathToFileURL } from 'node:url';
+const base=path.resolve(new URL('..', import.meta.url).pathname);
+const read=p=>fs.readFileSync(path.join(base,p),'utf8');
+const sourceImport=p=>import(pathToFileURL(path.join(base,p)).href);
+const el=()=>({children:[],listeners:{},dataset:{},classList:{toggle(){},add(){},remove(){},contains(){return false}},style:{setProperty(){}},append(...nodes){this.children.push(...nodes)},setAttribute(k,v){this[k]=v},remove(){},addEventListener(type,fn){this.listeners[type]=fn}});
 
-// Exercise the real sprite/material code without a renderer or canvas painter.
-// Supplying an already-created texture leaves show(), place() and disposal intact.
-const scene = new Scene();
-const bubbles = new QuestBubbles(scene, 1);
-bubbles._textures.set('potty', new Texture());
-try {
-  assert.equal(bubbles.show('urgent', 'potty', 0), true);
-  const sprite = bubbles.group.children[0];
-  const sample = (time, reducedMotion, warmth = 0.9, urgent = true) => {
-    bubbles.place('urgent', 2, 3, 4, { warmth, urgent, reducedMotion }, time);
-    return {
-      scale: sprite.scale.toArray(),
-      position: sprite.position.toArray(),
-      color: sprite.material.color.toArray(),
-      opacity: sprite.material.opacity,
-    };
-  };
-  const quiet = sample(0, true);
-  assert(quiet.scale[0] > 0, 'reduced motion shows the bubble immediately');
-  for (const time of [0.1, 0.35, 1.2, 4]) {
-    assert.deepEqual(sample(time, true), quiet, 'reduced motion stops entrance, jitter, pulse and tint oscillation');
-  }
-  const entrance = sample(0, false);
-  const moving = sample(0.1, false);
-  assert(entrance.scale[0] < moving.scale[0], 'normal motion retains the entrance animation');
-  const later = sample(1.2, false);
-  assert.notDeepEqual(moving.position, later.position, 'normal urgency retains jitter');
-  assert.notDeepEqual(moving.color, later.color, 'normal urgency retains tint animation');
-  assert.deepEqual(sample(1.2, true), quiet, 'enabling reduced motion applies to an existing bubble');
-  assert.notDeepEqual(sample(1.2, false), quiet, 'disabling reduced motion restores animation');
-  assert.notDeepEqual(sample(1.2, true, 0), quiet, 'proximity still changes the presentation without animation');
-  assert.deepEqual(sample(1, true, 0.9, false), sample(2, true, 0.9, false), 'ordinary bubbles also remain still');
-} finally {
-  bubbles.dispose();
-}
+// Evaluate the complete unmodified class bodies, avoiding CSS/Three.js imports.
+// The constructors are bypassed; only DOM, drawing, discovery and geography
+// boundaries are supplied. Selection and lifecycle logic are the real methods.
+const model=await sourceImport('src/festivalMap/model.js');
+let now=1000;
+const env={...model,Math,Map,performance:{now:()=>now},document:{body:el()},textDistance:n=>`${Math.round(n)} m`};
+const mapSource=read('src/festivalMap/view.js');
+const FestivalMap=vm.runInNewContext('('+mapSource.slice(mapSource.indexOf('export class FestivalMap')).replace('export class','class')+')',env);
+const presentationSource=read('src/quests/presentation.js');
+const QuestPresentation=vm.runInNewContext('('+presentationSource.slice(presentationSource.indexOf('export class QuestPresentation')).replace('export class','class')+')',{Math});
+const map=Object.assign(Object.create(FestivalMap.prototype),{
+  objectives:new Map(),compact:false,expanded:false,touchLayout:false,
+  backdrop:{hidden:true},host:{hidden:true},player:{x:0,z:0},width:190,height:190,zoom:1,
+  discovery:{previous:true,token:1,storageOK:true,reveal(){},flush(){},loadBounds(){},landmarks(){return []}},
+  geography:{status:'ready',suspend(){},request(){}},rasters:new Map(),stats:{},samples:[],sampleIndex:0,
+  selectionText:{textContent:''},statusText:{textContent:''},drawBackground(){},drawMarkers(){},updatePinOptions(){},
+});
+const tick=()=>{now+=250;map.tick({player:{x:0,z:0},dt:.016});};
+map.setObjectives([{id:'quest:1',x:100,z:0,label:'Old ride'}]);
+map.track('quest:1');
+map.selectedMarker={...map.objectives.get('quest:1')};
+map.setObjectives([]); // Completion emits dirty pins, which presentation removes.
+tick();
+assert.equal(map.selected,null,'removed objective clears even while hidden');
+const view=Object.assign(Object.create(QuestPresentation.prototype),{
+  time:0,runtime:{active:[{id:2,type:'summit',riderId:'rider',x:900,z:0,short:'Mountaintop'}],hails:[]},
+  reducedMotion:()=>false,crowd:{riderInfo:()=>false},compass:null,festivalMap:map,
+  _pinsDirty:true,_track:'quest:2',_rider:{},
+});
+view.update(.016);
+assert.equal(map.selected,'quest:2');
+assert.equal(view._track,null);
+assert.equal(map.objectives.has('quest:2'),true);
+tick();
+assert.equal(map.selected,'quest:2');
+map.compact=true; // Reopen the compact map and run its entire real tick method.
+tick();
+assert.equal(map.selected,'quest:2','visible tick preserves the new summit');
+view.update(.016);tick();
+assert.equal(map.selected,'quest:2','summit remains tracked');
+map.track('known-landmark');map.setObjectives([]);assert.equal(map.selected,'known-landmark');
+map.setObjectives([{id:'quest:3',x:5,z:5}]);map.track('quest:3');map.setObjectives([{id:'quest:3',x:6,z:6}]);assert.equal(map.selected,'quest:3');
+view.runtime.active[0].arrivalTarget={x:20,z:30,radius:10};
+view.update(.016);
+assert.equal(map.objectives.get('quest:2').x,20);
+assert.equal(map.objectives.get('quest:2').z,30);
+console.log('PASS: real map reconciliation preserves valid targets and tracks summit after hidden objective removal; alternate pin updates.');
 
-// Native Event objects check cancellation semantics. The minimal target supplies
-// only closest(), so the production constructor registers and executes its handlers.
-// Actual browser-generated Space-to-click activation remains a browser smoke check.
-const root = new EventTarget();
-let onChip = true;
-root.closest = () => onChip ? { dataset: { quest: '12' } } : null;
-const picked = [];
-new QuestCompass(root, { onPick: id => picked.push(id) });
-function keydown(key) {
-  const event = new Event('keydown', { bubbles: true, cancelable: true });
-  Object.defineProperty(event, 'key', { value: key });
-  root.dispatchEvent(event);
-  return event;
-}
-const space = keydown(' ');
-assert.equal(space.cancelBubble, true, 'Space on a quest button cannot bubble into game controls');
-assert.equal(space.defaultPrevented, false, 'the browser remains free to activate the button');
-assert.equal(keydown('Enter').cancelBubble, false, 'unrelated keys retain their existing behavior');
-onChip = false;
-assert.equal(keydown(' ').cancelBubble, false, 'Space outside a quest button is not swallowed');
-onChip = true;
-root.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
-assert.deepEqual(picked, [12], 'the activation click still selects the requested quest');
+const {QuestCompass}=await sourceImport('src/questHud.js');
+globalThis.document={createElement:el};
+const root=el();let picked=null;
+const compass=new QuestCompass(root,{onPick(id){picked=id}});
+assert.equal(root.children[0].textContent,'Passenger rides');
+let stopped=false;
+root.listeners.keydown({key:' ',target:{closest:()=>true},stopPropagation(){stopped=true}});
+assert.equal(stopped,true,'Space preserves native button activation without honking');
+root.listeners.click({target:{closest:()=>({dataset:{quest:'7'}})}});
+assert.equal(picked,7);
+const q={id:1,x:0,z:100,dist:100,radius:25,short:'Main stage',warmth:0,type:'ride'};
+const sync=heading=>{compass.sync([q],{x:0,z:0,heading,speed:0});return compass.chips.get(1).shown;};
+let last=sync(.1),max=0;
+for(let i=1;i<=4000;i++){const next=sync(.1+i*.05);max=Math.max(max,Math.abs(next-last));last=next;}
+assert(max<=6);
+assert.match(compass.chips.get(1).el['aria-label'], /Main stage: 75 m/);
+compass.sync([],{x:0,z:0});assert.equal(compass.chips.size,0);
+console.log(`PASS: actual QuestCompass, 4000 bearings, maximum turn ${max} degrees, label and cleanup.`);
 
-console.log('quest presentation: reduced-motion sprites, live preference changes and Space activation semantics OK');
+const hudSource=read('src/hud.js');
+const method=hudSource.slice(hudSource.indexOf('  toast(msg,'),hudSource.indexOf('\n  flashHit()'));
+let time=0,id=0;const pending=new Map(),toast=el();
+const context={performance:{now:()=>time},toastUntil:0,toastLow:false,toastTimer:0,toastTapHandler:null,$toast:toast,clearToastTap(){},setTimeout(fn){pending.set(++id,fn);return id},clearTimeout(i){pending.delete(i)}};
+const hud=vm.runInNewContext('({'+method+'})',context);
+hud.toast('warning',1000);time=100;hud.toast('chatter',3000,{low:true});
+assert.equal(toast.textContent,'warning');assert.equal(pending.size,1);
+time=1000;hud.toast('chatter',3000,{low:true});assert.equal(toast.textContent,'chatter');assert.equal(pending.size,1);
+hud.toast('new warning',1000);assert.equal(toast.textContent,'new warning');assert.equal(pending.size,1);
+console.log('PASS: actual HUD.toast priority, expiry boundary, and replacement timer.');
+
+const {chipState}=await sourceImport('src/quests/compassMath.js');
+const flexible={...q,kind:'hammock',arrivalTarget:{x:0,z:8,radius:10}};
+assert.equal(chipState(flexible,{x:0,z:0,speed:3}).text,'Slow down!');
+assert.equal(chipState(flexible,{x:0,z:0,speed:0}).text,'Stop here!');
+assert.equal(chipState(flexible,{x:0,z:0,speed:0}).help,'Any hammock works');
+assert.equal(chipState({...q,kind:'porta_potty'},{x:0,z:0}).help,'Any porta-potty works');
+assert.equal(chipState({...q,kind:'main_stage'},{x:0,z:0}).help,'This destination');
+console.log('PASS: flexible stop guidance uses accepted target, speed and facility copy.');
+
+assert.equal(chipState({...q,kind:'hammock',dist:0},{x:0,z:0}).text,'Find a hammock');
+assert.equal(chipState({...q,kind:'porta_potty',dist:0},{x:0,z:0,speed:4}).text,'Find a potty');
+assert.equal(chipState({...flexible,arrivalBlocked:'unsafe_exit'},{x:0,z:0}).text,'Pull over nearby');
+assert.equal(chipState(flexible,{x:0,z:0}).label,'Any hammock');
+console.log('PASS: missing built facility and unsafe exit have actionable guidance.');

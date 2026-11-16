@@ -80,18 +80,23 @@ export class QuestPresentation {
     }
     if (this.compass && (quests.length || this.compass.chips.size)) {
       const p = this.zerble.position;
-      this._player.x = p.x; this._player.z = p.z; this._player.heading = this.zerble.heading;
+      this._player.x = p.x; this._player.z = p.z; this._player.heading = this.zerble.heading; this._player.speed = this.zerble.speed || 0;
       this.compass.sync(quests, this._player);
     }
+    // Flexible facility requests can point at a nearby acceptable stop without
+    // changing the original quest's reward or deadline basis.
+    const pinSignature = quests.map(q => `${q.id}:${q.arrivalTarget?.x ?? q.x}:${q.arrivalTarget?.z ?? q.z}`).join('|');
+    if (pinSignature !== this._pinSignature) { this._pinSignature = pinSignature; this._pinsDirty = true; }
     if (this._pinsDirty && this.festivalMap) {
       this._pinsDirty = false;
       const pins = [];
       for (const q of quests) {
-        pins.push({ id: `quest:${q.id}`, x: q.x, z: q.z, label: q.short });
+        const target = q.arrivalTarget || q;
+        pins.push({ id: `quest:${q.id}`, x: target.x, z: target.z, label: q.short });
         if (q.via && !q.viaReached) pins.push({ id: `quest:${q.id}:via`, x: q.via.x, z: q.via.z, label: 'Road up' });
       }
       this.festivalMap.setObjectives(pins);
-      if (this._track) { this.festivalMap.track(this._track); this._track = null; }
+      if (this._track) { if (this.festivalMap.selected == null) this.festivalMap.track(this._track); this._track = null; }
     }
   }
 

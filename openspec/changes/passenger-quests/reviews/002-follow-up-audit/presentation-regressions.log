@@ -1,0 +1,9 @@
+PASS: real map reconciliation preserves valid targets and tracks summit after hidden objective removal; alternate pin updates.
+PASS: actual QuestCompass, 4000 bearings, maximum turn 6 degrees, label and cleanup.
+PASS: actual HUD.toast priority, expiry boundary, and replacement timer.
+PASS: flexible stop guidance uses accepted target, speed and facility copy.
+PASS: missing built facility and unsafe exit have actionable guidance.
+(node:47574) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/.claude/worktrees/passenger-quests-followup/src/festivalMap/model.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/.claude/worktrees/passenger-quests-followup/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

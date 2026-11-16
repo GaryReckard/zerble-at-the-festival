@@ -442,6 +442,10 @@ body {
   gap: 6px;
 }
 #quest-strip.hidden { display: none; }
+.quest-heading { font-size: 13px; font-weight: 800; color: #ffe59b; text-shadow: 0 2px 5px #20172d; }
+.quest-help { font-size: 10px; color: var(--paper); text-shadow: 0 2px 5px #20172d; }
+.quest-copy { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.quest-rule { font-size: 10px; opacity: 0.85; white-space: nowrap; }
 .quest-chip {
   --warm: 0;
   pointer-events: auto;
@@ -472,6 +476,8 @@ body {
   color: hsl(calc(215 + 130 * var(--warm)) 90% 78%);
   transition: transform 0.18s linear;
 }
+.quest-name { font-size: 12px; opacity: 0.86; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quest-dist, .quest-clock { white-space: nowrap; flex-shrink: 0; }
 .quest-clock:empty { display: none; }
 .quest-clock { font-weight: 700; color: #ffb3c4; }
 .quest-chip.is-inside { border-color: #ffe59b; }
@@ -479,23 +485,69 @@ body {
 .quest-chip.is-inside .quest-dist { color: #ffe59b; font-weight: 700; }
 .quest-chip.is-urgent { animation: quest-urgent 0.9s ease-in-out infinite; }
 @keyframes quest-urgent { 50% { border-color: #ff6f9c; box-shadow: 0 0 0 3px rgba(255, 111, 156, 0.25), 0 5px 16px rgba(0, 0, 0, 0.26); } }
+/* Keep touch targets large; in landscape the rides occupy the column
+   between the thumbstick and right-hand buttons, never the stick's column. */
 @media (pointer: coarse) {
-  /* Touch layouts keep SLOW / CAM / BOOST / HONK down the right edge, so the
-     strip moves to the free column between the status rail and the thumbstick. */
   #quest-strip {
     top: calc(74px + env(safe-area-inset-top, 0));
     left: calc(22px + env(safe-area-inset-left, 0));
-    right: auto;
+    right: calc(124px + env(safe-area-inset-right, 0));
     align-items: flex-start;
-    gap: 5px;
+    gap: 4px;
   }
-  .quest-chip { height: 34px; font-size: 13px; padding: 0 10px 0 5px; }
-  .quest-icon { width: 26px; height: 26px; }
+  .quest-chip { min-height: 44px; height: auto; max-width: 100%; box-sizing: border-box; font-size: 11px; padding: 4px 8px 4px 5px; gap: 5px; }
+  .quest-copy { flex: 1 1 90px; }
+  .quest-name { font-size: 11px; max-width: 100%; }
+  .quest-rule { font-size: 9px; white-space: normal; text-align: left; }
+  .quest-dist { max-width: 80px; }
+  .quest-help { font-size: 9px; }
+  .quest-icon { width: 24px; height: 24px; flex-shrink: 0; }
+}
+body.is-touch #quest-strip {
+    top: calc(74px + env(safe-area-inset-top, 0));
+    left: calc(22px + env(safe-area-inset-left, 0));
+    right: calc(124px + env(safe-area-inset-right, 0));
+    align-items: flex-start;
+    gap: 4px;
+  }
+body.is-touch .quest-chip { min-height: 44px; height: auto; max-width: 100%; box-sizing: border-box; font-size: 11px; padding: 4px 8px 4px 5px; gap: 5px; }
+body.is-touch .quest-copy { flex: 1 1 90px; }
+body.is-touch .quest-name { font-size: 11px; max-width: 100%; }
+body.is-touch .quest-rule { font-size: 9px; white-space: normal; text-align: left; }
+body.is-touch .quest-dist { max-width: 80px; }
+body.is-touch .quest-help { font-size: 9px; }
+body.is-touch .quest-icon { width: 24px; height: 24px; flex-shrink: 0; }
+@media (orientation: landscape) and (pointer: coarse) {
+  #quest-strip { left: calc(180px + env(safe-area-inset-left, 0)); }
+}
+@media (orientation: landscape) {
+  body.is-touch #quest-strip { left: calc(180px + env(safe-area-inset-left, 0)); }
+}
+/* The narrow landscape SLOW button occupies a second control column.
+   Use two short rows so the complete ride stays between both control banks. */
+@media (orientation: landscape) and (max-width: 650px) and (pointer: coarse) {
+  #quest-strip { right: calc(228px + env(safe-area-inset-right, 0)); }
+  .quest-chip { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; width: 100%; gap: 2px 5px; }
+  .quest-icon, .quest-rule { display: none; }
+  .quest-copy { grid-column: 1 / -1; }
+  .quest-name { max-width: 100%; white-space: normal; }
+  .quest-dist { max-width: none; white-space: nowrap; text-align: left; }
+  .quest-chip.is-inside .quest-arrow { width: 14px; }
+}
+@media (orientation: landscape) and (max-width: 650px) {
+  body.is-touch #quest-strip { right: calc(228px + env(safe-area-inset-right, 0)); }
+  body.is-touch .quest-chip { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; width: 100%; gap: 2px 5px; }
+  body.is-touch .quest-icon, body.is-touch .quest-rule { display: none; }
+  body.is-touch .quest-copy { grid-column: 1 / -1; }
+  body.is-touch .quest-name { max-width: 100%; white-space: normal; }
+  body.is-touch .quest-dist { max-width: none; white-space: nowrap; text-align: left; }
+  body.is-touch .quest-chip.is-inside .quest-arrow { width: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .quest-arrow { transition: none; }
   .quest-chip.is-urgent { animation: none; border-color: #ff6f9c; }
 }
+/* The in-game Reduced motion setting, which may differ from the OS one. */
 body.reduced-motion .quest-arrow { transition: none; }
 body.reduced-motion .quest-chip.is-urgent { animation: none; border-color: #ff6f9c; }
 

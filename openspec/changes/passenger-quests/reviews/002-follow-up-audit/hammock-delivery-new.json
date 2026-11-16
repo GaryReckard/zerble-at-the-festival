@@ -1,0 +1,19 @@
+{
+  "total": 1,
+  "smiles": 6,
+  "byType": {
+    "ride": 1
+  },
+  "byKind": {
+    "hammock": 1
+  },
+  "recent": [
+    {
+      "kind": "hammock",
+      "type": "ride",
+      "label": "a hammock",
+      "reward": 6,
+      "at": 1794793166720
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+# Hammock arrival investigation
+
+Source-only investigation of current main as supplied by the parent (`2a07268`), for reported seed `4077605147`, cart `(207.3, -24.32)`, heading `0.92`, time of day `0.426`, session time `142.84`. No live quest target, velocity, contact state, rider binding, or terrain sample was supplied to this reviewer, so this does not identify the observed cause.
+
+## Verified decision path
+
+1. The engine compares the cart's horizontal distance to the stored quest target against its radius, then requires `abs(player.speed) < 2` (`src/quests/engine.js:106-121`, `src/quests/catalog.js:19`). Hammocks have a 25-metre radius (`src/quests/catalog.js:74`), copied into the accepted quest (`src/quests/engine.js:43-48`). Rolling backward at magnitude 2 or more blocks arrival; slower rolling alone does not. Speed is the velocity projected onto the cart's forward axis, not total horizontal velocity (`src/physics/playerVehicle.js:130-133`).
+2. The arrival callback requires the physical cart to be grounded, then calls `crowd.endRide` with `retainHold: true` (`src/quests/runtime.js:35-38`). Grounded means at least one wheel reports contact, not all four or a minimum slope threshold (`src/physics/playerVehicle.js:133`, `147`; `src/physics/rapierAdapter.js:330`). Hill traction separately fades with surface normal and wheel support (`src/physics/playerVehicle.js:73-89`), which allows a grounded cart to roll.
+3. A valid solo rider must still be riding, not a party member, and not occupying another vehicle's seat (`src/crowd.js:2255-2258`). A rejected exit leaves the hold in place for a later retry (`src/crowd.js:2259`; `src/quests/engine.js:119-121`).
+4. For a terrain-bound rider, `_landPassenger` first forks the pedestrian binding at the cart center, then tests eight points 3.8 metres away (`src/crowd.js:2280-2299`). Each point must have traversable support, pass collider clearance, and avoid nearby standing people. A failed center fork immediately returns false before any exit point is considered.
+
+## A concrete hillside failure condition to test
+
+Pedestrian support uses the default `allowSteepTerrain: false` (`src/crowd.js:627`; `src/landscape/support.js:126`). Fork preserves that setting and immediately validates the initial center and footprint (`src/landscape/support.js:167-170`, `195-197`). Worldgen terrain marks grade greater than 0.45 as nontraversable (`src/worldgen/terrain.js:265`). Consequently, a cart can have physical wheel contact while its rider cannot acquire pedestrian support at its center, and the landing code can reject without looking for a flatter exit point. This is a source-proven condition, not proof that the reported coordinates satisfy it. Testing a nearby flat stop without observing the failed center support would not distinguish grade from collision or occupancy failure.
+
+## Registration versus target identity
+
+The production hammock builder registers each hammock (`src/chunks.js:3084-3097`), and quest gathering reads registered positions, keeping the first hammock per 40-metre cell (`src/quests/worldSource.js:60-70`). An accepted quest stores coordinates; arrival does not query registry membership (`src/quests/engine.js:48`, `109-121`). Therefore a missing current registry entry cannot itself prevent an already accepted quest from finishing. Seeing some hammock does not establish that it is the selected target. Obtain the stored target before comparing its distance to the cart.
+
+## Focused diagnostic
+
+Read `__dbg.quests().active` and `__dbg.physics().cart` together while the failure is visible. The former exposes target/radius (`src/quests/engine.js:187-194`), and the latter exposes speed, grounded, contacts, velocity, immersion, and position (`src/physics/playerVehicle.js:190`; `src/physics/liveWorld.js:334`; `src/main.js:2387`). Recompute exact distance from coordinates because the snapshot's `dist` is rounded. Record several consecutive frames to distinguish sustained speed/contact rejection from one transient frame.
+
+If inside, slower than 2, and grounded, inspect the actual rider through its handle and reproduce only the nonmutating landing checks: fork the rider binding at the cart center using the cart's accepted surface ID, record any exception and support samples, and, if successful, propose each of the eight offset positions without committing. Record `valid`, `traversable`, `reason`, `blockedReason`, grade, footprint rejection, collider blockers, and nearby people for each point. Do not call `endRide`, `_landPassenger`, or `commit` merely to diagnose, since they change live state. The center-fork outcome separates slope/support acquisition from exit clearance. Compare the stored quest target with nearby registered hammocks only after these state snapshots.
+
+One additional diagnostic caveat: the arrival code reads `engineState.immersion`, while this player-vehicle implementation publishes `engine.submersion` and exposes actual immersion separately in its state (`src/quests/runtime.js:37`; `src/physics/playerVehicle.js:126`, `190`). This mismatch does not explain an extra dry-hillside rejection because the missing property defaults to zero, but diagnostics should record the actual physics immersion rather than repeat that missing-field read.

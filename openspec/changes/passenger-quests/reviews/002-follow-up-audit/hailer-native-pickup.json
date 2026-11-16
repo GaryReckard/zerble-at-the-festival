@@ -1,0 +1,112 @@
+{
+  "enabled": true,
+  "completed": 0,
+  "offered": 1,
+  "hails": [
+    {
+      "id": "hail:2",
+      "type": "ride",
+      "kind": "vendor_row",
+      "label": "the vendor row",
+      "age": 49,
+      "boarding": false
+    }
+  ],
+  "log": {
+    "total": 2,
+    "smiles": 17,
+    "byType": {
+      "ride": 1,
+      "urgent": 1
+    },
+    "byKind": {
+      "hammock": 1,
+      "porta_potty": 1
+    },
+    "recent": [
+      {
+        "kind": "porta_potty",
+        "type": "urgent",
+        "label": "the nearest porta-potty",
+        "reward": 11,
+        "at": 1794793226611
+      },
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794793166720
+      }
+    ]
+  },
+  "lastGatherMs": 0.5,
+  "lastEvent": {
+    "type": "offered",
+    "kind": "porta_potty",
+    "riderId": {
+      "ownerToken": {},
+      "slot": 9,
+      "generation": 1
+    },
+    "line": "Gotta GO! Nearest porta-potty, FAST!"
+  },
+  "active": [
+    {
+      "id": 1,
+      "riderId": {
+        "ownerToken": {},
+        "slot": 9,
+        "generation": 1
+      },
+      "type": "urgent",
+      "kind": "porta_potty",
+      "label": "the nearest porta-potty",
+      "x": -680,
+      "z": 598,
+      "radius": 16,
+      "dist": 90,
+      "startDist": 90,
+      "warmth": 0,
+      "stall": 0,
+      "missed": false,
+      "timeLeft": 44.4,
+      "reward": 15,
+      "via": null,
+      "viaReached": false
+    }
+  ],
+  "cart": {
+    "x": -632.7072143554688,
+    "z": 521.30322265625,
+    "speed": 0.0011810887182677264,
+    "grounded": true,
+    "immersion": 0
+  },
+  "nearbyFacilities": [
+    {
+      "kind": "hammock_dropoff",
+      "x": -656.8125799950212,
+      "z": 485.18873129971325,
+      "distance": 43.4
+    },
+    {
+      "kind": "hammock",
+      "x": -665.3352088294923,
+      "z": 473.36484463885427,
+      "distance": 58
+    },
+    {
+      "kind": "hammock",
+      "x": -659.767470061779,
+      "z": 452.97309713438153,
+      "distance": 73.5
+    },
+    {
+      "kind": "porta_potty",
+      "x": -680,
+      "z": 598,
+      "distance": 90.1
+    }
+  ]
+}

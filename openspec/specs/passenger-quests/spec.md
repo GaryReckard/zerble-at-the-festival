@@ -37,10 +37,9 @@ the way an ordinary rider does (`engine.js` `rollOffer`, `offer`; `runtime.js`
 
 ### Requirement: Distance bands
 
-An ordinary request SHALL choose a destination between `QUEST.MIN_DIST` (80 m) and
-`QUEST.MAX_DIST` (300 m) of the cart, weighted toward nearer places and damped for
-kinds already active. An urgent request SHALL use a porta-potty 60 to 220 m away,
-and a summit request an admitted district 200 to 900 m away (`pick.js`
+An ordinary request SHALL choose a destination at least `QUEST.MIN_DIST` (60 m) from the arrival edge and at most `QUEST.MAX_DIST` (300 m) between the cart and destination centre, weighted toward nearer places and damped for
+kinds already active. An urgent request SHALL use a porta-potty at least 45 m from its arrival edge and at most 220 m from its centre,
+and a summit request an admitted district at least 160 m from its arrival edge and at most 900 m from its centre (`pick.js`
 `candidatesInBand`, `pickWeighted`, `planOffer`).
 
 #### Scenario: Nothing in band means no request
@@ -258,3 +257,38 @@ A summit candidate SHALL carry a `via` waypoint at the end of the district's `ma
 
 - **WHEN** the cart first comes within 45 m of the waypoint
 - **THEN** a `via` event fires once and the arrow swings to the summit
+
+### Requirement: Quests stay out of measurement sessions and finished runs
+
+`QuestRuntime.stop()` SHALL cancel every hail and request and prevent further offers. It SHALL be called at boot under the performance lab, device autopilot, timed captures and layout capture, and when a Festival Run or the vehicle ends (`src/main.js`).
+
+#### Scenario: Fixed-route device capture
+
+- **WHEN** the game boots with a capture or autopilot flag
+- **THEN** no person hails, no request is offered and no destination search runs
+
+### Requirement: A hailer waits for the cart
+
+While `npc.hailing` is set, a person SHALL NOT lane-dodge, flee on proximity or be honk-scattered, and only people who could board (no activity claim, no corridor route, a shared surface) SHALL be chosen (`src/crowd.js`).
+
+#### Scenario: Driving up to a hailer
+
+- **WHEN** the cart approaches a hailing person at cruising speed
+- **THEN** the person holds their ground and the hail remains until pickup, patience or the leash ends it
+
+### Requirement: Generic facilities accept built alternatives
+
+Hammock and porta-potty requests SHALL accept any currently built matching facility within 25 m and 16 m respectively. Decorative tree hammocks SHALL expose nonblocking, chunk-owned drop-off metadata without exposing an NPC seat or consuming RNG. Other destinations SHALL retain their stored specific target. Planned but absent facilities, wrong kinds and streamed-out entries SHALL NOT complete a ride. Every arrival SHALL satisfy the speed and safe-disembarkation gates before completion, reward or log mutation. Alternate facilities SHALL NOT reset urgent deadlines or increase distance reward beyond the offered trip.
+
+#### Scenario: Another hammock on the way
+
+- **GIVEN** a rider asked for a hammock at a suggested location
+- **WHEN** the cart slows beside another built hammock with a safe exit
+- **THEN** the rider completes the request at that alternative
+- **AND** any distance bonus is capped by the closer accepted trip
+
+#### Scenario: A specific camp
+
+- **GIVEN** a rider asked for their camp
+- **WHEN** the cart stops beside another camp
+- **THEN** the request remains active and points to the original destination

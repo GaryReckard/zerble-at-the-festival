@@ -1,0 +1,118 @@
+{
+  "enabled": true,
+  "completed": 0,
+  "offered": 0,
+  "hails": [
+    {
+      "id": "hail:45",
+      "type": "ride",
+      "kind": "vendor_row",
+      "label": "the vendor row",
+      "age": 33,
+      "boarding": false
+    },
+    {
+      "id": "hail:49",
+      "type": "urgent",
+      "kind": "porta_potty",
+      "label": "the nearest porta-potty",
+      "age": 3,
+      "boarding": false
+    }
+  ],
+  "log": {
+    "total": 0,
+    "smiles": 0,
+    "byType": {},
+    "byKind": {},
+    "recent": []
+  },
+  "lastGatherMs": 0.6,
+  "lastEvent": null,
+  "active": [],
+  "cart": {
+    "id": "live-cart",
+    "bodyGeneration": 1,
+    "contacts": 4,
+    "grounded": true,
+    "speed": -0.025453222126282146,
+    "velocity": {
+      "x": 0.00006938626029295847,
+      "y": -0.062278784811496735,
+      "z": -0.03700070455670357
+    },
+    "position": {
+      "x": 199.91259765625,
+      "y": 0.14701509475708008,
+      "z": -75.82713317871094
+    },
+    "surface": "grass",
+    "water": {
+      "wet": false,
+      "depth": 0,
+      "surfaceY": 0.12248117312556762,
+      "kind": null
+    },
+    "immersion": 0,
+    "airTime": 0,
+    "landingAirTime": 0,
+    "impactSpeed": 0.16342502741126608,
+    "landingSpeed": 0,
+    "impactNormal": {
+      "x": 0.022387635653834604,
+      "y": 0.9994161558945498,
+      "z": -0.02580970954490494
+    },
+    "up": {
+      "x": 0.021698823124386993,
+      "y": 0.9995049224506247,
+      "z": -0.02278313130338487
+    },
+    "engine": {
+      "throttle": 0,
+      "load": 0,
+      "revs": 0.10042806033979292,
+      "wet": 0,
+      "submersion": 0,
+      "running": true,
+      "grounded": true,
+      "boost": false
+    },
+    "recoveries": 0,
+    "resets": 3,
+    "lastReset": "teleport",
+    "disposed": false
+  },
+  "nearbyHammocks": [
+    {
+      "id": 2221,
+      "x": 158.58108902350068,
+      "z": -10.606677923351526,
+      "distance": 77.21399736819335
+    },
+    {
+      "id": 2360,
+      "x": 302.4896393530071,
+      "z": 10.229232273995876,
+      "distance": 133.8945387914984
+    },
+    {
+      "id": 2399,
+      "x": 281.3457974232733,
+      "z": 61.36382486671209,
+      "distance": 159.53910177043417
+    },
+    {
+      "id": 2286,
+      "x": 248.83278204128146,
+      "z": 78.34726367145777,
+      "distance": 161.74958758642566
+    },
+    {
+      "id": 2359,
+      "x": 346.46465262398124,
+      "z": 27.63196248561144,
+      "distance": 179.391441520894
+    }
+  ]
+}

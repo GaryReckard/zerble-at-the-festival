@@ -254,6 +254,8 @@ assert.equal(planOffer([{ kind: 'food_court', x: 10, z: 0 }], origin), null, 'no
   engine.update(0.1, { x: 0, z: -140, speed: 5 });
   chip = chipState(quest, { x: 0, z: -140, heading: 0 });
   assert.equal(chip.text, 'Stop here!'); assert.equal(chip.inside, true);
+  assert.equal(chipState(quest, { x: 0, z: -140, heading: 0, speed: 6 }).text, 'Slow down!', 'inside the stop but too fast to let anyone off');
+  assert.equal(chip.label, 'Potty!!!');
 }
 
 // --- a party speaks in its own voice but shows the real destination --------
@@ -367,11 +369,13 @@ console.log('passenger quests: catalog, picking, offers, arrival, missed, patien
   crowd._publishPerson = () => {};
   crowd.bathrooms = { has: () => false, tryClaim: () => { pottyCalls++; return true; } };
   const log = createQuestLog();
-  const runtime = new QuestRuntime({ crowd, zerble: cart, smiles: { spawn: () => rewards++ }, registry: null, worldgen: false, log, onCompleted: () => completions++, random: () => 0.5 });
+  const facilityRegistry = { byKind: new Map([['porta_potty', new Set([1])]]), entries: new Map([[1, { kind: 'porta_potty', position: { x: 100, z: 0 } }]]) };
+  const runtime = new QuestRuntime({ crowd, zerble: cart, smiles: { spawn: () => rewards++ }, registry: facilityRegistry, worldgen: false, log, onCompleted: () => completions++, random: () => 0.5 });
   runtime.hailing = false;
   runtime.engine.offer(handle, { x: 0, z: 0 }, { kind: 'porta_potty', x: 100, z: 0 }, { type: 'urgent' });
   runtime.update(0.05);
   assert.equal(runtime.active.length, 1, 'unsafe arrival remains pending');
+  assert.equal(runtime.active[0].arrivalBlocked, 'unsafe_exit');
   assert.equal(npc.state, 'riding'); assert.equal(npc.rideHold, true);
   assert.equal(slot.occupied, true); assert.equal(pottyCalls, 0);
   assert.equal(log.total, 0); assert.equal(rewards, 0); assert.equal(completions, 0); assert.equal(runtime.engine.completed, 0);
@@ -392,7 +396,15 @@ console.log('passenger quests: catalog, picking, offers, arrival, missed, patien
 
   npc.surfaceBinding = null; npc.state = 'idle'; npc.pos.set(120, 0, 0); npc.cheerTimer = 0;
   const candidates = () => { const found = []; crowd.forEachHailCandidate(cart, 10, 75, h => found.push(h)); return found; };
-  assert.equal(candidates().length, 1);
+  assert.equal(candidates().length, 0, 'delivered people cannot hail during their cooldown');
+  assert.equal(crowd.walkerInfo(handle, {}), false, 'cooldown revokes pickup availability');
+  assert.equal(crowd.hailBoard(handle, cart), false, 'pickup cannot bypass delivery cooldown');
+  assert.equal(crowd.hailWave(handle, cart), false);
+  crowd.actorTime = 45;
+  assert.equal(candidates().length, 1, 'delivery cooldown expires after 45 seconds');
+  assert.equal(crowd.walkerInfo(handle, {}), true);
+  assert.equal(crowd.hailBoard(handle, cart), true, 'boarding succeeds after cooldown expiry');
+  crowd._releaseSeat(npc); npc.seatSlot = null; npc.state = 'idle';
   const hail = { id: 'claim-regression', handle, age: 0, waveIn: 1 };
   runtime.hails.push(hail); crowd.setHailing(handle, true);
   const claim = crowd.claimActivity(handle, { owner: { activityKey: 'cornhole' }, release() {} });
@@ -406,3 +418,201 @@ console.log('passenger quests: catalog, picking, offers, arrival, missed, patien
   assert.equal(crowd.walkerInfo(handle, {}), false, 'stale boarding reservations revoke availability');
 }
 console.log('passenger quest crowd integration: safe arrival retry, single reward, activity-owned hails and stale boarding OK');
+// --- the trip minimum is measured to the edge of the stop -------------------
+{
+  // A camp village 100 m away with a 60 m radius is only a 40 m trip: too short.
+  assert.equal(candidatesInBand([{ kind: 'camp_village', x: 100, z: 0, radius: 60 }], origin, QUEST.MIN_DIST, QUEST.MAX_DIST).length, 0);
+  assert.equal(candidatesInBand([{ kind: 'camp_village', x: 130, z: 0, radius: 60 }], origin, QUEST.MIN_DIST, QUEST.MAX_DIST).length, 1);
+}
+
+// --- runtime: hailing, the cap, toast priority and stop() --------------------
+{
+  const { QuestRuntime } = await import('../src/quests/runtime.js');
+  const entries = new Map([[1, { position: { x: 0, z: 150 } }], [2, { position: { x: 180, z: 0 } }], [3, { position: { x: 0, z: -200 } }]]);
+  const registry = { byKind: new Map([['beach', new Set([1, 2, 3])]]), entries };
+  const make = () => {
+    const people = new Map();   // handle -> { x, z, state }
+    const calls = { hold: [], board: [], wave: 0, hailing: new Map(), toasts: [], spawned: 0 };
+    const crowd = {
+      forEachHailCandidate(zerble, min, max, visit) { for (const [h, p] of people) { const d = Math.hypot(p.x - zerble.position.x, p.z - zerble.position.z); if (p.state === 'idle' && !calls.hailing.get(h) && d >= min && d <= max) visit(h, p.x, p.z, d); } },
+      walkerInfo(h, out) { const p = people.get(h); out.boarding = p?.state === 'boarding'; out.available = !!p && (p.state === 'idle' || out.boarding); if (!p) return false; out.x = p.x; out.z = p.z; out.y = 2; return out.available; },
+      setHailing(h, on) { calls.hailing.set(h, on); },
+      hailWave() { calls.wave++; return true; },
+      hailBoard(h) { const p = people.get(h); if (!p || p.state !== 'idle') return false; p.state = 'boarding'; calls.board.push(h); return true; },
+      riderInfo(h, out) { out.riding = people.get(h)?.state === 'riding'; return out.riding; },
+      holdRide(h, on) { calls.hold.push([h, on]); return true; }, setRideMood() {}, endRide(h) { people.get(h).state = 'idle'; return true; }, sendToPotty() { return false; },
+    };
+    const zerble = { position: { x: 0, y: 0, z: 0 }, speed: 0, heading: 0 };
+    const runtime = new QuestRuntime({ crowd, zerble, smiles: { spawn() { calls.spawned++; } }, registry, worldgen: false, random: seq(0.5), toast: (msg, ms, opts) => calls.toasts.push({ msg, low: !!opts?.low }) });
+    return { runtime, people, calls, zerble };
+  };
+
+  // A person in range starts hailing; stopping beside them boards them with the SAME request.
+  let { runtime, people, calls, zerble } = make();
+  people.set('ann', { x: 30, z: 0, state: 'idle' });
+  zerble.speed = 6;
+  runtime.update(QUEST.HAIL_FIRST + 0.1);
+  assert.equal(runtime.hails.length, 1); assert.equal(calls.hailing.get('ann'), true);
+  const shown = runtime.hails[0].plan.dest;
+  runtime.update(1); assert.equal(calls.board.length, 0, 'a moving cart picks nobody up');
+  zerble.position.x = 22; zerble.speed = 0;
+  runtime.update(0.1); assert.deepEqual(calls.board, ['ann']);
+  runtime.update(0.1); assert.equal(runtime.hails.length, 1, 'still theirs while they walk to the seat');
+  people.get('ann').state = 'riding';
+  const quest = runtime.onBoard('ann');
+  assert(quest); assert.equal(quest.x, shown.x); assert.equal(quest.z, shown.z); assert.equal(runtime.hails.length, 0);
+  assert.equal(calls.hailing.get('ann'), false, 'the hailing flag is cleared on boarding');
+  assert.deepEqual(calls.hold.at(-1), ['ann', true]);
+  assert(calls.toasts.at(-1).low, 'a rider remark is low priority');
+
+  // Driving off leaves the hail behind; patience also ends it.
+  ({ runtime, people, calls, zerble } = make());
+  people.set('bo', { x: 30, z: 0, state: 'idle' });
+  runtime.update(QUEST.HAIL_FIRST + 0.1); assert.equal(runtime.hails.length, 1);
+  zerble.position.x = -200; runtime.update(0.1);
+  assert.equal(runtime.hails.length, 0); assert.equal(calls.hailing.get('bo'), false);
+
+  // Hails hold their places: with one rider quest and two hails, a walk-up gets nothing
+  // and the hailer who boards still receives a request.
+  ({ runtime, people, calls, zerble } = make());
+  for (const [h, x] of [['r1', 0], ['h1', 30], ['h2', -30]]) people.set(h, { x, z: 0, state: 'idle' });
+  people.get('r1').state = 'riding';
+  assert(runtime.onBoard('r1', { force: 'beach' }));
+  zerble.speed = 6;
+  runtime.update(QUEST.HAIL_FIRST + 0.1); runtime.update(QUEST.HAIL_EVERY + 0.1);
+  assert.equal(runtime.hails.length, 2); assert.equal(runtime.startHail(), null, 'never more than two hailers');
+  people.set('walkup', { x: 5, z: 0, state: 'riding' });
+  runtime.random = seq(0.0);   // would pass the walk-up chance roll
+  assert.equal(runtime.onBoard('walkup'), null, 'a walk-up cannot take a hailer\'s place');
+  const hailer = runtime.hails[0].handle; people.get(hailer).state = 'riding';
+  assert(runtime.onBoard(hailer), 'the hailer keeps their request');
+
+  // stop(): everything is cancelled and nothing more is offered (run over, or a capture).
+  runtime.stop();
+  assert.equal(runtime.hails.length, 0); assert.equal(runtime.active.length, 0);
+  assert([...calls.hailing.values()].every((v) => v === false));
+  runtime.update(60); assert.equal(runtime.hails.length, 0);
+  assert.equal(runtime.onBoard('r1', { force: 'beach' }), null);
+}
+
+console.log('passenger quests: catalog, picking, offers, arrival, missed, patience, remarks, urgent, summit, party voice, mountaintop source and waypoint, quest log, runtime hailing and compass OK');
+
+// Shutdown releases party ownership and blocks reentrant offers before callbacks.
+{
+  const { QuestRuntime } = await import('../src/quests/runtime.js');
+  const runtime = new QuestRuntime({ crowd: { setHailing() {}, holdRide() {} },
+    zerble: { position: { x: 0, z: 0 }, speed: 0 }, smiles: { spawn() {} },
+    registry: { byKind: new Map(), entries: new Map() }, worldgen: false, random: seq(0.5) });
+  let releases = 0, callbacks = 0;
+  const party = { questHold: true, leave() { throw new Error('shutdown must not force disembarkation'); }, releaseQuest() {
+    releases++; this.questHold = false;
+    assert.equal(runtime.cancel(this), false, 'party removal precedes reentrant leave callback');
+    runtime.stop();
+  } };
+  runtime.engine.offer(party, origin, { kind: 'beach', x: 150, z: 0 }, { type: 'party' });
+  runtime.parties.set(party, party);
+  runtime.hails.push({ handle: 'waiting' });
+  runtime.subscribe(() => {
+    callbacks++;
+    assert.equal(runtime.enabled, false, 'shutdown disables offers before publishing events');
+    assert.equal(runtime.onBoard('new', { force: 'beach' }), null);
+    assert.equal(runtime.offerParty('new-party', {}, 2), null);
+    assert.equal(runtime.startHail(), null);
+  });
+  runtime.stop(); runtime.stop(); runtime.update(60);
+  assert(callbacks > 0); assert.equal(releases, 1); assert.equal(party.questHold, false);
+  assert.equal(runtime.parties.size, 0); assert.equal(runtime.active.length, 0);
+  assert.equal(runtime.hails.length, 0); assert.equal(runtime.enabled, false);
+
+  // A stop triggered during an ordinary clear must not be undone by clear's finally.
+  runtime.enabled = true; runtime._stopped = false;
+  runtime.engine.offer('solo', origin, { kind: 'beach', x: 150, z: 0 });
+  runtime.subscribe(() => runtime.stop());
+  runtime.clear(); assert.equal(runtime.enabled, false);
+}
+
+// Interchangeable facilities resolve only built matching places. The original
+// destination remains guidance and its deadline is stable; a closer facility
+// cannot pay the longer suggested trip's distance bonus.
+{
+  const { QuestRuntime } = await import('../src/quests/runtime.js');
+  const make = (kind, type = 'ride') => {
+    const registry = { byKind: new Map(), entries: new Map() };
+    let exits = 0, rewards = 0, potty = 0, safe = true;
+    const cart = { position: { x: 0, y: 0, z: 0 }, speed: 0,
+      physicsDriven: true, grounded: true, engineState: { immersion: 0 } };
+    const crowd = { riderInfo: () => true, holdRide() {}, forEachHailCandidate() {},
+      endRide(_h, _c, opts) { assert.equal(opts.retainHold, true); if (!safe) return false; exits++; return true; },
+      sendToPotty() { potty++; } };
+    const runtime = new QuestRuntime({ crowd, zerble: cart, registry, worldgen: false,
+      smiles: { spawn() { rewards++; } }, random: seq(0.5) });
+    runtime.hailing = false;
+    const quest = runtime.engine.offer('rider', origin, { kind, x: 180, z: 0 }, { type });
+    const put = (facilityKind, x, z = 0) => {
+      const id = registry.entries.size + 1;
+      registry.entries.set(id, { kind: facilityKind, position: { x, z } });
+      if (!registry.byKind.has(facilityKind)) registry.byKind.set(facilityKind, new Set());
+      registry.byKind.get(facilityKind).add(id);
+      return id;
+    };
+    return { runtime, quest, cart, registry, put, setSafe: value => { safe = value; },
+      counts: () => ({ exits, rewards, potty }) };
+  };
+  for (const [kind, type] of [['hammock', 'ride'], ['porta_potty', 'urgent']]) {
+    const f = make(kind, type), { runtime, quest, cart } = f;
+    const startDist = quest.startDist, deadline = quest.totalTime;
+    const originalReward = runtime.engine.reward(quest);
+    f.put(kind === 'hammock' ? 'porta_potty' : 'hammock', 0);
+    runtime.update(0.05); assert.equal(runtime.active.length, 1, 'wrong facility kind cannot satisfy request');
+    const radius = DESTINATIONS[kind].radius;
+    const id = f.put(kind, radius + 0.01);
+    runtime.update(0.05); assert.equal(runtime.active.length, 1, 'matching facility outside radius is insufficient');
+    f.registry.entries.get(id).position.x = radius;
+    cart.speed = -2;
+    runtime.update(0.3); assert.equal(runtime.active.length, 1, 'reverse driving obeys same stop speed');
+    assert(quest.arrivalTarget, 'moving cart gets alternate stop guidance');
+    cart.speed = 0; cart.grounded = false;
+    runtime.update(0.05); assert.equal(runtime.active.length, 1, 'alternative cannot bypass airborne guard');
+    cart.grounded = true; cart.engineState.immersion = 0.6;
+    runtime.update(0.05); assert.equal(runtime.active.length, 1, 'alternative cannot bypass immersion guard');
+    cart.engineState.immersion = 0; f.setSafe(false);
+    runtime.update(0.05); assert.equal(runtime.active.length, 1, 'alternative needs safe passenger landing');
+    assert.deepEqual(f.counts(), { exits: 0, rewards: 0, potty: 0 });
+    assert.equal(quest.arrivalBlocked, 'unsafe_exit');
+    cart.speed = 5; runtime.update(0.05);
+    assert.equal(quest.arrivalBlocked, false, 'moving clears stale refusal guidance');
+    cart.speed = 0;
+    assert.equal(quest.x, 180); assert.equal(quest.z, 0);
+    assert.equal(quest.startDist, startDist); assert.equal(quest.totalTime, deadline);
+    assert(quest.timeLeft <= deadline, 'facility switching does not reset urgent time');
+    // A streaming removal cannot leave a cached effective stop behind.
+    f.registry.entries.delete(id);
+    runtime.update(0.05); assert.equal(quest.arrivalTarget, null);
+    assert.equal(runtime.active.length, 1);
+    f.put(kind, radius); f.setSafe(true);
+    runtime.update(0.05);
+    assert.equal(runtime.active.length, 0); assert.equal(runtime.engine.completed, 1);
+    const reward = runtime.engine.reward(quest);
+    assert.equal(quest.rewardDist, radius);
+    assert.equal(quest.startDist, startDist); assert.equal(quest.totalTime, deadline);
+    if (type === 'ride') assert(reward < originalReward, 'closer facility earns only its actual distance bonus');
+    assert.equal(f.counts().exits, 1); assert.equal(f.counts().rewards, reward);
+    assert.equal(f.counts().potty, type === 'urgent' ? 1 : 0);
+    runtime.update(0.05); assert.equal(f.counts().rewards, reward, 'matching facility pays once');
+  }
+  for (const kind of ['camp_village', 'mountaintop', 'main_stage', 'side_stage', 'tent_stage']) {
+    const f = make(kind, kind === 'mountaintop' ? 'summit' : 'ride');
+    f.put(kind, 0); f.put('hammock', 0); f.put('porta_potty', 0);
+    f.runtime.update(0.05);
+    assert.equal(f.runtime.active.length, 1, `${kind} remains a named destination`);
+    assert.equal(f.quest.arrivalTarget, null);
+    f.cart.position.x = 180;
+    f.runtime.update(0.05); assert.equal(f.runtime.active.length, 0, `${kind} completes at its assigned stop`);
+  }
+  const unloaded = make('hammock');
+  unloaded.cart.position.x = 180;
+  unloaded.runtime.update(0.05);
+  assert.equal(unloaded.runtime.active.length, 1, 'original facility location also requires a built facility');
+  assert.equal(unloaded.quest.arrivalBlocked, 'facility_missing');
+}
+console.log('passenger quest follow-up: cooldown, reentrant shutdown, matching built facilities, strict named stops and safe exits OK');

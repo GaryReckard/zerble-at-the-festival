@@ -61,6 +61,8 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 - Heart button — open Bubble Upgrades
 - Book button — open the Festival Passport
 
+Facility rides to hammocks or porta-potties accept any matching spot. Other requests name a specific destination, and the Passenger rides panel explains the difference.
+
 ## Finding your way
 
 The bottom-right map reveals the festival as you explore. Click or tap it, or press **M**, to open a larger translucent map while you keep driving. Zoom with the mouse wheel or a pinch, and click or tap a pin to track it; select it again to clear it. An off-map pin points toward your destination and grows as you approach, leaving you to choose the roads. Press M or Escape, or tap empty map space, to return to the small map.

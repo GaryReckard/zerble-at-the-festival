@@ -1,0 +1,38 @@
+{
+  "checkout": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/worktrees/passenger-quests-audit-2",
+  "reviewedCommit": "dd1516c",
+  "note": "Assertions intentionally verify defective states; this is not a passing correctness suite.",
+  "results": [
+    {
+      "probe": "unsafe-urgent-arrival",
+      "defectReproduced": true,
+      "grounded": false,
+      "state": "idle",
+      "stillHasSeat": true,
+      "exitCalls": 0,
+      "pottyAttempts": 1,
+      "rewardPickups": 15,
+      "completed": 1,
+      "active": 0
+    },
+    {
+      "probe": "stop-party-hold",
+      "defectReproduced": true,
+      "questHold": true,
+      "leaves": 0,
+      "active": 0,
+      "partyOwners": 0,
+      "enabled": false
+    },
+    {
+      "probe": "delivery-cooldown-bypass",
+      "defectReproduced": true,
+      "chosen": [
+        "delivered"
+      ],
+      "boarded": true,
+      "state": "boarding",
+      "remainingDisinterest": 41
+    }
+  ]
+}

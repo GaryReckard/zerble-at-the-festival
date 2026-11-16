@@ -21,10 +21,11 @@ last_answer: null
 **Context:** Quests pay 7 to 12 raw smiles, urgent runs 10 to 15, mountaintop more. These multiply with combo and Lurleen like any smile.
 **Question:** After a playtest, should these go up or down?
 **Impact:** Constants in `src/quests/catalog.js`. Proceeding with the table in design.md.
+**Update after audit 001:** hailing can supply fares much faster than the boarding roll the table was sized for. The audit's paper estimate is 40 to 55 raw smiles a minute while farming, against the Worker's placeholder ceiling of 40. This needs a measured playtest before the branch merges if Festival Run scores matter.
 
 ### Q1: Does hailing feel discoverable without crowding the grounds?
 **Date:** 2026-11-15
-**Context:** Hailing superseded the original 30% boarding proposal and first-boarder guarantee. Up to two nearby adults hail within 75 m, with a five-second refill interval; un-hailed riders ask with an 8% chance.
+**Context:** Hailing superseded the original 30% boarding proposal and first-boarder guarantee. Up to two nearby adults hail within 75 m, with a nine-second refill interval; un-hailed riders ask with an 8% chance.
 **Question:** Are the wave and bubble noticeable from the chase camera, and is the frequency comfortable in play?
 **Impact:** Hailing constants in `src/quests/catalog.js`; the current values remain pending playtest feedback.
 

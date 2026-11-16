@@ -50,6 +50,7 @@ import { buildBubbleVendor } from './models/bubbleVendor.js';
 import { buildSugarShack, SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH, sugarShackCooks } from './models/sugarShack.js';
 import { buildPortaPotty, createPottyState, POTTY_SPACING, POTTY_FOOTPRINT, POTTY_COLLIDER_R } from './models/portaPotty.js';
 import { buildHammock as buildHammockModel, buildTreeHammock } from './models/hammock.js';
+import { registerHammockDropoff } from './quests/facilityArrival.js';
 import { buildPicnicTable } from './models/picnicTable.js';
 import { buildInfoKiosk, INFO_KIOSK_COLLIDER_R, INFO_KIOSK_FOOTPRINT } from './models/infoKiosk.js';
 import { buildEntranceArch as buildEntranceArchModel } from './models/entranceArch.js';
@@ -1132,8 +1133,8 @@ function scatterWorldgenTrees(ctx) {
   }
   // C1 — string a post-less hammock between the occasional pair of CLOSE trees (the
   // trunks ARE the posts). It hangs in the un-driveable gap between two trunks, so
-  // it's decorative (visual-only, no collider/registry entry — disposed with the
-  // chunk group). Capped so it stays a woodland discovery, not a carpet.
+  // its drop-off marker has no seat, footprint or collider. The mesh and marker
+  // unload with their chunk. Capped so it stays a woodland discovery.
   let hammocks = 0;
   for (let i = 0; i < placed.length && hammocks < 2; i++) {
     for (let j = i + 1; j < placed.length; j++) {
@@ -1149,6 +1150,7 @@ function scatterWorldgenTrees(ctx) {
         treeTrunkRadiusAtWorldHeight(placed[j].descriptor, supportWorldY, placed[j].groundY));
       hammock.group.position.y = groupGroundY;
       ctx.group.add(hammock.group);
+      registerHammockDropoff(registry, centerX, groupGroundY, centerZ, ctx.key);
       hammocks++;
       break;
     }

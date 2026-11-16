@@ -1,0 +1,121 @@
+{
+  "enabled": true,
+  "completed": 0,
+  "offered": 1,
+  "hails": [
+    {
+      "id": "hail:4",
+      "type": "ride",
+      "kind": "tent_stage",
+      "label": "the big tent",
+      "age": 3,
+      "boarding": false
+    }
+  ],
+  "log": {
+    "total": 0,
+    "smiles": 0,
+    "byType": {},
+    "byKind": {},
+    "recent": []
+  },
+  "lastGatherMs": 0.5,
+  "lastEvent": {
+    "type": "offered",
+    "kind": "hammock",
+    "riderId": {
+      "ownerToken": {},
+      "slot": 131,
+      "generation": 2
+    },
+    "line": "A hammock, please!"
+  },
+  "active": [
+    {
+      "id": 1,
+      "riderId": {
+        "ownerToken": {},
+        "slot": 131,
+        "generation": 2
+      },
+      "type": "ride",
+      "kind": "hammock",
+      "label": "a hammock",
+      "x": 248.83278204128146,
+      "z": 78.34726367145777,
+      "radius": 25,
+      "dist": 112,
+      "startDist": 112,
+      "warmth": 0,
+      "stall": 0,
+      "missed": false,
+      "timeLeft": null,
+      "reward": 8,
+      "via": null,
+      "viaReached": false
+    }
+  ],
+  "cart": {
+    "x": 212.62185668945312,
+    "z": -28.132179260253906,
+    "speed": 0.06663236885381661,
+    "grounded": true,
+    "immersion": 0
+  },
+  "nearbyFacilities": [
+    {
+      "kind": "hammock_dropoff",
+      "x": 189.30964006111026,
+      "z": -0.775127587839961,
+      "distance": 35.9
+    },
+    {
+      "kind": "hammock",
+      "x": 158.58108902350068,
+      "z": -10.606677923351526,
+      "distance": 56.8
+    },
+    {
+      "kind": "hammock_dropoff",
+      "x": 178.03922034800053,
+      "z": 17.79200899414718,
+      "distance": 57.5
+    },
+    {
+      "kind": "hammock_dropoff",
+      "x": 255.4941828083247,
+      "z": 22.908561676740646,
+      "distance": 66.7
+    },
+    {
+      "kind": "hammock_dropoff",
+      "x": 258.51878215558827,
+      "z": 23.23530833236873,
+      "distance": 68.9
+    },
+    {
+      "kind": "hammock_dropoff",
+      "x": 232.08243334665895,
+      "z": 45.42565571144223,
+      "distance": 76.1
+    },
+    {
+      "kind": "porta_potty",
+      "x": 242.1854921846285,
+      "z": -104.65120898461429,
+      "distance": 82
+    },
+    {
+      "kind": "hammock_dropoff",
+      "x": 295.22611405700445,
+      "z": -37.72477165795863,
+      "distance": 83.2
+    },
+    {
+      "kind": "hammock",
+      "x": 302.4896393530071,
+      "z": 10.229232273995876,
+      "distance": 97.7
+    }
+  ]
+}

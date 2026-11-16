@@ -1,0 +1,28 @@
+{
+  "total": 2,
+  "smiles": 17,
+  "byType": {
+    "ride": 1,
+    "urgent": 1
+  },
+  "byKind": {
+    "hammock": 1,
+    "porta_potty": 1
+  },
+  "recent": [
+    {
+      "kind": "porta_potty",
+      "type": "urgent",
+      "label": "the nearest porta-potty",
+      "reward": 11,
+      "at": 1794793226611
+    },
+    {
+      "kind": "hammock",
+      "type": "ride",
+      "label": "a hammock",
+      "reward": 6,
+      "at": 1794793166720
+    }
+  ]
+}

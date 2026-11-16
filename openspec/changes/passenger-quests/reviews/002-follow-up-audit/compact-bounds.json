@@ -1,0 +1,70 @@
+[
+  {
+    "cards": [
+      {
+        "bottom": 154,
+        "height": 44,
+        "right": 369.8984375,
+        "width": 189.8984375,
+        "x": 180,
+        "y": 110
+      },
+      {
+        "bottom": 202,
+        "height": 44,
+        "right": 408.421875,
+        "width": 228.421875,
+        "x": 180,
+        "y": 158
+      },
+      {
+        "bottom": 250,
+        "height": 44,
+        "right": 343.2578125,
+        "width": 163.2578125,
+        "x": 180,
+        "y": 206
+      }
+    ],
+    "horizontalOverflow": false,
+    "overlap": false,
+    "viewport": [
+      844,
+      390
+    ]
+  },
+  {
+    "cards": [
+      {
+        "bottom": 154,
+        "height": 44,
+        "right": 340,
+        "width": 160,
+        "x": 180,
+        "y": 110
+      },
+      {
+        "bottom": 202,
+        "height": 44,
+        "right": 340,
+        "width": 160,
+        "x": 180,
+        "y": 158
+      },
+      {
+        "bottom": 250,
+        "height": 44,
+        "right": 340,
+        "width": 160,
+        "x": 180,
+        "y": 206
+      }
+    ],
+    "horizontalOverflow": false,
+    "overlap": false,
+    "viewport": [
+      568,
+      320
+    ]
+  }
+]

@@ -576,11 +576,21 @@ function getCommandController() {
     quest:(verb,kind)=>{
       const dbg=window.__dbg;
       if(!dbg)return 'Passenger helpers are not ready.';
-      if(verb==='status')return JSON.stringify(dbg.quests(),null,2);
+      if(verb==='status'){
+        const z=h().zerble;
+        const facilities=[];
+        for(const kind of ['hammock','hammock_dropoff','porta_potty'])for(const id of h().registry.byKind.get(kind)||[]){
+          const e=h().registry.entries.get(id);if(!e)continue;
+          const distance=Math.hypot(e.position.x-z.position.x,e.position.z-z.position.z);
+          if(distance<=100)facilities.push({kind,x:e.position.x,z:e.position.z,distance:Math.round(distance*10)/10});
+        }
+        return JSON.stringify({...dbg.quests(),cart:{x:z.position.x,z:z.position.z,speed:z.speed,grounded:z.grounded,immersion:z.engineState?.immersion??0},nearbyFacilities:facilities.sort((a,b)=>a.distance-b.distance)},null,2);
+      }
       if(verb==='log')return JSON.stringify(dbg.questLog(),null,2);
       if(verb==='give')return dbg.giveQuest(kind);
       if(verb==='hail')return dbg.hail(kind);
       if(verb==='pickup')return dbg.hailGo();
+      if(verb==='approach')return dbg.hailApproach();
       return dbg.questGo();
     },
     camera:(mode,span)=>{
