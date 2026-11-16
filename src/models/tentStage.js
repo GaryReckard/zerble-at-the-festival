@@ -129,8 +129,8 @@ export function buildTentStage(opts = {}) {
   group.add(stageBuild.group);
 
   // Drop a default band onto the stage so the tent isn't visually empty.
-  const instruments = ['lead_vocal', 'guitar', 'drum'];
-  const performers = placeBandOnStage(stageBuild.group, instruments, {
+  const performers = placeBandOnStage(stageBuild.group, null, {
+    style: opts.style ?? 'jam',
     deckWidth: stageBuild.deckWidth, deckDepth: stageBuild.deckDepth,
     deckHeight: stageBuild.deckHeight, rng,
   });
@@ -196,11 +196,10 @@ export function buildTentStage(opts = {}) {
   // Crowd spots inside the tent — a grid filling the middle. Skip the very
   // back (stage) and very front (booth) ends.
   const crowdSpots = [];
+  const frontOfStage = stageZ + stageBuild.deckDepth / 2 + 1.5;
   for (let i = 0; i < 18; i++) {
     const rx = (rng() - 0.5) * (TENT_WIDTH - 4);
-    // crowd lives between z = -halfD + 8 (just past stage front) and
-    // z = halfD - 6 (just before the booth)
-    const rz = -halfD + 8 + rng() * (TENT_DEPTH - 14);
+    const rz = frontOfStage + rng() * (halfD - 5 - frontOfStage);
     crowdSpots.push(new THREE.Vector3(rx, 0, rz));
   }
 

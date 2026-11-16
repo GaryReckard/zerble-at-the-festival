@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {STAGE_SEATING} from '../src/festivalShapes.js';
 import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {runInNewContext} from 'node:vm';import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';import {CampActivity} from '../src/people/campActivity.js';import {PicnicActivity} from '../src/people/picnicActivity.js';
 const source=readFileSync(new URL('../src/chunks.js',import.meta.url),'utf8');const start=source.indexOf('export function placeStageChairRows('),end=source.indexOf('\nfunction buildTentStageTheme',start);assert(start>0&&end>start);
 let cases=0;
@@ -29,7 +30,7 @@ console.log('PASS stage audience: '+cases+' seeded row layouts, preserved RNG co
  const start=source.indexOf('export function placePicnicBlanket('),end=source.indexOf('\nfunction buildStage(',start);assert(start>0&&end>start);
  const entries=new Map(),registry={entries,byKind:new Map(),byChunk:()=>[],add(e){e.id=entries.size+1;entries.set(e.id,e);this.byKind.set(e.kind,new Set([e.id]));}};
  class Mesh{constructor(){this.rotation={};this.position=new Vector();}}
- const place=runInNewContext(source.slice(start,end).replace('export function','function')+';placePicnicBlanket',{THREE:{Mesh,Vector3:Vector},BLANKET_GEO:{},BLANKET_COLORS:[0],blanketMat(){},terrainHeight:()=>0,queryPoint:()=>({noBuild:false}),nearestRoad:()=>({dist:100}),ROAD_RIBBON_WIDTH:7,registry});
+ const place=runInNewContext(source.slice(start,end).replace('export function','function')+';placePicnicBlanket',{STAGE_SEATING,THREE:{Mesh,Vector3:Vector},BLANKET_GEO:{},BLANKET_COLORS:[0],blanketMat(){},terrainHeight:()=>0,queryPoint:()=>({noBuild:false}),nearestRoad:()=>({dist:100}),ROAD_RIBBON_WIDTH:7,registry});
  let draws=0;place({rng:()=>{draws++;return .4;},group:{add(){}},key:'blanket'},0,0,true,.8);assert.equal(draws,2);const entry=entries.get(1);assert.equal(entry.tableSeats.length,4);
  const crowd=makePeopleCrowd();crowd.picnics=new PicnicActivity(crowd,registry,{random:()=>.4});const handles=[];
  for(const seat of entry.tableSeats){const n=crowd.spawn({pos:new Vector(seat.x,seat.y,seat.z)});handles.push(n.personHandle);n.energy=.8;assert(crowd.picnics.tryClaim(n.personHandle));crowd.picnics.tickWalking(.05,n.personHandle);assert(n.picnicCrossLegged);assert(Math.abs(n.yaw-.8)<.04);}

@@ -94,7 +94,20 @@ for(const model of [buildWook(()=>.4),buildBandMember('trumpet',37)]){
   near(p.getZ(i)+Math.sin(.42)*d0.getZ(i)+(Math.cos(.42)-1)*d1.getZ(i),s*y+c*z);
   near(n.getY(i)+Math.sin(.42)*g.morphAttributes.normal[0].getY(i)+(Math.cos(.42)-1)*g.morphAttributes.normal[1].getY(i),c*n.getY(i)-s*n.getZ(i));
  }
- assert(moving>100&&rigid>100,'only tagged legs/shoes deform inside the merged body');
+ assert(moving>100,'stride morph must rotate both legs and shoes');
+ if(model.name==='Wook'){
+  assert(rigid>100,'the merged Wook torso remains rigid');
+ }else{
+  // Stage musicians keep upper-body actions and parade gait on separate meshes.
+  assert.equal(mesh.name,'Planted legs');assert.equal(rigid,0);
+  const upper=['Performer torso','Articulated arms','Performance gear'].map(name=>model.getObjectByName(name));
+  const vertices=()=>upper.flatMap(part=>{
+   assert(part?.isMesh);
+   return Array.from({length:part.geometry.attributes.position.count},(_,i)=>part.getVertexPosition(i,point).toArray());
+  });
+  const before=vertices();mesh.morphTargetInfluences[0]=Math.sin(.42);mesh.morphTargetInfluences[1]=Math.cos(.42)-1;
+  assert.deepEqual(vertices(),before,'parade stride cannot deform the torso, playing arms or instrument');
+ }
  assert(g.userData.shared&&mesh.material.userData.shared,'merged gait retains pooled geometry/material ownership');
  disposeSceneResources(model);
 }

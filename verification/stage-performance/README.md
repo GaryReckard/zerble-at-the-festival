@@ -1,0 +1,45 @@
+# Stage performance refresh, November 16, 2026
+
+The refresh keeps the low-poly festival style while giving stages a practical backline, musicians actions tied to their own music, more varied synthesized arrangements and audience-dependent applause. The implementation was developed from main `55d7a68` on `codex/stage-performance`.
+
+## Inspect it
+
+Run the normal development server and open `/sandbox.html?entity=stage_main&style=funk&mute=1`. **Play this band** starts the real muted audio transport. The genre selector changes both the score and the roster, **Inspect musician** frames a player, and **Hold pose** freezes only the visual. **Between songs** follows the audio-clock song-end path; **Rest / stop music** tears down the source. Select an empty, small or full **Stage audience** to compare zero, four and 24 actual Crowd actors, then use **Applaud audience**. See the [workshop guide](../../DEBUGGING.md#stage-performance-workshop).
+
+The [capture gallery](gallery.html) includes before/after stages, instrument close-ups, nighttime views, the DJ and the real game. Captures use the managed in-app browser, without standalone Chromium or software-WebGL workers. All URLs used session mute, and no persisted volume setting was changed.
+
+## Browser observations
+
+- The main and side stages rendered at Noon and Midnight on Low; the covered folk stage rendered at both presets on Mid. Guitar, drum kit, trombone and keyboard close-ups showed separate articulated playing contacts. The DJ booth switched to dance music and nighttime presentation on Low.
+- The workshop began with pending audio and resting musicians before the gesture. Play, song gaps, style changes, and a refresh retaining `style=funk` worked. No second band remained when switching the selected style.
+- A small audience reported four participants, 1.9 seconds and 35% intensity; a full audience reported 24 participants, 3.1 seconds and 86% intensity at the song ending. Another small tent audience reported four participants and 2.1 seconds. Individual durations vary deterministically with their actor and event. The empty audience disabled manual applause and supplied no listening crowd to the song-end bridge.
+- The real game passed its native ready-mode click and world boot on Low, followed by a live Stage landmark teleport. The tent band, engineer and ordinary festival crowd rendered in the streamed world. Console inspection returned no warnings or errors after sandbox checks and the live game visit.
+
+These are browser behavior and raster observations. They are not a physical iPad/iPhone test, an iOS audio-unlock acceptance result, an FPS benchmark, or a listening review. The music was verified through muted transport and numerical audio events; Gary’s audible judgment of musical quality remains necessary.
+
+## Render counts and memory
+
+The first before/after comparisons used the original full-stage camera and empty audience. The legacy sandbox used random costume variants; the refreshed preview uses seed 1977, so triangle differences include costume and roster changes. These are descriptive native render-counter readings, not calibrated route measurements.
+
+| Low sandbox | Before draws / triangles | After draws / triangles |
+| --- | ---: | ---: |
+| Main stage, jam | 54 / 24,485 | 40 / 21,361 |
+| Side stage, brass | 37 / 14,735 | 23 / 11,949 |
+
+The [baseline readouts](baseline-render-counts.json) also record the old covered stage. Its new folk/Mid and lower-camera captures are deliberately not presented as a matched comparison. The final workshop camera looks under the roof rather than down onto it.
+
+The [layout regression](../../bin/test-stage-layout) measures static main-stage meshes from 24 to 10 and side-stage meshes from 20 to six, with existing caster counts retained at five and two. The [performer regression](../../bin/test-stage-performers) measures four draws and one caster per player, up to 3,372 triangles across 44 pooled role/costume templates, with 11.92 MiB of shared CPU attributes/indices including motion targets. That CPU total is not a GPU-memory measurement. The initial main-stage browser texture counter rose from five to 19 after motion-target textures were uploaded, while geometry and render calls fell. No device-performance improvement is claimed from those tradeoffs.
+
+## Regression coverage
+
+`npm run check` includes the new stage suites and all existing game regressions. The initial full run caught an outdated assumption that a merged parade body must contain stationary upper-body vertices. The new musician deliberately separates those meshes; the corrected regression still checks every leg/normal against an independent rigid rotation and verifies every torso, arm and instrument vertex remains unchanged by walking. The remaining check chain passed, followed by a complete `npm run check` rerun with exit status 0. The final seat-boundary change then passed its new production venue test and both audience regressions, and `npm run build` passed with the existing Vite chunk-size warning.
+
+- [Audio](../../bin/test-stage-performance-audio): eight complete genre scores, phrase/harmonic variation, seeded identity, actual pitch cues, suspend/resume, late timers, monophonic retriggers, audience-scaled applause and bounded teardown.
+- [Musicians](../../bin/test-stage-performers), [layout](../../bin/test-stage-layout) and [shared band](../../bin/test-stage-band): instrument contact, role rosters, pooling, dimensions, fixed RNG consumption, per-frame cue sharing and explicit rests.
+- [Venue ownership](../../bin/test-stage-venue-ownership): 68 designated listening spots across three actual rotated/scaled hubs, matching band/audio source coordinates and genre rosters, and registry/music/performer cleanup on disposal.
+- [Audience](../../bin/test-stage-audience-reactions): actual Crowd matrices, clap hand contact, seated ownership, staggered gestures, rotated floors, interrupted/recycled actors and stage removal. [Preview](../../bin/test-stage-audience-preview) additionally checks the real builders, recessed tent source and preset/audio cleanup.
+- [Healing Arts motion](../../bin/test-healing-arts-motion) and [streaming sampler](../../bin/test-healing-arts-sampler): real DJ note cues, platter contacts, idle/gap behavior, night transitions and unload. Existing parade locomotion and hair checks also passed.
+
+## Limits
+
+Music remains synthesized, and hand positions are a stylized mapping of the actual played pitch rather than fingering for every real instrument. Lead singers use the melodic cue without synthesizing lyrics. Healing Arts follows its own night track but does not receive the stage-front applause population added to regular and covered stages. No new shadow casters or geometry per animation frame were added. Physical-device frame cost and subjective listening have not been accepted by these desktop checks.

@@ -10,8 +10,8 @@ normative spec — see `spec.md` for the model contract.
 
 | File | Builds | Collision kind |
 |---|---|---|
-| `stage.js` | Main / side performance stage with light show + beams | `stage` |
-| `tentStage.js` | Tented stage variant | `stage` |
+| `stage.js` | Main and side stages with a pooled backline, lighting bridge and style-specific musicians | `stage` |
+| `tentStage.js` | Covered trio stage and front-of-house mixing desk | `stage` |
 | `tent.js` | Craft/vendor tents (booths); pooled static decor (perf P1 merge) | `tent` |
 | `foodTruck.js` | Food trucks; shared body geometries + color-keyed material cache | `truck` |
 | `sugarShack.js` | Sugar Shack — string-bulb lights, work spots; pooled `SHACK_MATS`/`STRING_BULB_GEO`/`SUPPLY_CAN_GEO` | — |
@@ -30,7 +30,7 @@ normative spec — see `spec.md` for the model contract.
 | `bandMember.js` | Brass-band members (trumpet/tuba/sax/drum/trombone) | `brass` |
 | `kid.js` | Festival kid (gaggle member) | `kid` |
 | `wook.js` | The wook (trip-offer NPC; passive proximity collider) | `wook` |
-| `performer.js` | Stage performer/dancer (animated) | — |
+| `performer.js` | Stage and parade musician rigs, with poses for playing and listening | — |
 | `parasolMarshal.js` | Parasol marshal | — |
 | `frisbeePlayer.js` | Frisbee-throwing reveler (drifts) | — |
 | `hulaHooper.js` | Hula-hooper (drifts) | — |

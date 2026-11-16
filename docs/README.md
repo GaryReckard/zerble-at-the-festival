@@ -34,6 +34,7 @@ Keep unresolved acceptance separate from shipped implementation.
 - [Browser verification and cleanup](browser-verification.md): process
   ownership, local safety restrictions and the software WebGL fallback.
 - [People behavior integration](../openspec/changes/people-npc-architecture/extension-guide.md): population/activity/role contracts, current venue eligibility, and [before/after visual](../verification/people/architecture.html).
+- [Stage performance verification](../verification/stage-performance/README.md): stage workshop, real music cues, audience reactions and render/memory evidence.
 - [Cornhole verification](../verification/cornhole/README.md): production sandbox controls, contextual placement, full NPC games and native board contact.
 - [New-model checklist](../.claude/rules/sandbox-and-testing.md): sandbox wiring
   and integration checks.

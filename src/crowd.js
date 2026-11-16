@@ -13,6 +13,7 @@ import {GroupParticipation,publishGroupBinding,hideGroupBinding,releaseGroupBind
 import {canSmile,movedSinceSmile,resetSmile} from './people/smilePolicy.js';
 import { PeopleRuntime } from './people/runtime.js';
 import { PersonHandles } from './people/personHandle.js';
+import {applaudStage,sampleStageApplause} from './people/stageAudience.js';
 import {disposeSceneResources} from './people/sceneResources.js';
 import { ActivityClaims } from './people/activityClaims.js';
 import { mulberry32 } from './rng.js';
@@ -818,7 +819,9 @@ export class Crowd {
     this.peopleHandles.readOwnedRecord(n,out);out.photographer=!!n.isPhotographer;out.crouch=!!n.photoCrouch;out.flash=n.photoFlashTimer??0;return true;
   }
 
-  // Trigger a cheer wave centered at (x, z) — called by main.js when a song ends.
+  applaudStage(x,z) {return applaudStage(this,registry,x,z);}
+
+  // Generic cheers are shared by fireworks and other world reactions.
   // NPCs in available states (idle/walking/watching/onDancefloor) within
   // CHEER_RADIUS get 5s of jump+arms-up+smile. Riding/boarding/fleeing/hammock
   // states are skipped so riders don't ghost off their seats.
@@ -832,6 +835,7 @@ export class Crowd {
       if (s === 'riding' || s === 'boarding' || s === 'disembarking' ||
           s === 'fleeing' || s === 'walking_to_hammock' || s === 'hammock_riding' ||
           s === 'walking_to_table' || s === 'table_seated' || isPhotographerState(s)) continue;
+      npc._stageAudience=null;
       npc.cheerTimer = 5.0;
       npc.cheerX = x;
       npc.cheerZ = z;
@@ -839,12 +843,10 @@ export class Crowd {
     }
   }
 
-  // Kept as a no-op for chunk-unload back-compat. Lifecycle is now driven by
-  // distance from Zerble in update() — that way NPCs who wander across chunk
-  // boundaries don't blink out when their *spawn* chunk unloads, and NPCs in
-  // a still-loaded chunk don't linger after they've drifted out of view.
-  unloadChunk(_chunkKey) {
-    // intentionally empty
+  // People outlive their spawn chunk. An applause overlay belongs to its stage.
+  unloadChunk(chunkKey) {
+    if(!this._stageApplauseEnds)return;
+    for(const npc of this.npcs)if(npc._stageAudience?.entry.chunkKey===chunkKey)npc._stageAudience=null;
   }
 
   // Despawn NPCs farther than DESPAWN_RADIUS from Zerble. Skips riders and
@@ -1632,6 +1634,7 @@ export class Crowd {
   }
 
   _writeMatrices(npc) {
+    const applause=npc._stageAudience?sampleStageApplause(this,registry,npc):null;
     const reaction=npc._reactionPose&&this.activityClaims.canWrite(npc._reactionPose.claim)?npc._reactionPose:null;
     if(!reaction)groundNpc(npc);
     if (npc.state === 'camp_sleeping' || npc.campJamHidden || npc._activityBinding?.hidden) { this._hideNpc(npc); return; }
@@ -1670,7 +1673,7 @@ export class Crowd {
     if(flowFeet){validateHoopFeet(flowFeet);if(!Number.isFinite(hula.rootY))throw new TypeError('Planted flow requires a finite root height.');}
     const flowSupport=articulated?(flowFeet?hula.rootY:hoopFootLift(hula.stride??0,hula.leanX,hula.leanZ))*npc.scale:0;
     const danceActivity=!reaction&&!!activityOwner?.isDancePerson?.(npc.personHandle);
-    const stageDancing=!activityOwner&&isStageDancing(npc.state,npc.onDancefloor,npc.dance);
+    const stageDancing=!applause&&!activityOwner&&isStageDancing(npc.state,npc.onDancefloor,npc.dance);
     let bobY;
     let danceTilt;
     let danceYawWiggle = 0;
@@ -1693,7 +1696,7 @@ export class Crowd {
     // Chair contact stays fixed even near dancefloors or while smiling. A
     // feet-origin bob/tilt moves the pelvis through the supporting fabric.
     if (npc.state === 'camp_seated' || npc.picnicCrossLegged || npc.campMusic) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
-    if(reaction||pickupDrop){bobY=0;danceTilt=0;danceYawWiggle=0;}
+    if(reaction||pickupDrop||applause){bobY=0;danceTilt=0;danceYawWiggle=0;}
 
     let quat;
     if (npc.state === 'hammock_riding') {
@@ -1709,7 +1712,7 @@ export class Crowd {
 
     // Happy bounce: while smile cooldown is active the body bobs up by a small
     // sin wave (~6cm amplitude) so the whole figure (body + mouth) hops.
-    const bouncing = !reaction && npc.smileTimeCooldown > 0 && !photographing && !npc.campMusic;
+    const bouncing = !applause && !reaction && npc.smileTimeCooldown > 0 && !photographing && !npc.campMusic;
     const bounceY = bouncing
       ? Math.abs(Math.sin((this.actorTime??0) * 12 + npc.bob)) * 0.06
       : 0;
@@ -1908,6 +1911,9 @@ export class Crowd {
     }else if(hasArmPose){
       armAttr.setXYZW(npc.idx,armPose.x,armPose.z,armPose.elbow,armPose.leftZ);
       sampleArmHand(armPose,armPose.hand).applyMatrix4(this._armsMat);
+    }else if(applause){
+      armAttr.setXYZW(npc.idx,applause.x,applause.z,applause.elbow,applause.leftZ);
+      leftAttr.setXY(npc.idx,applause.leftX,applause.leftElbow);
     }else if(articulated){
       const a=hula.arms;
       if(!a||!Number.isFinite(a.x)||!Number.isFinite(a.z)||!Number.isFinite(a.elbow)||!Number.isFinite(a.leftX)||!Number.isFinite(a.leftZ)||!Number.isFinite(a.leftElbow))throw new TypeError('Flow arms must be finite.');
@@ -1922,8 +1928,8 @@ export class Crowd {
     else {armAttr.setXYZW(npc.idx,0,0,0,0);}
     armAttr.needsUpdate=true;leftAttr.needsUpdate=true;
     let headM=m;
-    if(articulated){
-      this._tmpDanceMat.makeRotationFromEuler(this._tmpEuler.set(0,hula.headYaw??0,hula.headTilt??0));
+    if(articulated||applause){
+      this._tmpDanceMat.makeRotationFromEuler(this._tmpEuler.set(applause?.nod??0,hula?.headYaw??0,hula?.headTilt??0));
       this._flowHeadLocalMat.makeTranslation(0,1.65,0).multiply(this._tmpDanceMat).multiply(this._musicPivotMat.makeTranslation(0,-1.65,0));
       headM=this._flowHeadMat.multiplyMatrices(m,this._flowHeadLocalMat);
     }
@@ -1957,7 +1963,7 @@ export class Crowd {
     // Frowning (dry-cart disappointment) flips the arc + shows it full-size;
     // otherwise it's a smile, big right after smiling and small at rest.
     const frowning = npc.frownTimer > 0;
-    const mouthScale = (frowning || npc.smileTimeCooldown > 0) ? 1.0 : 0.3;
+    const mouthScale = (frowning || applause || npc.smileTimeCooldown > 0) ? 1.0 : 0.3;
     this._tmpV3.set(0, 1.55, -0.215); // face-local offset, NPC body frame
     this._tmpScale.set(mouthScale, mouthScale, mouthScale);
     this._mouthLocalMat.compose(this._tmpV3, frowning ? this._frownQuat : this._identityQuat, this._tmpScale);
@@ -2913,7 +2919,7 @@ export class Crowd {
   // and live render resources. Both explicit and distance removal use this core.
   _releaseNpc(npc) {
     if(npc._removing)return false;
-    npc._removing=true;
+    npc._removing=true; npc._stageAudience=null;
     const handle=this.peopleHandles.handleFor(npc),errors=[];
     const release=fn=>{try{fn();}catch(error){errors.push(error);}};
     this.peopleHandles.remove(handle,()=>{
@@ -3001,6 +3007,7 @@ export class Crowd {
   }
 
   _hideNpc(npc) {
+    npc._stageAudience=null;
     this._writeHoopFeet(npc,null);
     this.shoppingBagMesh?.setMatrixAt(npc.idx, this._zeroMat);
     if (npc.campInstrument) npc.campInstrument.group.visible = false;
@@ -3183,6 +3190,7 @@ export class Crowd {
         const inFront = d2 < frontSq && dot > FRONT_CONE_DOT;
         const inRange = inFront || (d2 < behindSq);
         if (inRange) {
+          npc._stageAudience=null;
           if (npc.state === 'boarding' && npc.seatSlot) {
             this._releaseSeat(npc);
             npc.seatSlot = null;

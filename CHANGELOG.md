@@ -7,6 +7,12 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ### Added
 - **Cornhole pickup inspection.** The production NPC sandbox has a Show bag pickup control that pauses and frames a real reach, with round advance resuming correctly from inspection.
 
+### Changed
+
+- **Festival bands play their parts.** Folk guitar and funk rhythm sections join the jam, brass, world, dance and dub sets. The musicians follow the notes scheduled for their own stage, from the bassist’s fretting hand to the drummer’s kick pedal, and take a breath between songs. Main stages have six musicians, side stages and marquees have trios, and Healing Arts hosts a dance or dub set after dark.
+- **Applause comes from the listening crowd.** At the end of a song, listeners clap, wave or nod at slightly different times. Seated listeners keep their places, a small audience gets a handful of claps, and an empty dance floor stays quiet.
+- **Stage equipment has a working layout.** Speaker stacks stand at the audience edge, monitor wedges point back at the band, and a lighting bridge spans the deck. The model sandbox can isolate any musician, hold a playing pose, and show the notes driving it. [Stage workshop instructions](DEBUGGING.md#stage-performance-workshop).
+
 ### Fixed
 - **Cornhole players stoop toward bags instead of tipping backward.** Retrieval uses an eased, planted-foot knee bend and forward hip hinge, faces the bag and adjusts for board height, then lifts it with the hand while standing. Walking, the loser reaction and final tidying restore the correct posture without borrowing a rigid whole-body reaction transform. [Verification](verification/cornhole/pickup-pose/README.md).
 

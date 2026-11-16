@@ -1,0 +1,88 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Vector3,Matrix4} from 'three';
+import {mulberry32} from '../src/rng.js';
+import {sampleArmHand} from '../src/personMotion.js';
+
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:720,__perfProfile:'low'};
+globalThis.document={addEventListener(){},createElement:()=>({getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>k in o?o[k]:()=>{}})})};
+const {Crowd}=await import('../src/crowd.js'),{registry}=await import('../src/registry.js');
+const area={sourceX:80,sourceZ:20,yaw:Math.PI/2,near:3,far:30,halfWidth:7};
+const stage=()=>registry.add({kind:'stage_front',position:new Vector3(88,0,20),stageAudience:area,chunkKey:'auditorium'});
+const matrix=(mesh,n)=>{const m=new Matrix4();mesh.getMatrixAt(n.idx,m);return m;};
+
+function run(total){
+  const crowd=new Crowd({spawn(){},spawnLost(){}});
+  const front=stage();
+  const spawn=(x=90,z=20)=>crowd.spawn({pos:new Vector3(x,0,z),rng:mulberry32(crowd.npcs.length+13),
+    allowPhotographer:false,appearanceOverride:{hasDrink:false}});
+  const seat={x:92,y:.85,z:21,yaw:Math.PI/2,approachX:92,approachZ:22,occupied:false};
+  const camp=registry.add({kind:'campsite',position:new Vector3(92,0,21),campSeats:[seat],campBeds:[]});
+  try{
+    const sitter=spawn(92,22);
+    for(let i=0;i<220&&sitter.state!=='camp_seated';i++)crowd.camps.tick(.05,sitter.personHandle,.25);
+    assert.equal(sitter.state,'camp_seated');assert(seat.occupied);
+    const claim=crowd.activityClaims.current.get(sitter.personHandle).claim;
+    const seatedShoes=matrix(crowd.shoesMesh,sitter);
+    const seatedBody=matrix(crowd.bodyMesh,sitter);
+    const attendees=[sitter];
+    for(let i=1;i<total;i++){
+      const n=spawn(87+i%17,20+(i%5)-2);
+      Object.assign(n,{yaw:Math.PI/2,state:i%2?'watching':'idle',dance:0,onDancefloor:false});
+      attendees.push(n);
+    }
+    const ignored=[];
+    for(const fields of [{state:'walking'},{state:'boarding'},{state:'camp_sleeping'},{state:'using_potty'},
+      {isPhotographer:true},{campMusic:true},{hailing:true},{yaw:-Math.PI/2},{state:'fleeing'}]){
+      const n=spawn();Object.assign(n,{yaw:Math.PI/2},fields);ignored.push(n);
+    }
+    ignored.push(spawn(77,20),spawn(90,29),spawn(112,20));
+    const claimUser=spawn();claimUser.yaw=Math.PI/2;
+    assert(crowd.claimActivity(claimUser.personHandle,{owner:{activityKey:'cornhole'}}));ignored.push(claimUser);
+    assert.equal(crowd.applaudStage(84,20).count,0);
+    const summary=crowd.applaudStage(81,20);
+    assert.equal(summary.count,total);assert.equal(summary,crowd.lastStageApplause);
+    assert(summary.x>83&&summary.x<110);assert(summary.duration<4);
+    for(const n of ignored)assert(!n._stageAudience,'unrelated listener admitted');
+    assert.equal(crowd.applaudStage(80,20).count,0,'same encore cannot stack');
+    const signatures=attendees.map(n=>[n._stageAudience.start,n._stageAudience.end,n._stageAudience.style]);
+    const styles=new Set(signatures.map(a=>a[2]));
+    if(total>8){
+      assert(new Set(signatures.map(a=>a[0])).size>6);assert(new Set(signatures.map(a=>a[1])).size>6);
+      assert(styles.has('clap')&&styles.has('wave')&&styles.has('nod'));
+      const clapper=attendees.find(n=>n._stageAudience.style==='clap');
+      const pose=clapper._stageAudience;
+      const arm=crowd.armsMesh.geometry.getAttribute('armPose'),left=crowd.armsMesh.geometry.getAttribute('armLeftPose');
+      const handsApart=offset=>{
+        crowd.actorTime=pose.start+offset/pose.frequency;crowd._writeMatrices(clapper);
+        const i=clapper.idx;
+        const a=sampleArmHand({x:arm.getX(i),z:arm.getY(i),elbow:arm.getZ(i)},new Vector3());
+        const b=sampleArmHand({x:left.getX(i),z:-arm.getW(i),elbow:-left.getY(i)},new Vector3());
+        b.x*=-1;
+        return a.distanceTo(b);
+      };
+      assert(handsApart(1)>.28);assert(handsApart(1.5)<.11,'actual published hands must meet on a clap');
+      assert(!clapper.cheerTimer);
+      const foot=matrix(crowd.shoesMesh,clapper);handsApart(2);assert(foot.equals(matrix(crowd.shoesMesh,clapper)),'clapping feet drift');
+    }
+    crowd.actorTime=sitter._stageAudience.start+.35;crowd._writeMatrices(sitter);
+    assert.equal(crowd.activityClaims.current.get(sitter.personHandle).claim,claim);
+    assert.equal(sitter.state,'camp_seated');assert(seat.occupied);
+    assert(seatedShoes.equals(matrix(crowd.shoesMesh,sitter)));assert(seatedBody.equals(matrix(crowd.bodyMesh,sitter)));
+    if(total>8){
+      const victim=attendees[2],slot=victim.idx;
+      crowd.removeNpc(victim);const fresh=spawn(victim.pos.x,victim.pos.z);
+      assert.equal(fresh.idx,slot);assert(!fresh._stageAudience);
+      const leaving=attendees[3];leaving.state='walking';crowd._writeMatrices(leaving);assert(!leaving._stageAudience);
+      const honked=attendees[4];crowd.applyHonk({position:honked.pos.clone(),forwardWorld:new Vector3(1,0,0),speed:4});
+      assert(!honked._stageAudience);assert.equal(honked.state,'fleeing');
+    }
+    registry.remove(front);
+    for(const n of attendees)if(n._stageAudience){crowd._writeMatrices(n);assert(!n._stageAudience,'stage removal is authoritative');}
+    crowd.unloadChunk('auditorium');return {summary,signatures};
+  }finally{crowd.dispose();registry.remove(camp);registry.remove(front);}
+}
+const solo=run(1),full=run(24),repeat=run(24);
+assert(solo.summary.intensity<full.summary.intensity&&solo.summary.duration<full.summary.duration);
+assert.deepEqual(full.signatures,repeat.signatures);
+console.log('PASS stage audience: rotated area, attentive listeners, seated claim/contact, staggered styles, published claps, interruption, reuse and unload, with scaled spatial sound.');

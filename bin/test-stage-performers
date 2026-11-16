@@ -1,0 +1,145 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Vector3,Color,Raycaster} from 'three';
+import {buildPerformer} from '../src/models/performer.js';
+import {performerContacts,stickTips} from '../src/performerMotion.js';
+import {buildBandMember,tickBandMember} from '../src/models/bandMember.js';
+import {disposeSceneResources} from '../src/sceneResources.js';
+
+const cue={playing:true,time:11.5,beat:14,beatPhase:.3,intensity:.7,section:'verse',
+  lead:0,bass:0,chord:0,kick:0,snare:0,hat:0};
+const off={...cue,playing:false};
+const v=new Vector3(),wood=new Color(0xe7c38b);
+const parts=p=>[p.userData.strideMesh,...['Performer torso','Articulated arms','Performance gear'].map(n=>p.getObjectByName(n))];
+let largest=0,bytes=0;
+const triangleCount=m=>(m.geometry.index?.count??m.geometry.attributes.position.count)/3;
+for(const role of Object.keys(performerContacts)){
+  let draws=0;const actor=buildPerformer(role,()=>{draws++;return .4;});
+  const other=buildPerformer(role,()=>.4),[legs,torso,arms,gear]=parts(actor);
+  assert.equal(draws,role==='guitar'?2:1,'caller RNG continuity '+role);
+  let meshes=0,tris=0,casters=0;
+  actor.traverse(m=>{if(m.isMesh){meshes++;tris+=triangleCount(m);casters+=Number(m.castShadow);}});
+  assert.equal(meshes,4);assert.equal(casters,1);assert(tris<=3500,role);largest=Math.max(largest,tris);
+  for(const roll of [.1,.4,.6,.9]){
+    let costumeTris=0;
+    for(const mesh of parts(buildPerformer(role,()=>roll))){
+      costumeTris+=triangleCount(mesh);
+      const g=mesh.geometry;assert(g.index,'keep authored primitive indices on morph templates');
+      bytes+=g.index.array.byteLength;
+      for(const a of [...Object.values(g.attributes),...Object.values(g.morphAttributes).flat()])bytes+=a.array.byteLength;
+    }
+    largest=Math.max(largest,costumeTris);
+    assert(costumeTris<=3500,role+' exceeds the largest measured kit budget');
+  }
+  const pools=parts(other);
+  let disposals=0;
+  for(const [i,m] of parts(actor).entries()){
+    assert.equal(m.geometry,pools[i].geometry);assert.equal(m.material,pools[i].material);
+    assert(m.geometry.userData.shared&&m.material.userData.shared);
+    m.geometry.addEventListener('dispose',()=>disposals++);
+  }
+  const play=c=>{actor.userData.animate(51,c);actor.updateMatrixWorld(true);};
+  play({...cue,lead:1,bass:1,chord:1,kick:1,snare:1,hat:1,leadPitch:130.81,bassPitch:41.2});
+  assert(arms.morphTargetInfluences[1]>.1,role+' has an action pose');
+  const shoe=legs.matrixWorld.toArray();
+  assert(pools[2].morphTargetInfluences.every(weight=>weight===0),'shared pose cannot animate another musician');
+  if(stickTips[role]){
+    // At the attack and at recovery, find the actual rendered stick tip cap
+    // centre. This catches an animated hand/arm pivot displacing an entire stick.
+    const color=arms.geometry.attributes.color;
+    for(const pose of [0,1]){
+      play({...cue,snare:pose,hat:pose,kick:pose});
+      for(const targets of stickTips[role]){
+        const target=new Vector3(...targets[pose]).applyMatrix4(gear.matrixWorld);let dist=Infinity;
+        for(let i=0;i<color.count;i++)if(Math.abs(color.getY(i)-wood.g)<1e-5){
+          arms.getVertexPosition(i,v);v.applyMatrix4(arms.matrixWorld);dist=Math.min(dist,v.distanceTo(target));
+        }
+        assert(dist<.0001,role+' stick reaches its authored contact, distance '+dist);
+      }
+    }
+    // Cast against the actual merged gear; moving a drumhead or stand without
+    // updating the articulation must fail even if the target data still agrees.
+    for(const targets of stickTips[role]){
+      const hitPoint=new Vector3(...targets[1]),origin=hitPoint.clone();
+      origin.y+=.06;origin.applyMatrix4(gear.matrixWorld);
+      const ray=new Raycaster(origin,new Vector3(0,-1,0).transformDirection(gear.matrixWorld),0,.12);
+      const hits=ray.intersectObject(gear,false);
+      assert(hits.length&&Math.abs(hits[0].distance-.06)<.021,role+' misses the physical drum/cymbal surface');
+    }
+    if(role==='drum'){
+      play({...cue,kick:1});assert.deepEqual(arms.morphTargetInfluences,[0,0]);assert.equal(gear.morphTargetInfluences[0],1);
+      assert.equal(legs.morphTargetInfluences[0],1,'kick pedal has a corresponding foot action');
+      play({...cue,snare:1});assert.deepEqual(arms.morphTargetInfluences,[1,0]);
+      play({...cue,hat:1});assert.deepEqual(arms.morphTargetInfluences,[0,1]);
+    }
+  }
+  if(role==='trombone'){
+    play({...cue,lead:1,leadPitch:130.81});
+    const p=gear.geometry.attributes.position;let shifted=0,stationary=0;
+    for(let i=0;i<p.count;i++){
+      const dz=gear.getVertexPosition(i,v).z-p.getZ(i);
+      if(Math.abs(dz+.36)<1e-5)shifted++;
+      else if(Math.abs(dz)<1e-5)stationary++;
+    }
+    assert(shifted>50&&stationary>100,'moving slide and fixed bell share one draw');
+    assert.equal(gear.morphTargetInfluences[0],arms.morphTargetInfluences[1]);
+  }
+  if(role==='keys'){
+    play(off);play({...cue,chord:1,lead:1});
+    for(const hand of performerContacts.keys){
+      const [x,y,z]=hand[1],tip=new Vector3(x,y-.052,z-.087);
+      let dist=Infinity;
+      for(let i=0;i<arms.geometry.attributes.position.count;i++){
+        arms.getVertexPosition(i,v);dist=Math.min(dist,v.distanceTo(tip));
+      }
+      assert(dist<.0001,'keyboard has an articulated fingertip');
+      const origin=tip.clone();origin.y+=.055;
+      const hits=new Raycaster(origin,new Vector3(0,-1,0),0,.11).intersectObject(gear,false);
+      assert(hits.length&&Math.abs(hits[0].distance-.055)<.03,'finger contacts a real key');
+    }
+    play({...cue,chord:1});assert.deepEqual(arms.morphTargetInfluences.slice(0,2),[1,0]);play({...cue,lead:1});assert.deepEqual(arms.morphTargetInfluences.slice(0,2),[0,1]);}
+  if(['guitar','bass','keys','trombone'].includes(role)){
+    const index=role==='keys'?3:role==='trombone'?1:0;
+    play({...cue,lead:1,bass:1,chord:1,leadPitch:220,bassPitch:55});
+    const low=arms.morphTargetInfluences[index];
+    play({...cue,lead:.5,bass:.5,chord:.5,leadPitch:440,bassPitch:110});
+    const high=arms.morphTargetInfluences[index];
+    assert(role==='keys'?high>low:high<low,role+' responds to a rising octave in the physical direction');
+    play({...cue,time:50,beat:82,leadPitch:0,bassPitch:0});
+    assert.equal(arms.morphTargetInfluences[index],high,'fingering stays put between notes');
+    if(role==='trombone')assert.equal(gear.morphTargetInfluences[0],high);
+    if(role==='keys'){
+      play({...cue,chord:1,lead:1,leadPitch:440,bassPitch:110});
+      const [lh,rh]=arms.morphTargetInfluences.slice(2);
+      for(const [i,shift] of [lh,rh].entries()){
+        const hand=performerContacts.keys[i][1],tip=new Vector3(hand[0]+.33*shift,hand[1]-.052,hand[2]-.087);
+        let distance=Infinity;
+        for(let j=0;j<arms.geometry.attributes.position.count;j++)distance=Math.min(distance,arms.getVertexPosition(j,v).distanceTo(tip));
+        assert(distance<.0001,'pitched fingertip reaches its new key');
+        const ray=new Raycaster(tip.clone().add(new Vector3(0,.055,0)),new Vector3(0,-1,0),0,.11);
+        assert(ray.intersectObject(gear,false).length,'pitched contact lies on keyboard');
+      }
+    }
+  }
+  play({...off,lead:1,bass:1,chord:1,kick:1,snare:1,hat:1});
+  assert(arms.morphTargetInfluences.every(weight=>weight===0));
+  const glance=torso.morphTargetInfluences[0];actor.userData.animate(54,off);assert.notEqual(torso.morphTargetInfluences[0],glance,'idle listening');
+  const event={...cue,lead:.85,bass:.7,snare:.4,chord:.9};
+  play(event);const held=torso.morphTargetInfluences.slice();
+  actor.userData.animate(999,event);assert.deepEqual(torso.morphTargetInfluences,held,'audio clock owns the performing pose');
+  other.userData.animate(999,event);assert.deepEqual(arms.morphTargetInfluences,pools[2].morphTargetInfluences);
+  actor.updateMatrixWorld(true);assert.deepEqual(legs.matrixWorld.toArray(),shoe,'foot anchors never sway');
+  const sameCostume=buildPerformer(role,()=>.401),head=parts(sameCostume)[1];
+  assert.equal(head.geometry,torso.geometry);sameCostume.userData.animate(999,event);
+  assert.notEqual(head.morphTargetInfluences[0],torso.morphTargetInfluences[0],'look phase is private within a costume');
+  disposeSceneResources(actor);assert.equal(disposals,0);
+}
+for(const instrument of ['drum','trumpet','trombone','tuba']){
+  const parade=buildBandMember(instrument,113);
+  parade.position.x=.06;tickBandMember(parade,.045);
+  const stride=parade.children[0].userData.strideMesh;
+  assert(stride.geometry.userData.shared);assert(stride.morphTargetInfluences.some(v=>v!==0));
+  assert(stride.morphTargetInfluences.every(Number.isFinite));
+}
+assert(bytes<13*1024*1024,'pooled geometry/morph buffers exceed 13 MiB');
+console.log('PASS performer rigs: eleven roles, actual drumstick/slide vertices, voice isolation, idle/audio clocks, planted feet, parade stride, independent poses and shared disposal. Maximum across 44 costumes: '+largest+' triangles, four draws, one caster; '+(bytes/1024/1024).toFixed(2)+' MiB pooled attribute/index buffers.');

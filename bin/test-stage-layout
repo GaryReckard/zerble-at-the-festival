@@ -1,0 +1,109 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { Box3, Scene, Vector3 } from 'three';
+import { _debugRegistrySize, update as updateLights } from '../src/contextLights.js';
+import { STAGE_SHAPES, STAGE_SURFACES } from '../src/festivalShapes.js';
+import { buildStage, placeBandOnStage, stageInstruments } from '../src/models/stage.js';
+import { buildTentStage } from '../src/models/tentStage.js';
+import { mulberry32 } from '../src/rng.js';
+
+const styles = ['jam', 'brass', 'folk', 'funk', 'dance', 'world', 'dub'];
+const geometries = new Map();
+const scene = new Scene();
+const camera = new Vector3();
+const close = (a, b) => assert(Math.abs(a - b) < 1e-5, a + ' differs from ' + b);
+
+for (const isMain of [false, true]) {
+  for (const style of styles) {
+    for (const scale of isMain ? [1, 1.4] : [.82, 1.5]) {
+      const rng = mulberry32(594), expected = mulberry32(594);
+      const stage = buildStage({ isMain, rng, scale });
+      const shape = isMain ? STAGE_SHAPES.main : STAGE_SHAPES.side;
+      close(stage.deckWidth, shape.width * scale);
+      close(stage.deckDepth, shape.depth * scale);
+      close(stage.deckHeight, STAGE_SURFACES.deckHeight * scale);
+      close(stage.frontZ, stage.deckDepth / 2);
+      const deck = stage.group.children[0];
+      const deckBox = new Box3().setFromObject(deck);
+      close(deckBox.max.y, stage.deckHeight);
+      close(deckBox.max.x, stage.deckWidth / 2);
+      close(deckBox.max.z, stage.frontZ);
+
+      let meshes = 0, triangles = 0, casters = 0;
+      stage.group.traverse(node => {
+        if (!node.isMesh) return;
+        meshes++;
+        triangles += (node.geometry.index ?? node.geometry.attributes.position).count / 3;
+        if (node.castShadow) casters++;
+      });
+      assert(meshes <= (isMain ? 10 : 6));
+      assert(triangles <= (isMain ? 4300 : 3750));
+      assert.equal(casters, isMain ? 5 : 2);
+      const rig = stage.group.getObjectByName('Stage rig and backline');
+      assert(rig.geometry.userData.shared && rig.material.userData.shared);
+      assert.equal(rig.castShadow, false);
+      if (geometries.has(isMain)) assert.equal(geometries.get(isMain), rig.geometry);
+      geometries.set(isMain, rig.geometry);
+      const rigBox = new Box3().setFromObject(rig);
+      close(rigBox.min.y, 0);
+      // Side PA and approach steps remain within the former visual envelope.
+      assert(rigBox.max.x <= stage.deckWidth / 2 + 1.801 * scale);
+      assert(rigBox.max.z <= stage.frontZ + 1.29 * scale);
+
+      const roles = stageInstruments(style, isMain);
+      const band = placeBandOnStage(stage.group, roles, { ...stage, rng, style });
+      assert.deepEqual(band.map(actor => actor.userData.instrument), roles);
+      for (let i = 0; i < (isMain ? 11 : 5); i++) expected();
+      assert.equal(rng(), expected(), 'stage construction preserves the world RNG cursor');
+      const footprints = band.map(actor => new Box3().setFromObject(actor, true));
+      for (const [index, bounds] of footprints.entries()) {
+        assert(bounds.min.x > -stage.deckWidth / 2 && bounds.max.x < stage.deckWidth / 2);
+        assert(bounds.min.z > -stage.frontZ && bounds.max.z < stage.frontZ);
+        assert(bounds.max.z < stage.frontZ - 1.06 * scale, roles[index] + ' clears downstage wedges');
+        for (const other of footprints.slice(index + 1)) assert(!bounds.intersectsBox(other), 'bandmates clear each other');
+      }
+      if (style === 'brass') {
+        assert(roles.every(role => ['trumpet', 'trombone', 'sax', 'tuba'].includes(role)));
+        assert(roles.includes('tuba') && roles.includes('trumpet'));
+      }
+      if (style === 'folk') {
+        assert.equal(roles.filter(role => role === 'guitar').length, isMain ? 2 : 1);
+        assert(roles.includes('bass') && roles.includes('march_drum'));
+      }
+      if (style === 'funk') {
+        assert(roles.includes('bass') && roles.includes('guitar') && roles.includes('drum'));
+        if (isMain) assert(roles.includes('keys') && roles.includes('trumpet'));
+      }
+      const riserRole = style === 'brass' ? 'tuba' : style === 'folk' ? 'march_drum' : 'drum';
+      const riserPlayer = band.find(actor => actor.userData.instrument === riserRole);
+      close(riserPlayer.position.y, stage.deckHeight + .328 * scale);
+
+      scene.add(stage.group);
+      stage.group.userData.animateLights(.25, 0);
+      assert(stage.stageBeams.every(ref => ref.beam.intensity === 0));
+      stage.group.userData.animateLights(.25, 1);
+      assert.equal(stage.stageBeams.length, 3);
+      assert(stage.stageBeams.every(ref => ref.beam.intensity > 0 && !ref.beam.visible));
+      updateLights(camera, scene);
+      assert.equal(_debugRegistrySize(), 3);
+      scene.remove(stage.group);
+      updateLights(camera, scene);
+      assert.equal(_debugRegistrySize(), 0);
+    }
+  }
+}
+for (const style of styles) {
+  const rng = mulberry32(747), expected = mulberry32(747);
+  const tent = buildTentStage({ style, rng });
+  for (let i = 0; i < 41; i++) expected();
+  assert.equal(rng(), expected(), 'marquee preserves stage, band and audience draw counts');
+  assert.deepEqual(tent.performers.map(p => p.userData.instrument), [...stageInstruments(style), 'sound']);
+  const engineer = tent.performers.at(-1);
+  assert(engineer.position.z > tent.group.getObjectByName('Soundboard').position.z);
+  for (const patron of tent.crowdSpots) {
+    assert(patron.z > tent.stagePos.z + tent.stageDepth / 2 + 1.29 * tent.stageScale);
+    assert(patron.z < tent.mixerPos.z - 1.25);
+  }
+  updateLights(camera, scene);
+}
+console.log('PASS stage geometry, style rosters, scaled band clearances, draw and triangle budgets, world RNG cursor, marquee floor, and pooled light teardown.');

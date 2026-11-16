@@ -181,20 +181,9 @@ for the current procedure. Remaining work:
 
 ## Music
 
-### Section transitions *(polish on shipped songform)*
+### Section order and tempo changes
 
-Real songform shipped 2026-06-03 — each melodic stage plays finite songs with
-named sections (intro/verse/chorus/bridge/outro, or intro/build/drop/break for
-dance), per-song tempo + key changes, voices coming in/out by section, and a
-crowd cheer between songs. The 2026-10-14 performance pass added recurring
-motifs, alternate answers, section dynamics, jam/brass transition fills, dance
-sixteenth-note arpeggios and a complete triplet clave grid. Musician poses,
-instruments, stage equipment and performer washes also shipped; see
-[verification](verification/festival-performance/README.md).
-
-Remaining extensions are a probabilistic section-order scheduler and tempo
-ramps within songs. The current order remains genre-specific, with per-song
-tempo changes and a gentle tempo drift.
+The live bands vary the order of the bridge and solo and the length of the first verse. Broader section-order variation for dance, world and dub and a deliberate tempo ramp into a new section remain open. The scheduler currently varies the starting tempo between songs and adds a gentle drift within each song. [Live arrangements](src/liveStageMusic.js) and [song scheduler](src/sound.js).
 
 ---
 

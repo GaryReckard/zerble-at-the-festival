@@ -1,0 +1,71 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Scene} from 'three';
+
+globalThis.window = {addEventListener(){}, innerWidth:1280, innerHeight:720, __perfProfile:'low'};
+globalThis.document = {
+  addEventListener(){},
+  createElement:()=>({getContext:()=>new Proxy({
+    measureText:()=>({width:100}),
+    createLinearGradient:()=>({addColorStop(){}}),
+    createRadialGradient:()=>({addColorStop(){}}),
+  }, {get:(canvas,key)=>key in canvas ? canvas[key] : ()=>{}})}),
+};
+const {setSessionSeed} = await import('../src/rng.js');
+const {registry} = await import('../src/registry.js');
+const {heartInCell} = await import('../src/worldgen/hearts.js');
+const {buildHubPreview, disposeChunkByKey, stagePerformers} = await import('../src/chunks.js');
+const {stageInstruments} = await import('../src/models/stage.js');
+
+const scene = new Scene();
+// Three seeded venues have different headings and scales. The side stage
+// seats a blanket listener beyond the previous lateral limit.
+const venues = [[-5, -3, 'main_stage'], [-5, 1, 'side_stage'], [-5, -2, 'tent_stage']];
+let seats = 0, outsideFormerBoundary = 0;
+setSessionSeed(1977);
+for (const [cx,cz,kind] of venues) {
+  const heart = heartInCell(cx,cz);
+  const hub = buildHubPreview(scene,heart);
+  let music;
+  try {
+    const entries = registry.byChunk(hub.key);
+    const venue = entries.find(e => e.stageAudience?.sourceX != null);
+    assert(venue);
+    const area = venue.stageAudience;
+    const players = stagePerformers.filter(p => p.chunkKey === hub.key);
+    const band = players[0].band;
+    music = band.music;
+    assert(players.every(p => p.band === band));
+    assert.deepEqual(players.map(p => p.group.userData.instrument), [
+      ...stageInstruments(band.style,kind === 'main_stage'),
+      ...(kind === 'tent_stage' ? ['sound'] : []),
+    ]);
+    assert.equal(area.sourceX, music._pendingX);
+    assert.equal(area.sourceZ, music._pendingZ);
+    const c = Math.cos(area.yaw), s = Math.sin(area.yaw);
+    const stage = players[0].group.parent;
+    const scale = stage.getObjectByName('Stage rig and backline').scale.x;
+    const oldHalfWidth = (kind === 'main_stage' ? 13.2 : 12) * scale;
+    const audienceSeats = entries.flatMap(e =>
+      e.stageAudience === true ? e.campSeats :
+      e.tableSeats?.[0]?.pose === 'cross-legged' ? e.tableSeats : []);
+    assert(audienceSeats.length > 0);
+    for (const seat of audienceSeats) {
+      const dx = seat.x - area.sourceX, dz = seat.z - area.sourceZ;
+      const lateral = dx*c - dz*s, forward = dx*s + dz*c;
+      assert(Math.abs(lateral) <= area.halfWidth, 'venue includes the outside edge of its blankets');
+      assert(forward >= area.near && forward <= area.far, 'seat is inside the audience depth');
+      assert(dx*Math.sin(seat.yaw)+dz*Math.cos(seat.yaw) > .45*Math.hypot(dx,dz), 'seated listener faces the stage');
+      if (kind !== 'tent_stage' && Math.abs(lateral)>oldHalfWidth) outsideFormerBoundary++;
+    }
+    seats += audienceSeats.length;
+
+  } finally {
+    disposeChunkByKey(scene,hub.group,hub.key,null);
+    assert.equal(registry.byChunk(hub.key).length,0);
+    assert(!stagePerformers.some(p => p.chunkKey === hub.key));
+    if (music) assert.equal(music.samplePerformance({}).state,'stopped');
+  }
+}
+assert(outsideFormerBoundary>0,'exercise an actual generated blanket beyond the former boundary');
+console.log('PASS production venues include '+seats+' reserved listening spots and release all three bands and their music.');

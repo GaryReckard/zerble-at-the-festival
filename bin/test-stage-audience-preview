@@ -1,0 +1,53 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {mulberry32} from '../src/rng.js';
+import {disposeSceneResources} from '../src/sceneResources.js';
+
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:720,__perfProfile:'low'};
+function element(){
+  return {
+    children:[],
+    append(...children){for(const child of children){this.children.push(child);child.parent=this;}},
+    remove(){if(this.parent)this.parent.children.splice(this.parent.children.indexOf(this),1);},
+    setAttribute(){},
+    getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(ctx,k)=>k in ctx?ctx[k]:()=>{}})
+  };
+}
+globalThis.document={addEventListener(){},createElement:element};
+const {createStageAudiencePreview}=await import('../src/stageAudiencePreview.js');
+const {registry}=await import('../src/registry.js');
+const {buildStage}=await import('../src/models/stage.js');
+const {buildTentStage}=await import('../src/models/tentStage.js');
+
+for(const stage of [buildStage({isMain:true}),buildStage({isMain:false}),buildTentStage({rng:mulberry32(1977)})]){
+  const controls=element(),before=stage.group.children.slice();
+  let plays=0,stops=0;
+  const preview=createStageAudiencePreview({stage,controls,playApplause(){plays++;return ()=>stops++;}});
+  try{
+    assert.deepEqual(stage.group.children,before);
+    assert.equal(preview.applaud().count,0);
+    for(const [size,count] of [['small',4],['full',24]]){
+      preview.setSize(size);
+      for(let i=0;i<90;i++)preview.update(1/30);
+      const ids=registry.byKind.get('stage_front');assert.equal(ids.size,1);
+      const entry=registry.entries.get([...ids][0]),area=entry.stageAudience;
+      assert.equal(area.sourceZ,stage.stagePos?.z??0);
+      assert(Number.isFinite(area.halfWidth)&&area.near>0&&area.far>area.near);
+      if(stage.stagePos){
+        assert(Math.abs(area.sourceZ)>3,'tent stage sits behind the tent centre');
+        assert.equal(preview.applaud(0,0).count,0,'an event at the tent centre cannot applaud for its stage');
+      }
+      assert.equal(preview.inspect().count,count);
+      controls.children.find(node=>node.textContent==='Applaud audience').onclick();
+      const result=preview.inspect().last;
+      assert.equal(result.count,count);assert(result.z>area.sourceZ+area.near&&result.z<area.sourceZ+area.far);
+      assert.equal(preview.applaud().count,0,'a second applause cannot overlap the first');
+    }
+    preview.setSize('empty');
+    assert.equal(plays,2);assert.equal(stops,2);
+    assert.equal(registry.byKind.get('stage_front')?.size??0,0);
+    assert.deepEqual(stage.group.children,before,'empty restores original render population');
+  }finally{preview.dispose();disposeSceneResources(stage.group);}
+  assert.equal(controls.children.length,0);
+}
+console.log('PASS audience workshop across real main, side and recessed tent stages: empty/4/24 actors, real update, source matching, manual applause cancellation and disposal.');

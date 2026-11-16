@@ -1,0 +1,246 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import vm from 'node:vm';
+import { makeStageArrangement } from '../src/stageComposition.js';
+import { makeLiveStageGenre } from '../src/liveStageMusic.js';
+import { mulberry32 } from '../src/rng.js';
+import { createStagePerformanceClock, silentPerformance } from '../src/stagePerformanceClock.js';
+
+const source = readFileSync(new URL('../src/sound.js', import.meta.url), 'utf8');
+const tracks = {
+  folk: 'bass chord kick lead', funk: 'bass chord hat kick lead snare', jam: 'bass chord hat kick lead snare', brass: 'bass lead', dance: 'bass chord hat kick lead snare',
+  world: 'bass hat kick lead snare', dub: 'bass chord lead snare',
+  nut_wagon_reggae: 'bass chord hat kick lead snare',
+};
+const lanes = ['lead','bass','chord','kick','snare','hat'];
+function harness(record = false) {
+  const nodes = [], automation = [];
+  const intervals = new Set(), timeouts = new Map(), events = createHash('sha256');
+  const seededNoise = mulberry32(42), math = Object.create(Math);
+  math.random = seededNoise;
+  let id = 0;
+  function node() {
+    const n = {
+      connect(dest) { this.connected = true; return dest; }, disconnect() { this.connected = false; },
+      start() { this.started = true; }, stop(at) { this.stopAt = at ?? 0; },
+    };
+    nodes.push(n);
+    const number = ++id;
+    for (const key of ['gain','frequency','Q','delayTime','positionX','positionY','positionZ','detune']) {
+      const param = n[key] = {value: key === 'frequency' ? 440 : 0};
+      for (const op of ['setValueAtTime','cancelScheduledValues','setTargetAtTime','exponentialRampToValueAtTime','linearRampToValueAtTime']) {
+        param[op] = (...args) => {
+          assert(args.every(Number.isFinite));
+          if (record) automation.push({key,op,args});
+          events.update(JSON.stringify([number,key,op,...args.map(v => Math.round(v * 1e7))]));
+        };
+      }
+    }
+    return n;
+  }
+  const audio = {state:'running',listener:{positionX:{value:900},positionZ:{value:900}},currentTime:0,sampleRate:22050, createPanner:node,createOscillator:node,
+    createGain:node,createBufferSource:node,createDelay:()=>Object.assign(node(),{isDelay:true}),createBiquadFilter:node,
+    createBuffer(_, len) { const data = new Float32Array(len); return { getChannelData: () => data }; }};
+  const api = vm.runInNewContext(source.replace(/^import .*?;$/gm,'').replace(/^export /gm,'') +
+    '\n;({Sound, emit:_emitSongEnd, setRandom(fn){Math.random=fn;}, adoptContext(audio) {ctx=audio; musicBus={}; sfxBus={};}})', {
+    URLSearchParams, Math:math, mulberry32, makeStageArrangement, makeLiveStageGenre, createStagePerformanceClock, silentPerformance,
+    setInterval(fn) { intervals.add(fn); return fn; }, clearInterval(fn) { intervals.delete(fn); },
+    setTimeout(fn, ms) { timeouts.set(fn, audio.currentTime + ms / 1000); return fn; }, clearTimeout(fn) { timeouts.delete(fn); },
+  });
+  function tick(t) {
+    audio.currentTime = t;
+    for (const [fn, at] of timeouts) if (at <= t) { timeouts.delete(fn); fn(); }
+    for (const fn of intervals) fn();
+  }
+  return { ...api, audio, intervals, timeouts, events, nodes, automation, tick };
+}
+
+function run(style, inspect, sampleRate = 22050) {
+  const h = harness(), out = {}, heard = new Set();
+  h.audio.sampleRate = sampleRate;
+  const attach = () => h.Sound.attachStageMusic(0,1,2,124,style);
+  const cancelled = attach(), deferred = attach();
+  if (inspect) assert.equal(deferred.samplePerformance(out).state,'pending');
+  h.Sound.detachStageMusic(cancelled);
+  if (inspect) assert.equal(cancelled.samplePerformance(out).state,'stopped');
+  h.adoptContext(h.audio);
+  const real = attach();
+  deferred._adopt(real);
+  const sourceCount = h.nodes.filter(n => n.started).length;
+  assert(sourceCount > 0 && sourceCount <= 8, style + ' source budget per stage');
+  assert.equal(h.intervals.size,1);
+  real.setAudibility(0);
+  if (inspect) {
+    assert.equal(deferred.samplePerformance(out),out);
+    assert.equal(out.state,'pending','the first beat is already scheduled but still in the future');
+    h.audio.currentTime=.15;
+    assert.equal(deferred.samplePerformance(out).beat,0);
+    assert.equal(out.playing,true);
+    assert.equal(out.beatPhase,0);
+    if (style==='dub' || style==='nut_wagon_reggae') {
+      assert.equal(out.chord,0,'offbeat strum is not visible on the downbeat');
+      h.audio.currentTime += 30 / real.snap.tempo + .001;
+      assert(out===deferred.samplePerformance(out) && out.chord > .95,'offbeat strum at its real onset');
+    }
+    h.audio.state='suspended';
+    assert.equal(deferred.samplePerformance(out).state,'suspended');
+    assert(lanes.every(k => out[k]===0));
+    h.audio.state='running';
+  }
+  // Tick through an entire song, including every section and its natural gap.
+  let gap = false;
+  for(let step=0;step<2500;step++) {
+    const t = .6 + step*.18; h.tick(t);
+    if(inspect) for(let i=0;i<9;i++) {
+      h.audio.currentTime=t+i*.02; deferred.samplePerformance(out);
+      for(const k of lanes) { assert(out[k]>=0 && out[k]<=1); if(out[k]>0) heard.add(k); }
+      for (const lane of ['lead', 'bass']) {
+        const pitch = out[lane + 'Pitch'];
+        assert(Number.isFinite(pitch) && pitch >= 0);
+        assert.equal(pitch > 0, out[lane] > 0, style + ' ' + lane + ' pitch only during sounding note');
+      }
+      if(out.playing) {
+        assert.equal(out.style,style); assert(out.section && out.intensity>0); assert(out.beatPhase>=0 && out.beatPhase<1);
+      } else assert(lanes.every(k=>out[k]===0));
+      if(out.state==='gap')gap=true;
+    }
+    // Detach while the natural applause callback is still queued.
+    if(real.snap.phase==='cheerGap') {
+      if(inspect) {
+        h.audio.currentTime=t;
+        assert.equal(deferred.samplePerformance(out).state,'playing','scheduler entered gap before final audible beat ended');
+        h.audio.currentTime=t+.61;
+        assert.equal(deferred.samplePerformance(out).state,'gap');
+        assert(lanes.every(k=>out[k]===0));
+        gap=true;
+      }
+      break;
+    }
+  }
+  if(inspect) {
+    assert(gap); assert.equal([...heard].sort().join(' '),tracks[style],style);
+  }
+  assert.equal(h.nodes.filter(n=>n.started).length,sourceCount,'no voices allocated per note');
+  h.Sound.detachStageMusic(deferred);
+  assert(h.nodes.filter(n=>n.started).every(n=>n.stopAt===0),'all stage sources stopped');
+  assert(h.nodes.filter(n=>n.isDelay).every(n=>!n.connected),'release feedback delay loops');
+  assert.equal(h.intervals.size,0); assert.equal(h.timeouts.size,0);
+  if(inspect) assert.equal(deferred.samplePerformance(out).state,'stopped');
+  return h.events.digest('hex');
+}
+for(const style of Object.keys(tracks)) {
+  const trace = run(style,true);
+  assert.equal(trace,run(style,false),style+' sample order must not affect audio automation');
+  if (style !== 'nut_wagon_reggae') assert.equal(trace,run(style,false,48000),style+' score independent of device sample rate');
+}
+// A shorter, later note replaces a sustained bass even before its original
+// release. The scheduled future note never leaks into the preceding frame.
+const context = {currentTime: 1.125, state: 'running'};
+const clock = createStagePerformanceClock(context, 'dub');
+const frame = {};
+clock.beat(1,.5,0,'break',.5);
+clock.note('bass',1,.9,82.4);
+clock.beat(1.5,.5,1,'break',.5);
+clock.note('bass',1.5,.2,110);
+assert.equal(clock.sample(frame).bassPitch,82.4);
+context.currentTime=1.51; assert.equal(clock.sample(frame).bassPitch,110);
+context.currentTime=1.75; assert.equal(clock.sample(frame).bassPitch,0);
+assert.equal(frame.bass,0);
+const restart = harness(), sample = {};
+restart.adoptContext(restart.audio);
+const stage = restart.Sound.attachStageMusic(0,0,0,124,'jam');
+let applause = 0;
+restart.Sound.onSongEnd(() => applause++);
+restart.Sound._debugEndSong();
+restart.tick(.18);
+assert.equal(stage.samplePerformance(sample).state,'playing','queued audio survives debug force-end');
+restart.audio.state='suspended'; restart.tick(1.5);
+assert.equal(applause,0,'a suspended audio clock cannot end a song');
+restart.audio.state='running';
+restart.tick(2);
+assert.equal(stage.samplePerformance(sample).state,'gap');
+assert.equal(applause,1);
+restart.tick(6); restart.tick(6.18); restart.audio.currentTime=6.22;
+assert.equal(stage.samplePerformance(sample).state,'playing');
+assert.equal(sample.beat,0,'next song starts afresh');
+assert.equal(stage.snap.songIdx,1);
+const beforeStall=stage.snap.beatInSong;
+restart.tick(500);
+assert(stage.snap.beatInSong-beforeStall<=2,'overdue timer never bursts through a silent song');
+assert.equal(stage.snap.phase,'playing');
+restart.Sound.detachStageMusic(stage);
+// Play the actual live arrangement with a fixed tempo to compare composition
+// independently of timbre, key, tempo and the scheduler lookahead window.
+const fingerprints = new Set();
+for (const style of ['folk','funk','brass','jam']) {
+  const genre = makeLiveStageGenre(style);
+  function capture(seed) {
+    const rng=mulberry32(seed), h=harness();
+    const voice=genre.makeVoices(h.audio,{},rng,196,987653);
+    const phrase = {};
+    for (const name of ['intro','verse','chorus','solo','outro']) {
+      const section={name,intensity:.8};
+      const notes=phrase[name]=[];
+      for (let bar=0;bar<8;bar++) for (let b=0;b<4;b++) {
+        const t=bar*4+b;
+        genre.playBeat({t, beat:1, beatInBar:b, barInSection:bar, section,
+          voices:voice.voices, gainMod:.7, fill:bar===7,
+          cue:(lane,at,duration,pitch) => notes.push({lane,at,duration,pitch})});
+      }
+    }
+    voice.teardown.forEach(stop=>stop());
+    assert(h.nodes.every(node=>!node.connected));
+    return phrase;
+  }
+  const a=capture(31), b=capture(32);
+  assert.deepEqual(a,capture(31));
+  assert.notDeepEqual(a.verse.map(n=>n.pitch),b.verse.map(n=>n.pitch),style+' song families');
+  assert(a.chorus.length>a.intro.length*1.4,style+' contrast in density');
+  assert(a.chorus.length>a.outro.length*1.4,style+' winds down');
+  const pitches = lane => a.verse.filter(n=>n.lane===lane).map(n=>n.pitch);
+  assert(new Set(pitches('lead')).size>=5 && new Set(pitches('bass')).size>=3);
+  const score=makeStageArrangement(style,mulberry32(0),196,22);
+  const contour=bar=>Array.from({length:8},(_,i)=>score.lead('verse',bar,Math.floor(i/2),i%2));
+  assert.deepEqual(contour(0),contour(8),'head returns over the same chord');
+  assert.notDeepEqual(contour(3),contour(0),'answer resolves differently');
+  fingerprints.add(JSON.stringify(a.verse.map(n=>[n.lane,n.at,n.duration])));
+}
+assert.equal(fingerprints.size,4,'four distinct rhythmic signatures');
+
+const cheers = harness(true);
+cheers.adoptContext(cheers.audio);
+const nearby={count:3,intensity:.4,duration:1.8,x:2,z:3};
+cheers.Sound.onSongEnd(()=>nearby);
+cheers.emit(0,0,'folk');
+assert.equal(cheers.nodes.length,0,'remote stage never plays local applause');
+cheers.audio.listener.positionX.value=cheers.audio.listener.positionZ.value=0;
+cheers.Sound.onSongEnd(()=>({count:0}));
+cheers.emit(0,0,'folk'); assert.equal(cheers.nodes.length,0);
+cheers.Sound.onSongEnd(()=>nearby);
+const quiet=cheers.emit(0,0,'folk');
+const small=cheers.nodes.filter(n=>n.started);
+assert.equal(small.length,1,'small audience claps without whoops');
+assert(small[0].stopAt<=1.3);
+const clapSamples=small[0].buffer.getChannelData(0);
+assert(clapSamples.every(Number.isFinite));
+assert(clapSamples.some(sample=>Math.abs(sample)>.1));
+const bedLevel=duration=>cheers.automation.find(e=>e.key==='gain' && e.op==='linearRampToValueAtTime' && e.args[1]===duration*.12).args[0];
+const quietLevel=bedLevel(1.3);
+const originalNoise = mulberry32(29);
+cheers.setRandom(()=>.12 + originalNoise()*.06);
+cheers.Sound.onSongEnd(()=>({count:24,intensity:1,duration:4}));
+const loud=cheers.emit(0,0,'brass');
+assert.equal(cheers.nodes.filter(n=>n.started).length-small.length,4,'one applause bed plus at most one three-oscillator whoop');
+assert(bedLevel(3.5)>quietLevel && bedLevel(3.5)<=.32);
+const count=cheers.nodes.length;
+cheers.emit(0,0,'jam'); assert.equal(cheers.nodes.length,count,'bound overlapping applause');
+quiet(); loud();
+assert(cheers.nodes.every(n=>!n.connected));
+assert(cheers.nodes.filter(n=>n.started).every(n=>n.stopAt===0),'early detach releases future whoop sources');
+const natural=cheers.emit(0,0,'jam');
+cheers.nodes.findLast(n=>typeof n.onended==='function').onended(); natural();
+assert(cheers.nodes.every(n=>!n.connected),'natural end releases panner without a timer');
+console.log('PASS stage music: eight complete scores; distinct live grooves, returning hooks, harmonic bass, section contrast, deterministic timing, at most eight sources per band, pitch-correct cues and teardown.');
+console.log('PASS audience sound: no applause for empty or distant stages, short small-crowd clapping, bounded larger response, complete natural/early cleanup.');

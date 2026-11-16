@@ -1,0 +1,20 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {createStageBand, sampleStageBand, animateStageBand} from '../src/stageBand.js';
+const published=[];
+const performers=Array.from({length:6},(_,i)=>({userData:{animate:(time,cue)=>published.push({i,time,cue})}}));
+let samples=0, state='playing', source=null;
+const band=createStageBand(performers,()=>source,'jam');
+assert.equal(sampleStageBand(band,0).playing,false,'pre-gesture band rests');
+source={samplePerformance(out){samples++;Object.assign(out,{state,playing:state==='playing',time:10,beat:4,beatPhase:.25,section:'verse',style:'jam',intensity:.7,lead:.6,bass:0,chord:0,kick:0,snare:0,hat:0});}};
+const cue=animateStageBand(band,1);
+assert.equal(samples,1);assert.equal(published.length,6);
+assert(published.every(p=>p.cue===cue),'all members read one stage snapshot');
+assert.equal(published[5].time,9.5,'personal idle phase does not offset audio time');
+for(let i=0;i<6;i++)assert.equal(sampleStageBand(band,1),cue);
+assert.equal(samples,1,'one transport sample per display frame');
+state='gap';animateStageBand(band,2);assert.equal(samples,2);assert.equal(cue.playing,false);
+const held={...cue};animateStageBand(band,2,held);assert.equal(samples,2,'inspection holds do not read or mutate audio');
+source=null;animateStageBand(band,2);assert.equal(cue.playing,false,'removed audio handle rests immediately even at unchanged display time');
+assert.equal(cue.lead,0);assert.equal(cue.kick,0);
+console.log('PASS per-stage shared audio samples, deferred/rest/removed handles, independent display phase and held inspection.');

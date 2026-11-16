@@ -110,8 +110,26 @@ p.renderOrdinary=true;writes.length=0;update(one,.016,107,1);
 assert(writes.filter(w=>w.kind==='heads').every(w=>w.values[3]===0),'ordinary dancer suppresses the duplicate place head');
 assert(writes.filter(w=>w.kind==='glowsticks').every(w=>w.values[6]===0),'ordinary dancer suppresses place-owned rig props');
 p.renderOrdinary=false;
+const booth = fixture(5,0), dj=booth.userData.healingArts;
+dj.participants.push({x:0,z:-6.6,yaw:0,heading:0,phase:1.7,dj:true,shirt:1,skin:1});
+function hands(time, cue) {
+  display(booth,.016,time,1,cue);
+  return {left:Array.from(dj.pose.slice(12,15)),right:Array.from(dj.pose.slice(18,21)),head:dj.pose[7]};
+}
+const rest=hands(30,null);
+assert.deepEqual(hands(912,{playing:false,kick:1}),rest,'suspended DJ stays at the decks');
+const hits={playing:true,kick:1,bass:0,lead:0,chord:0,snare:0,hat:0};
+const kick=hands(30,hits);
+assert(kick.left[1]<rest.left[1] && kick.head<rest.head);
+assert.deepEqual(kick.right,rest.right);
+assert(kick.left[1]>=1.435 && Math.hypot(kick.left[0]+.75,kick.left[2]-.85)<.15,'hand contacts left platter');
+const lead=hands(31,{...hits,kick:0,lead:1});
+assert.deepEqual(lead.left,rest.left);
+assert(lead.right[1]<rest.right[1] && Math.hypot(lead.right[0]-.75,lead.right[2]-.85)<.15);
+assert.deepEqual(hands(400,{...hits,kick:0}),rest,'silent beat does not invent a hand tap');
 console.log('PASS Healing Arts motion: 30 seeded configurations × 400 times × 20 dancers');
 console.log(JSON.stringify({ samples: 12000, maximumCenterRadius: maximumRadius,
   minimumPersonCenterDistance: minimumPersonDistance, minimumPoleCenterDistance: minimumPoleDistance }, null, 2));
 console.log('PASS managed yoga homes, hidden render parts/glowsticks, dance glowsticks, and continuous four-second arrival');
+console.log('PASS both DJ hands reach their own decks on the audible cues and rest in gaps');
 console.log('Scope: source-level motion verification with rendering writes stubbed; no GPU or visual validation.');

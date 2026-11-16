@@ -1,5 +1,5 @@
 import {landscapeClearance,landscapeNearestRoad} from './worldgen/landscapePolicy.js';
-import { vendorCanopyAppearance } from './festivalShapes.js';
+import { vendorCanopyAppearance, STAGE_SEATING, outdoorAudienceHalfWidth } from './festivalShapes.js';
 import { ribbonTriangles, trimRoadTriangles, pavedCutters, footprintBounds } from './roadGeometry.js';
 import { roadMaterial } from './roadMaterials.js';
 import {sampleHealingArtsPreview} from './people/healingArtsMotion.js';
@@ -28,6 +28,7 @@ import { registry } from './registry.js';
 import { tryPlaceCornhole } from './cornholePlacement.js';
 import { hash2, worldHash, mulberry32 } from './rng.js';
 import { Sound } from './sound.js';
+import {createStageBand, sampleStageBand} from './stageBand.js';
 import { CAMP_CHAIR_STYLES } from './models/campChair.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { register as registerContextLight } from './contextLights.js';
@@ -81,18 +82,24 @@ export function updateVendorTents(t, nightness, dt = 0) {
 export function updateHealingArtsTents(dt, time, nightness, playerPos, display = true, cart = null) {
   for (const entry of healingArtsTents) {
     entry.activity?.update(dt, time, nightness, cart);
-    const near = !playerPos || entry.group.position.distanceToSquared(playerPos) < 180 * 180;
-    if (near || entry.night !== (nightness > 0.5)) {
-      if(entry.activity)entry.activity.sample(time,nightness);
-      else sampleHealingArtsPreview(entry.group,time,nightness);
-      if(display)updateHealingArts(entry.group, dt, time, nightness);
-    }
-    entry.night = nightness > 0.5;
-    if (entry.night && !entry.music) {
-      entry.music = Sound.attachStageMusic(entry.group.position.x, entry.group.position.y + 1.5, entry.group.position.z, entry.seed, 'dance');
-    } else if (!entry.night && entry.music) {
+    const night = nightness > .5;
+    const changed = entry.night !== night;
+    if (night && !entry.music) {
+      entry.music = Sound.attachStageMusic(entry.group.position.x, entry.group.position.y + 1.5, entry.group.position.z,
+        entry.seed, entry.nightStyle ?? 'dance');
+    } else if (!night && entry.music) {
       Sound.detachStageMusic(entry.music);
       entry.music = null;
+    }
+    entry.night = night;
+    const near = !playerPos || entry.group.position.distanceToSquared(playerPos) < 180 * 180;
+    if (near || changed) {
+      if(entry.activity)entry.activity.sample(time,nightness);
+      else sampleHealingArtsPreview(entry.group,time,nightness);
+      if (display) {
+        const cue = entry.music?.samplePerformance?.(entry.djCue ??= {});
+        updateHealingArts(entry.group, dt, time, nightness, cue);
+      }
     }
   }
 }
@@ -130,7 +137,7 @@ export function updateStagePerformers(t) {
   for (let i = 0; i < stagePerformers.length; i++) {
     const p = stagePerformers[i];
     if (p.group.userData.animate) {
-      p.group.userData.animate(t + p.phase);
+      p.group.userData.animate(t + p.phase, p.band ? sampleStageBand(p.band, t) : undefined);
       continue;
     }
     const phase = t * 3 + p.phase;
@@ -2101,7 +2108,11 @@ export function placeStageChairRows(ctx, worldXZ, yaw, start, end, halfWidth, gr
 
 function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
   const tex = leafBannerTextures('#fff4d0', '#6fcf6a', '#ffd28a');
-  const tent = buildTentStage({ rng: ctx.rng, leafTexture: tex });
+  const musicSeed = worldHash(ctx.cx * 13 + 23, ctx.cz * 19 + 17);
+  const tentStyleSeed = worldHash(ctx.cx * 13 + 23 + STYLE_SALT, ctx.cz * 19 + 17 + STYLE_SALT);
+  const tentStyle = pickStageStyle(tentStyleSeed, ['folk', 'jam', 'funk', 'world']);
+  const tent = buildTentStage({ rng: ctx.rng, leafTexture: tex, style: tentStyle });
+  const band = createStageBand(tent.performers, null, tentStyle);
   const cx = cxArg != null ? cxArg : ctx.cxWorld;
   const cz = czArg != null ? czArg : ctx.czWorld;
   // Worldgen passes a road-facing yaw; the legacy path draws a random one (same
@@ -2111,7 +2122,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
   tent.group.rotation.y = yaw;
   ctx.group.add(tent.group);
 
-  for (const group of tent.performers) stagePerformers.push({group,chunkKey:ctx.key,phase:tent.performers.indexOf(group)*1.7});
+  for (const group of tent.performers) stagePerformers.push({group,chunkKey:ctx.key,phase:tent.performers.indexOf(group)*1.7,band});
 
   // Track the tent's stage lights with the rest of the light show.
   for (const lens of tent.stageLights) {
@@ -2199,6 +2210,8 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
       position: new THREE.Vector3(w3.x, terrainHeight(w3.x, w3.z), w3.z),
       footprint: 0,
       attractor: { radius: 10, weight: 2.5 },
+      stageAudience: {sourceX:worldXZ(0,tent.stagePos.z).x,sourceZ:worldXZ(0,tent.stagePos.z).z,yaw,
+        halfWidth:tent.width/2-1.5,near:d/2+1,far:tent.mixerPos.z-tent.stagePos.z-1.5},
       chunkKey: ctx.key,
     });
   }
@@ -2264,11 +2277,9 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
   }
 
   // Spatial music — style varies per chunk from the tent palette.
-  const musicSeed = worldHash(ctx.cx * 13 + 23, ctx.cz * 19 + 17);
-  const tentStyleSeed = worldHash(ctx.cx * 13 + 23 + STYLE_SALT, ctx.cz * 19 + 17 + STYLE_SALT);
-  const tentStyle = pickStageStyle(tentStyleSeed, ['jam', 'dance', 'world']);
   const m3 = worldXZ(0, tent.stagePos.z);
   const handle = Sound.attachStageMusic(m3.x, terrainHeight(m3.x, m3.z) + 4, m3.z, musicSeed, tentStyle);
+  band.music = handle;
   if (handle) stageMusic.push({ handle, chunkKey: ctx.key });
 }
 
@@ -2944,7 +2955,7 @@ export function placePicnicBlanket(ctx, x, z, stageAudience = false, stageHeadin
   ctx.group.add(blanket);
   registry.add({ kind: 'picnic', position: new THREE.Vector3(x, terrainHeight(x, z), z), footprint: 0,
     tableSeats:stageAudience?[-1,1].flatMap(side=>[-1,1].map(row=>{
-      const right=side*.55,forward=row*.55,c=Math.cos(stageHeading),s=Math.sin(stageHeading);
+      const right=side*STAGE_SEATING.seatOffset,forward=row*STAGE_SEATING.seatOffset,c=Math.cos(stageHeading),s=Math.sin(stageHeading);
       const sx=x+c*right+s*forward,sz=z-s*right+c*forward;
       return {x:sx,z:sz,y:terrainHeight(sx,sz)+.065,yaw:stageHeading+side*.035,pose:'cross-legged',occupied:false};
     })):undefined,
@@ -3024,6 +3035,7 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
     position: new THREE.Vector3(frontW.x, terrainHeight(frontW.x, frontW.z), frontW.z),
     footprint: 0,
     attractor: { radius: 14 * scale, weight: isMain ? 3.5 : 2.0 },
+    stageAudience: {sourceX:x,sourceZ:z,yaw,halfWidth:outdoorAudienceHalfWidth(w,scale),near:d/2+scale,far:d/2+30*scale},
     chunkKey: ctx.key,
   });
 
@@ -3055,14 +3067,14 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
   const dancefloorDepth = 9 * scale;
   const chairBandStart = d / 2 + dancefloorDepth;
   const chairBandEnd = d / 2 + dancefloorDepth + 14 * scale;
-  const lateralSpread = 11 * scale;
+  const lateralSpread = STAGE_SEATING.chairSpread * scale;
   const clumpCount = isMain ? 4 + Math.floor(ctx.rng() * 2) : 2 + Math.floor(ctx.rng() * 2);
   placeStageChairRows(ctx, rot, yaw, chairBandStart, chairBandEnd, lateralSpread, clumpCount, 0, stageAudienceOriginId);
 
   // ----- G1: a few picnic blankets sprinkled near the stage (not carpeted) -----
   const blanketCount = isMain ? 4 + Math.floor(ctx.rng() * 2) : 2 + Math.floor(ctx.rng() * 2);
   for (let bi = 0; bi < blanketCount; bi++) {
-    const bw = rot((ctx.rng() - 0.5) * lateralSpread * 2.4, chairBandStart + ctx.rng() * (chairBandEnd - chairBandStart + 6 * scale));
+    const bw = rot((ctx.rng() - 0.5) * lateralSpread * STAGE_SEATING.blanketSpan, chairBandStart + ctx.rng() * (chairBandEnd - chairBandStart + 6 * scale));
     placePicnicBlanket(ctx, bw.x, bw.z, true, Math.atan2(bw.x-x,bw.z-z));
   }
 
@@ -3108,14 +3120,10 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
   } else {
     const styleSeed = worldHash(ctx.cx * 7 + (isMain ? 1 : 2) + STYLE_SALT, ctx.cz * 11 + (isMain ? 3 : 5) + STYLE_SALT);
     stageStyle = isMain
-      ? pickStageStyle(styleSeed, ['jam', 'jam', 'dance', 'world', 'dub'])
-      : pickStageStyle(styleSeed, ['brass', 'brass', 'dance', 'world', 'dub']);
+      ? pickStageStyle(styleSeed, ['jam', 'jam', 'folk', 'funk', 'world', 'dance', 'dub'])
+      : pickStageStyle(styleSeed, ['brass', 'brass', 'folk', 'funk', 'world', 'dance', 'dub']);
   }
-  // The origin (0,0) main stage opens its first song at the closing section so
-  // a freshly-spawned player hears the band finish and the crowd applaud within
-  // ~10s — the festival's first applause moment. Other stages play full songs.
-  const handle = Sound.attachStageMusic(x, terrainHeight(x, z) + 4, z, musicSeed, stageStyle,
-    pinOrigin ? { introFinaleSeconds: 10 } : undefined);
+  const handle = Sound.attachStageMusic(x, terrainHeight(x, z) + 4, z, musicSeed, stageStyle);
   if (handle) stageMusic.push({ handle, chunkKey: ctx.key });
 
   // ----- The band on stage -----
@@ -3123,12 +3131,10 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
   // placeBandOnStage adds the performers as children of stage.group at LOCAL
   // coords; we record world-space positions via stage.group's transform so the
   // animator can wiggle them around the stage's height/yaw.
-  const instruments = isMain
-    ? ['lead_vocal', 'guitar', 'guitar', 'bass', 'drum', 'sax']
-    : ['lead_vocal', 'guitar', 'drum'];
-  const performers = placeBandOnStage(stage.group, instruments, {
-    deckWidth: w, deckDepth: d, deckHeight: h, rng: ctx.rng,
+  const performers = placeBandOnStage(stage.group, null, {
+    deckWidth: w, deckDepth: d, deckHeight: h, rng: ctx.rng, style: stageStyle,
   });
+  const band = createStageBand(performers, handle, stageStyle);
   for (const performer of performers) {
     stagePerformers.push({
       group: performer,
@@ -3136,6 +3142,7 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
       baseY: performer.position.y,
       baseYaw: Math.PI,
       phase: performers.indexOf(performer) * 1.7,
+      band,
     });
   }
 }
@@ -3293,7 +3300,8 @@ function buildHealingArtsAt(ctx, d) {
   };
   const activity = ctx.crowd ? new HealingArtsActivity(group,ctx.crowd,
     mulberry32(d.clusterSeed ^ 0x7EA11A),canWalk) : null;
-  healingArtsTents.push({group,activity,chunkKey:ctx.key,seed:d.clusterSeed,music:null,night:null});
+  const nightStyle = hash2(d.clusterSeed,0x646a7365) & 1 ? 'dance' : 'dub';
+  healingArtsTents.push({group,activity,chunkKey:ctx.key,seed:d.clusterSeed,nightStyle,music:null,night:null});
   registry.add({kind:'healing_arts',position:new THREE.Vector3(d.x, terrainHeight(d.x, d.z), d.z),
     footprint:d.footprint,chunkKey:ctx.key});
   const c = Math.cos(d.yaw), s = Math.sin(d.yaw);

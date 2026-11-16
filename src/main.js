@@ -579,11 +579,12 @@ fireworks.onFinale = () => bubbleChallenges.onFireworksFinale();
 // so we know the end-to-end path is working in the wild.
 let _cheerAnalyticsFired = false;
 Sound.onSongEnd((x, z) => {
-  if (!npcsFrozen()) people.dispatch('cheer',x,z);
-  if (!_cheerAnalyticsFired) {
+  const audience = npcsFrozen() ? {count:0} : crowd.applaudStage(x,z);
+  if (audience.count && !_cheerAnalyticsFired) {
     _cheerAnalyticsFired = true;
     Analytics.featureUsed('song_cheer');
   }
+  return audience;
 });
 
 // ---------- Star power (rare floating star + 15s rainbow buff) ----------

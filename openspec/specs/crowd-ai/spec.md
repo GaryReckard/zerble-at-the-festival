@@ -38,16 +38,12 @@ fleeing → boarding/riding/disembarking`, plus hammock variants
 (`walking_to_hammock`, `hammock_riding`), picnic-table variants
 (`walking_to_table`, `table_seated`), and porta-potty variants (`seeking_potty`,
 `entering_potty`, `using_potty`, `exiting_potty`, `surprised_potty`). Smiling is an
-event (a smile-pickup emission), not a state. A transient **cheer** overlay
-(`cheerNear(x,z)` fired on a stage song-end) poses arms-up and smiles for 5s on top
-of the current state without interrupting riders, boarders, fleers, hammock-riders,
-or table-seated NPCs (`cheerNear` at `crowd.js:485-499`).
+event (a smile-pickup emission), not a state. Fireworks and other general world reactions can trigger a brief arms-up cheer. For a song ending, `applaudStage` SHALL select the audience inside the venue’s oriented listening area, including eligible listeners who retain their camp-chair or picnic reservation. Listening includes facing the stage or actively dancing on its floor. Participants SHALL respond with staggered onset, and the crowd SHALL return their count, centre, duration and intensity to the audio owner. [Audience selection and pose](../../../src/people/stageAudience.js).
 
-#### Scenario: Song-end triggers a cheer wave
+#### Scenario: A song ends near two stages
 
-- **WHEN** a stage song ends and `cheerNear` is called at its position
-- **THEN** nearby eligible NPCs cheer for 5 seconds, skipping
-  riders/boarders/disembarkers/fleers/hammock-riders/table-seated
+- **WHEN** one stage’s song ends
+- **THEN** only eligible listeners at that stage SHALL react. A seated listener SHALL keep their underlying seat and activity, and a listener who leaves the area or begins an incompatible activity SHALL end the reaction.
 
 ### Requirement: Steering blends seek, separation, and path pull
 

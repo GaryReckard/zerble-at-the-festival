@@ -606,8 +606,7 @@ http://127.0.0.1:8765/sandbox.html?entity=&mute=1<name>
   Noon is `t=0.30`.
 - **Lurleen photo comparison:** `?entity=lurleen&view=still&mute=1` holds her wander target, while `?entity=lurleen_zerble&view=still&mute=1` also aligns both carts for a front-to-front scale comparison. Eye motion, twinkle lights, disco and bubbles keep updating. [Model and game checks](verification/lurleen/README.md) cover low/high tiers and Noon/Midnight.
 - **Nut Wagon model preview:** `?entity=nut_wagon` opens the doorless wagon with its hatch raised; `?entity=nut_wagon_closed` checks the shut hatch and hidden supports. The model exposes `userData.hatch`, four `userData.wheels`, and nine independent provisional `userData.riderMounts`. Its pooled light strings follow the sandbox day/night cycle through `setNutWagonNightness`. The separate nut_wagon_cruise preview exercises its driving, boarding, riders and music controller. Open `verification/nut-wagon/check.html?perf=low` or `?perf=mid` on the same server for real-Three geometry, pooling, transform-isolation, bounds, and shader checks. [Saved views and results](verification/nut-wagon/README.md).
-- **Music panel** drives any stage genre (jam / brass / drum / forest / dance /
-  world / dub), an **"End song now"** button (`Sound._debugEndSong()`), a live
+- **Music panel** offers jam, folk, funk, brass, dance, world and dub alongside the drum circles and Nut Wagon reggae, an **"End song now"** button (`Sound._debugEndSong()`), a live
   **song-state readout**, and a **trip-sweep** slider (0→1) that drives the MIDI
   + procedural trip warp without the wook flow — verify the reverb swell +
   granular climax there (a real panel-fired trip overrides the slider).
@@ -616,6 +615,16 @@ Adding a model? It's not done until it has a sandbox entry — see
 [.claude/rules/sandbox-and-testing.md](.claude/rules/sandbox-and-testing.md).
 
 ---
+
+## Stage performance workshop
+
+Open `/sandbox.html?entity=stage_main&style=funk&mute=1`, then click **Play this band**. The style selector also offers jam, folk, brass, world, dance and dub. Use `stage_side` for a trio, `tent_stage` for the covered venue, `soundboard` for the engineer, or `performer_keys` for an isolated keyboardist. The session mute lets the Web Audio clock run while the speakers stay quiet.
+
+Select a musician and click **Musician close-up**. The readout shows the section, beat and activity of the lead, bass, chords, kick, snare and hi-hat. **Hold pose** freezes the visual so you can orbit around a strum, slide or pedal stroke while the song continues. **Live motion** returns to the current note, **Between songs** triggers the break, and **Rest / stop music** lets you inspect the idle pose. Use **Full stage** and the Noon and Midnight presets to inspect the backline and lighting.
+
+The **Stage audience** selector offers empty, four-person and 24-person populations using the production Crowd controller. **Applaud audience** triggers a response, while **Between songs** exercises the real song-end callback; the readout reports count, duration and intensity. Changing to an empty audience releases its people and registry entry. The initial full-stage camera looks beneath the roof, and individual close-ups remain available.
+
+For integration, start the real game from a ready mode plank and visit a populated stage. `window.__game.sound._debugEndSong()` ends the current songs through the audio clock. Standing and seated listeners should react at different times while passers-by continue their activities. [Evidence and limits](verification/stage-performance/README.md), [audience reactions](bin/test-stage-audience-reactions), [preview lifecycle](bin/test-stage-audience-preview), [venue ownership](bin/test-stage-venue-ownership), [audio](bin/test-stage-performance-audio), [band integration](bin/test-stage-band), [layout](bin/test-stage-layout) and [performers](bin/test-stage-performers) cover the implementation.
 
 ## URL flags / runtime overrides
 
@@ -644,8 +653,8 @@ Adding a model? It's not done until it has a sandbox entry — see
   poll it to watch sections advance, a song end (`phase: 'cheerGap'`), and a new
   song start at a different tonic/tempo.
 - `window.__game.sound._debugEndSong()` — force every active stage song into its
-  cheer gap *now* (fires the crowd cheer + applause at real stage positions),
-  so you don't wait out a full song to verify the cheer.
+  cheer gap on the next scheduler tick. In the game, the registered audience at each
+  stage determines who responds and whether applause plays.
 - `window.__game.sound.setMuted(true)` / `setNatureVolume(v)` — runtime audio
   controls (also persisted; surfaced as backtick-overlay sliders/checkbox).
 

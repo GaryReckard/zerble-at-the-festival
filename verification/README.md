@@ -21,6 +21,8 @@ not physical-device acceptance.
 
 ## Temporary activities
 
+- [Stage performance, November 16](stage-performance/README.md): working stage layouts, audio-clock instrument poses, richer genre arrangements, audience-aware applause, native Low/Mid screenshots and measured render/memory limits.
+
 - [Cornhole, November 15](cornhole/README.md): strict communal-camp placement, borrowed ordinary NPCs, scored games with physical collection and social endings, idle periods, low board colliders and native tire/cadence/lifecycle evidence.
 
 - [Stage audience, parked-cart clearance, soundboard and road patch, October 28](people/stage-audience.md): shared dance motion, reserved chairs/blankets, production fixture results and the exact reported road regression.

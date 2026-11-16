@@ -17,6 +17,14 @@ export const STAGE_SURFACES = Object.freeze({
   sideBannerColors: Object.freeze([0xff9a8b, 0xc77dff, 0x66d9ff, 0xffd28a]),
 });
 
+// Blankets can sit beyond the last chair. Their fixed-size seats rotate
+// around the blanket centre to face the stage, even on scaled decks.
+export const STAGE_SEATING = Object.freeze({ chairSpread: 11, blanketSpan: 2.4, seatOffset: .55 });
+export function outdoorAudienceHalfWidth(deckWidth, scale) {
+  const blanketEdge = STAGE_SEATING.chairSpread * scale * STAGE_SEATING.blanketSpan / 2;
+  return Math.max(deckWidth * .55, blanketEdge + Math.SQRT2 * STAGE_SEATING.seatOffset);
+}
+
 export const MARQUEE_SHAPE = Object.freeze({
   width: 28, depth: 38, eaveHeight: 5.5, ridgeHeight: 11,
   roofColor: 0xfff8eb,

@@ -11,6 +11,9 @@
 // arch, a "duuude" drone for the wooks, etc.
 
 import { mulberry32 } from './rng.js';
+import { createStagePerformanceClock, silentPerformance } from './stagePerformanceClock.js';
+import { makeLiveStageGenre } from './liveStageMusic.js';
+import { makeStageArrangement } from './stageComposition.js';
 import { createCampJam } from './campMusic.js';
 
 let ctx = null;
@@ -815,6 +818,10 @@ export const Sound = {
             this._pendingX = nx; this._pendingY = ny; this._pendingZ = nz;
           }
         },
+        samplePerformance(out) {
+          return this._real ? this._real.samplePerformance(out)
+            : silentPerformance(out, this.cancelled ? 'stopped' : 'pending', style);
+        },
         // Forward lowpass cutoff to the real handle once adoption finishes.
         // Pre-adoption calls are silently dropped — the engine sets its own
         // initial cutoff at construction time, so the first call lands within
@@ -1207,56 +1214,10 @@ export const Sound = {
     return _activeStageSongs.map(s => ({ ...s }));
   },
 
-  // Crowd applause at (x, z) → sfxBus. Distance-attenuated via a temporary
-  // PannerNode. The sound is a dense cluster of individual clap events rendered
-  // into one buffer (see buildApplauseBuffer), played through a single source,
-  // with a few voiced "woo!" cheers (playWhoop) layered live on top — far
-  // cheaper than the previous ~25-node bed, and it sounds like a crowd, not rain.
-  playCrowdCheer(x, z) {
-    if (!ctx || !sfxBus) return;
-    const now = ctx.currentTime;
-    const panner = ctx.createPanner();
-    panner.panningModel = 'HRTF';
-    panner.distanceModel = 'inverse';
-    panner.refDistance = 14;
-    panner.maxDistance = 160;
-    panner.rolloffFactor = 1.0;
-    if (panner.positionX) {
-      panner.positionX.value = x;
-      panner.positionY.value = 4;
-      panner.positionZ.value = z;
-    } else if (panner.setPosition) {
-      panner.setPosition(x, 4, z);
-    }
-    panner.connect(sfxBus);
-
-    const dur = 5.2;
-    const src = ctx.createBufferSource();
-    src.buffer = getApplauseBuffer(ctx, dur);
-    const rate = 0.97 + Math.random() * 0.06;   // ±3% so reused buffers vary
-    src.playbackRate.value = rate;
-    const pd = dur / rate;                       // actual playback duration
-    // Buffer already carries the swell→thin loudness arc; the gain node just
-    // adds a click-safe attack and a clean tail-out.
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(0.9, now + 0.12);
-    gain.gain.setValueAtTime(0.9, now + pd - 0.2);
-    gain.gain.linearRampToValueAtTime(0.0001, now + pd);
-    src.connect(gain).connect(panner);
-    src.start(now);
-    src.stop(now + pd);
-
-    // A few voiced "woo!" cheers poke through the claps, staggered over the
-    // first ~3s — a mix of lower and higher voices, kept low under the bed.
-    const nWhoops = 2 + (Math.random() < 0.5 ? 1 : 0);
-    for (let i = 0; i < nWhoops; i++) {
-      const wt = now + 0.15 + Math.random() * 2.8;
-      const f0 = Math.random() < 0.5 ? 150 + Math.random() * 90 : 270 + Math.random() * 150;
-      playWhoop(ctx, panner, wt, f0, 0.6 + Math.random() * 0.6, 0.09 + Math.random() * 0.06);
-    }
-
-    setTimeout(() => { try { panner.disconnect(); } catch (e) {} }, pd * 1000 + 300);
+  // Called with the crowd's actual attendance and reaction at the song boundary.
+  playCrowdCheer(x, z, audience) {
+    if (!ctx || !sfxBus || !audience?.count || ctx.state !== 'running') return;
+    return playStageApplause(ctx, sfxBus, x, z, audience);
   },
 
   // Force all active songform stages into their cheer gap immediately — for
@@ -1317,7 +1278,7 @@ export const Sound = {
 // of clap count. Approach follows the clap/applause synthesis literature
 // (Peltola/Välimäki; Lee & Reiss, "Real-Time Sound Synthesis of Audience
 // Applause", AES).
-function buildApplauseBuffer(ctx, dur = 5.2) {
+function buildApplauseBuffer(ctx, dur = 5.2, peakRate = 80, roarLevel = .35) {
   const sr = ctx.sampleRate;
   const N = Math.ceil(sr * dur);
   const buf = ctx.createBuffer(1, N, sr);
@@ -1326,12 +1287,11 @@ function buildApplauseBuffer(ctx, dur = 5.2) {
   // Clap-density arc (0..1): quick swell as the crowd catches on, a sustain,
   // then a thinning tail as it dies down. Drives both clap rate and the roar.
   const arc = (t) => {
-    const swell = Math.min(1, t / 0.3);
-    const fade = t < 2.4 ? 1 : Math.max(0, 1 - (t - 2.4) / 2.8);
+    const swell = Math.min(1, t / (dur * .06));
+    const fade = Math.min(1, Math.max(0,(dur - t) / (dur * .54)));
     return swell * fade;
   };
-  const peakRate = 80;                       // claps/sec at the height of the crowd
-  const rateAt = (t) => 5 + peakRate * arc(t);
+  const rateAt = (t) => Math.min(5, peakRate * .4) + peakRate * arc(t);
 
   // Poisson onsets (exponential inter-arrival gaps). Each clap = white noise
   // through a 2-pole RBJ bandpass (broad Q so it stays noisy, not pitched) with
@@ -1365,7 +1325,7 @@ function buildApplauseBuffer(ctx, dur = 5.2) {
   let roar = 0;
   for (let i = 0; i < N; i++) {
     roar += roarA * ((Math.random() * 2 - 1) - roar);
-    data[i] += roar * 0.35 * arc(i / sr);
+    data[i] += roar * roarLevel * arc(i / sr);
   }
 
   // Roll the harsh top off (one-pole lowpass ~2.8 kHz, in place) so the cluster
@@ -1384,19 +1344,46 @@ function buildApplauseBuffer(ctx, dur = 5.2) {
   return buf;
 }
 
-// Lazily-grown pool of pre-rendered applause buffers. Rendering the cluster is
-// ~30 ms of JS; building a few once and reusing them (with slight playback-rate
-// variety per cheer) keeps song-ends from hitching on lower-end devices, while
-// staying varied enough — applause fires at most every minute or two per stage.
-const _applausePool = [];
-const APPLAUSE_POOL_MAX = 3;
-function getApplauseBuffer(ctx, dur) {
-  if (_applausePool.length < APPLAUSE_POOL_MAX) {
-    const b = buildApplauseBuffer(ctx, dur);
-    _applausePool.push(b);
-    return b;
+// Three bounded textures keep two clappers distinct even from a quiet large
+// crowd. Duration and gain still follow the particular response on the ground.
+const applauseTextures = [
+  {duration:1.3, rate:7, roar:0}, {duration:2.2, rate:20, roar:.018},
+  {duration:3.5, rate:43, roar:.065},
+];
+const applausePools = new WeakMap();
+const applausePlaying = new Set();
+function playStageApplause(audio, destination, x, z, audience) {
+  if (!(audience.count > 0) || !(audience.intensity > 0) || !(audience.duration > 0)
+      || applausePlaying.size >= 2) return;
+  const tier = audience.count < 5 ? 0 : audience.count < 15 ? 1 : 2;
+  const texture = applauseTextures[tier];
+  let pool = applausePools.get(audio);
+  if (!pool) { pool = []; applausePools.set(audio,pool); }
+  const buffer = pool[tier] ??= buildApplauseBuffer(audio,texture.duration,texture.rate,texture.roar);
+  const now = audio.currentTime, duration = Math.min(texture.duration,audience.duration);
+  const level = (.08 + .24 * Math.min(1,audience.count / 24)) * Math.min(1,audience.intensity);
+  const panner = createStagePanner(audio, destination, x, 2, z);
+  const gain = audio.createGain(), src = audio.createBufferSource();
+  src.buffer = buffer;
+  gain.gain.setValueAtTime(.0001, now);
+  gain.gain.linearRampToValueAtTime(level, now + duration * .12);
+  gain.gain.setValueAtTime(level, now + duration * .62);
+  gain.gain.linearRampToValueAtTime(.0001, now + duration);
+  src.connect(gain).connect(panner);
+  let stopWhoop = null, stopped = false;
+  function stop() {
+    if (stopped) return;
+    stopped = true; applausePlaying.delete(stop); src.onended = null;
+    try { src.stop(); } catch {}
+    stopWhoop?.(); src.disconnect(); gain.disconnect(); panner.disconnect();
   }
-  return _applausePool[(Math.random() * _applausePool.length) | 0];
+  applausePlaying.add(stop); src.onended = stop;
+  src.start(now); src.stop(now + duration);
+  if (tier === 2 && audience.intensity >= .7 && duration > 1.2 && Math.random() < .2) {
+    stopWhoop = playWhoop(audio,panner,now + .22,165 + Math.random()*100,
+      Math.min(.6,duration*.45),level*.11);
+  }
+  return stop;
 }
 
 // A single voiced crowd "woo!" — two slightly-detuned sawtooths shaped by vowel
@@ -1430,12 +1417,14 @@ function playWhoop(ctx, dest, t0, f0, dur, level) {
   amp.gain.setValueAtTime(level, t0 + dur * 0.65);
   amp.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
 
+  const formants = [];
   // Vowel formants, gliding up from the /w/ onset into the /oo/.
   for (const [fStart, fEnd, Q, g] of [[250, 330, 5, 1.0], [620, 850, 8, 0.7], [2300, 2500, 10, 0.2]]) {
     const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = Q;
     bp.frequency.setValueAtTime(fStart, t0);
     bp.frequency.linearRampToValueAtTime(fEnd, t0 + dur * 0.3);
     const fg = ctx.createGain(); fg.gain.value = g;
+    formants.push(bp,fg);
     mix.connect(bp).connect(fg).connect(amp);
   }
 
@@ -1445,6 +1434,10 @@ function playWhoop(ctx, dest, t0, f0, dur, level) {
   o1.start(t0); o2.start(t0); vib.start(t0);
   const tEnd = t0 + dur + 0.06;
   o1.stop(tEnd); o2.stop(tEnd); vib.stop(tEnd);
+  return () => {
+    for (const osc of [o1,o2,vib]) { try { osc.stop(); } catch {} }
+    for (const node of [o1,o2,vib,vibAmt,mix,amp,...formants,lp]) node.disconnect();
+  };
 }
 
 // ---------- Engine ----------
@@ -2164,14 +2157,17 @@ function createStageMusic(ctx, dest, x, y, z, seed, style = 'jam', opts = {}) {
   const curX = () => panner.positionX ? panner.positionX.value : x;
   const curZ = () => panner.positionZ ? panner.positionZ.value : z;
 
-  // Per-instance genre overrides merged onto the shared genre def. onSongEnd is
-  // always present; introFinaleSeconds is only set for the pinned origin stage
-  // so its first song opens at the closing section (see runStageSong.newSong).
+  // Normal stage sets begin at their intro. An explicit preview may request
+  // a short opening finale without changing subsequent songs.
   const extra = { onSongEnd: () => _emitSongEnd(curX(), curZ(), style) };
   if (opts.introFinaleSeconds) extra.introFinaleSeconds = opts.introFinaleSeconds;
 
   let handle;
   switch (style) {
+    case 'folk':
+    case 'funk':
+      handle = runStageSong(ctx, panner, seed, { ...(style === 'folk' ? FOLK : FUNK), ...extra });
+      break;
     case 'brass': {
       const def = Object.assign({}, BRASS, extra);
       handle = runStageSong(ctx, panner, seed, def);
@@ -2205,6 +2201,10 @@ function createStageMusic(ctx, dest, x, y, z, seed, style = 'jam', opts = {}) {
       handle = runStageSong(ctx, panner, seed, def);
       break;
     }
+  }
+  // Legacy percussion engines have no performance track.
+  if (!handle.samplePerformance) {
+    handle.samplePerformance = out => silentPerformance(out, 'stopped', style, ctx.currentTime);
   }
   // Universal position setter so callers (e.g. the marching brass band) can
   // move the source around the world each frame.
@@ -2288,14 +2288,11 @@ const _activeStageSongs = [];
 // Called at the end of each song. Gates applause on listener proximity (~140m)
 // then fires the registered callback so crowd behavior can respond.
 function _emitSongEnd(x, z, style) {
-  if (ctx) {
-    const lis = ctx.listener;
-    const lx = lis.positionX ? lis.positionX.value : 0;
-    const lz = lis.positionZ ? lis.positionZ.value : 0;
-    const dist = Math.sqrt((lx - x) * (lx - x) + (lz - z) * (lz - z));
-    if (dist < 140) Sound.playCrowdCheer(x, z);
-  }
-  if (_songEndCb) _songEndCb(x, z, style);
+  const audience = _songEndCb?.(x, z, style);
+  if (!ctx || !audience?.count) return;
+  const lis = ctx.listener;
+  const lx = lis.positionX?.value ?? 0, lz = lis.positionZ?.value ?? 0;
+  if (Math.hypot(lx-x,lz-z) < 140) return Sound.playCrowdCheer(audience.x ?? x,audience.z ?? z,audience);
 }
 
 // ---- Shared songform engine ----
@@ -2317,6 +2314,12 @@ function pickNext(prev, n, rng) {
 function runStageSong(ctx, panner, seed, genreDef) {
   const rng = mulberry32(seed >>> 0);
 
+  const performance = createStagePerformanceClock(ctx, genreDef.name);
+  let cheerAt = Infinity, stopApplause;
+  function applaud() {
+    stopApplause?.();
+    stopApplause = genreDef.onSongEnd?.();
+  }
   // Song-level state — re-rolled at the start of each song.
   let song = null;
   let songIdx = -1;
@@ -2388,11 +2391,8 @@ function runStageSong(ctx, panner, seed, genreDef) {
     // scheduler tick and start several beats into its intro.
     nextBeatTime = ctx.currentTime + 0.15;
 
-    // Intro finale: the pinned origin main stage starts its FIRST song already
-    // at its closing section, so a player who just spawned hears the band wrap
-    // up and the crowd applaud within ~introFinaleSeconds — instead of waiting
-    // out a full ~2-minute song before any applause ever happens. Later songs
-    // play full length. Snaps to a section downbeat so it begins cleanly.
+    // Optional preview entry: snap the first song to a section downbeat
+    // near its ending without shortening the rest of the set.
     if (genreDef.introFinaleSeconds && songIdx === 0) {
       const beatDur = 60 / tempo;
       const target = totalBeats - Math.round(genreDef.introFinaleSeconds / beatDur);
@@ -2413,7 +2413,7 @@ function runStageSong(ctx, panner, seed, genreDef) {
     snap.phase = 'playing';
 
     // Build genre voices.
-    const v = genreDef.makeVoices(ctx, panner, rng, tonicHz);
+    const v = genreDef.makeVoices(ctx, panner, rng, tonicHz, seed);
     voices = v.voices;
     teardown = v.teardown || [];
   }
@@ -2430,7 +2430,7 @@ function runStageSong(ctx, panner, seed, genreDef) {
   }
 
   function schedule() {
-    if (!song) return;
+    if (!song || ctx.state !== 'running') return;
     const now = ctx.currentTime;
     const horizon = now + 0.6;
 
@@ -2439,18 +2439,31 @@ function runStageSong(ctx, panner, seed, genreDef) {
       snap._forceEnd = false;
       phase = 'cheerGap';
       snap.phase = 'cheerGap';
-      cheerGapEnd = now + 4.5;
-      setTimeout(() => { if (genreDef.onSongEnd) genreDef.onSongEnd(); }, 200);
+      // Already queued notes still sound after the debug force-end request.
+      const end = Math.max(now,nextBeatTime);
+      performance.gap(end);
+      cheerAt = end + .2;
+      cheerGapEnd = end + 4.5;
     }
 
     // In cheerGap: don't schedule notes. When the gap ends, start a new song.
     if (phase === 'cheerGap') {
+      // Use the audio clock here too. A JS timeout can expire while the
+      // AudioContext is suspended and the final beat is still in the future.
+      if (now >= cheerAt && now < cheerGapEnd) {
+        cheerAt = Infinity;
+        applaud();
+      }
       if (now >= cheerGapEnd) {
+        cheerAt = Infinity;
         newSong();
       }
       return;
     }
 
+    // A throttled/backgrounded tab can wake an entire song late. Keep the
+    // next unsounded beat and its RNG position, while dropping expired time.
+    if (nextBeatTime < now) nextBeatTime = now + .025;
     while (nextBeatTime < horizon) {
       const t = nextBeatTime;
       const sec = currentSection();
@@ -2462,10 +2475,8 @@ function runStageSong(ctx, panner, seed, genreDef) {
         cheerGapEnd = t + gapDur;
         // Crowd reacts the instant the song ends: applause + cheer swell ~0.2s
         // after the last note, then the next song fades in under the tail.
-        const delay = Math.max(0, (t - now + 0.2) * 1000);
-        setTimeout(() => {
-          if (genreDef.onSongEnd) genreDef.onSongEnd();
-        }, delay);
+        performance.gap(t);
+        cheerAt = t + .2;
         return;
       }
 
@@ -2489,7 +2500,9 @@ function runStageSong(ctx, panner, seed, genreDef) {
       }
 
       // Call the genre's per-beat synthesizer.
+      performance.beat(t, beat, beatInSong, sec.name, intensity);
       genreDef.playBeat({
+        cue: performance.note,
         t, beatInBar, barInSection, section: sec, intensity,
         beat, tonicHz: song.tonicHz, scale: genreDef.scale,
         variation: sec.variation || 0, fill: barInSection === sec.bars - 1,
@@ -2534,7 +2547,10 @@ function runStageSong(ctx, panner, seed, genreDef) {
   return {
     panner,
     snap,
+    samplePerformance: performance.sample,
     stop() {
+      performance.stop();
+      stopApplause?.();
       clearInterval(intervalId);
       for (const fn of teardown) { try { fn(); } catch (e) {} }
       teardown = [];
@@ -2570,220 +2586,10 @@ function makeSections(template,rng){
       variation:rng?(Math.floor(rng()*3)+repeat)%3:repeat};
   });
 }
-// JAM genre def — wraps the existing jam-band timbre/scale.
-export const JAM = {
-  name: 'jam',
-  baseHz: 174,
-  tempoRange: [84, 104],
-  scale: SCALE_PENT,
-  leadTypes: ['triangle', 'sine'],
-  baseRestProb: 0.10,
-  sectionTemplate(rng) {
-    return makeSections([
-      ['intro',  4, 0.45],
-      ['verse',  8, 0.65],
-      ['chorus', 8, 0.90],
-      ['verse',  8, 0.65],
-      ['bridge', 4, 0.75],
-      ['chorus', 8, 0.90],
-      ['outro',  4, 0.40],
-    ], rng);
-  },
-  makeVoices(ctx, dest, rng, tonicHz) {
-    const baseFreq = tonicHz;
-    const lead = ctx.createOscillator(); lead.type = 'triangle';
-    const leadGain = ctx.createGain(); leadGain.gain.value = 0;
-    lead.connect(leadGain).connect(dest); lead.start();
-
-    const harm = ctx.createOscillator(); harm.type = 'sine';
-    const harmGain = ctx.createGain(); harmGain.gain.value = 0;
-    harm.connect(harmGain).connect(dest); harm.start();
-
-    const bassOsc = ctx.createOscillator(); bassOsc.type = 'sawtooth';
-    const bassLpf = ctx.createBiquadFilter(); bassLpf.type = 'lowpass'; bassLpf.frequency.value = 380;
-    const bassGain = ctx.createGain(); bassGain.gain.value = 0;
-    bassOsc.connect(bassLpf).connect(bassGain).connect(dest); bassOsc.start();
-
-    const kick = ctx.createOscillator(); kick.type = 'sine';
-    const kickGain = ctx.createGain(); kickGain.gain.value = 0;
-    kick.connect(kickGain).connect(dest); kick.start();
-
-    // Sustained chord pad for chorus/bridge — two detuned sines through a gentle lowpass.
-    const padA = ctx.createOscillator(); padA.type = 'sine';
-    const padB = ctx.createOscillator(); padB.type = 'sine';
-    const padGain = ctx.createGain(); padGain.gain.value = 0;
-    const padLpf = ctx.createBiquadFilter(); padLpf.type = 'lowpass'; padLpf.frequency.value = 900;
-    padA.connect(padLpf); padB.connect(padLpf);
-    padLpf.connect(padGain).connect(dest);
-    padA.start(); padB.start();
-
-    // Build melody variants (seeded, stable across a song).
-    const melodies = makeStageMotifs(rng,baseFreq,SCALE_PENT,16);
-    const basses = Array.from({ length: 2 }, () =>
-      new Array(8).fill(0).map(() => baseFreq * 0.5 * SCALE_PENT[Math.floor(rng() * 4)])
-    );
-    const padNotes = SCALE_PENT.slice(0, 4).map(r => baseFreq * r * 0.75);
-
-    const voices = { lead, leadGain, harm, harmGain, bassOsc, bassGain, kick, kickGain,
-                     padA, padB, padGain, melodies, basses, padNotes };
-    const teardown = [
-      () => { try { lead.stop(); } catch (e) {} },
-      () => { try { harm.stop(); } catch (e) {} },
-      () => { try { bassOsc.stop(); } catch (e) {} },
-      () => { try { kick.stop(); } catch (e) {} },
-      () => { try { padA.stop(); } catch (e) {} },
-      () => { try { padB.stop(); } catch (e) {} },
-    ];
-    return { voices, teardown };
-  },
-  playBeat({ t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx, variation=0, fill=false, leadType }) {
-    const { lead, leadGain, harm, harmGain, bassOsc, bassGain, kick, kickGain,
-            padA, padB, padGain, melodies, basses, padNotes } = voices;
-    const rotIdx = (Math.floor(barInSection/4)+variation) % melodies.length;
-    const melody = melodies[rotIdx];
-    const bass   = basses[rotIdx % basses.length];
-    const noteIdx = (barInSection * 4 + beatInBar) % melody.length;
-    const m = melody[noteIdx];
-    const breath = gainMod;
-    const inChorus = section.name === 'chorus' || section.name === 'bridge';
-
-    const rhythm=section.name==='chorus'?[1,1,1,1]:[[1,0,1,1],[1,1,0,1],[1,0,1,0]][(barInSection+variation)%3];
-    lead.type=leadType==='sine'?'sine':'triangle';
-    if (rhythm[beatInBar] && rng() >= restProb) {
-      lead.frequency.setValueAtTime(m, t);
-      leadGain.gain.cancelScheduledValues(t);
-      leadGain.gain.setValueAtTime(0.0001, t);
-      leadGain.gain.exponentialRampToValueAtTime(0.24 * breath, t + 0.015);
-      leadGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.85);
-    }
-    if (beatInBar === 0) {
-      harm.frequency.setValueAtTime(m * 2, t);
-      harmGain.gain.cancelScheduledValues(t);
-      harmGain.gain.setValueAtTime(0.0001, t);
-      harmGain.gain.exponentialRampToValueAtTime(0.08 * breath, t + 0.02);
-      harmGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 1.7);
-    }
-    if (beatInBar % 2 === 0) {
-      const b = bass[Math.floor(beatInBar / 2 + barInSection * 2) % bass.length];
-      bassOsc.frequency.setValueAtTime(b, t);
-      bassGain.gain.cancelScheduledValues(t);
-      bassGain.gain.setValueAtTime(0.0001, t);
-      bassGain.gain.exponentialRampToValueAtTime(0.30 * breath, t + 0.02);
-      bassGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 1.8);
-    }
-    if (beatInBar===0 || beatInBar===2 || (fill && beatInBar===3)) {
-    kick.frequency.setValueAtTime(110, t);
-    kick.frequency.exponentialRampToValueAtTime(40, t + 0.08);
-    kickGain.gain.cancelScheduledValues(t);
-    kickGain.gain.setValueAtTime(0.0001, t);
-    kickGain.gain.exponentialRampToValueAtTime(0.30 * breath, t + 0.005);
-    kickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
-    }
-    if(fill && beatInBar===3){
-      for(const offset of [.5,.75]){
-        harm.frequency.setValueAtTime(m*(offset===.5?1.5:2),t+beat*offset);
-        harmGain.gain.setValueAtTime(.0001,t+beat*offset);
-        harmGain.gain.exponentialRampToValueAtTime(.055*breath,t+beat*offset+.006);
-        harmGain.gain.exponentialRampToValueAtTime(.0001,t+beat*(offset+.22));
-      }
-    }
-    // Chord pad — active in chorus + bridge sections for fullness.
-    if (inChorus) {
-      const pn = padNotes[beatInBar % padNotes.length];
-      padA.frequency.setValueAtTime(pn * 1.003, t);
-      padB.frequency.setValueAtTime(pn * 0.997, t);
-      padGain.gain.cancelScheduledValues(t);
-      padGain.gain.setValueAtTime(padGain.gain.value > 0.001 ? padGain.gain.value : 0.0001, t);
-      padGain.gain.linearRampToValueAtTime(0.10 * breath, t + 0.08);
-      padGain.gain.setTargetAtTime(0.06 * breath, t + 0.12, 0.5);
-    } else {
-      padGain.gain.cancelScheduledValues(t);
-      padGain.gain.setTargetAtTime(0.0001, t, 0.3);
-    }
-  },
-  onSongEnd: null,   // set per-instance by createStageMusic
-};
-
-// BRASS genre def — side-stage horn-led groove.
-export const BRASS = {
-  name: 'brass',
-  baseHz: 233,
-  tempoRange: [112, 140],
-  scale: SCALE_MIXO,
-  leadTypes: ['horn', 'muted'],
-  baseRestProb: 0.12,
-  sectionTemplate(rng) {
-    return makeSections([
-      ['intro',  2, 0.50],
-      ['verse',  8, 0.70],
-      ['chorus', 8, 0.95],
-      ['bridge', 4, 0.75],
-      ['chorus', 8, 0.95],
-      ['outro',  2, 0.45],
-    ], rng);
-  },
-  makeVoices(ctx, dest, rng, tonicHz) {
-    const baseFreq = tonicHz;
-    const sawOsc = ctx.createOscillator(); sawOsc.type = 'sawtooth';
-    const sqrOsc = ctx.createOscillator(); sqrOsc.type = 'square';
-    const hornMix = ctx.createGain(); hornMix.gain.value = 0;
-    const hornBpf = ctx.createBiquadFilter();
-    hornBpf.type = 'bandpass'; hornBpf.frequency.value = 1400; hornBpf.Q.value = 1.6;
-    sawOsc.connect(hornMix); sqrOsc.connect(hornMix);
-    hornMix.connect(hornBpf).connect(dest);
-    sawOsc.start(); sqrOsc.start();
-
-    const tuba = ctx.createOscillator(); tuba.type = 'square';
-    const tubaLpf = ctx.createBiquadFilter(); tubaLpf.type = 'lowpass'; tubaLpf.frequency.value = 320;
-    const tubaGain = ctx.createGain(); tubaGain.gain.value = 0;
-    tuba.connect(tubaLpf).connect(tubaGain).connect(dest); tuba.start();
-
-    const melodies = makeStageMotifs(rng,baseFreq,SCALE_MIXO,16);
-    const basses = Array.from({ length: 2 }, () =>
-      new Array(4).fill(0).map(() => baseFreq * 0.5 * SCALE_MIXO[Math.floor(rng() * 4)])
-    );
-
-    const voices = { sawOsc, sqrOsc, hornMix, tuba, tubaGain, melodies, basses };
-    const teardown = [
-      () => { try { sawOsc.stop(); } catch (e) {} },
-      () => { try { sqrOsc.stop(); } catch (e) {} },
-      () => { try { tuba.stop(); } catch (e) {} },
-    ];
-    return { voices, teardown };
-  },
-  playBeat({ t, beatInBar, barInSection, beat, rng, voices, gainMod, restProb, variation=0, fill=false, leadType }) {
-    const { sawOsc, sqrOsc, hornMix, tuba, tubaGain, melodies, basses } = voices;
-    const rotIdx = (Math.floor(barInSection/4)+variation) % melodies.length;
-    const melody = melodies[rotIdx];
-    const bass   = basses[rotIdx % basses.length];
-    const m = melody[(barInSection * 4 + beatInBar) % melody.length];
-    const breath = gainMod * (leadType==='muted'?.72:1);
-
-    const phraseMask=[[1,1,0,1],[1,0,1,0],[0,1,1,1]][(barInSection+variation)%3];
-    if (phraseMask[beatInBar] && rng() >= restProb) {
-      sawOsc.frequency.setValueAtTime(m * 1.004, t);
-      sqrOsc.frequency.setValueAtTime(m * 0.996, t);
-      hornMix.gain.cancelScheduledValues(t);
-      hornMix.gain.setValueAtTime(0.0001, t);
-      hornMix.gain.exponentialRampToValueAtTime(0.20 * breath, t + 0.012);
-      hornMix.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.55);
-    }
-    if(fill && beatInBar===3){
-      hornMix.gain.setValueAtTime(.0001,t+beat*.65);
-      hornMix.gain.exponentialRampToValueAtTime(.10*breath,t+beat*.67);
-      hornMix.gain.exponentialRampToValueAtTime(.0001,t+beat*.94);
-    }
-    if (beatInBar % 2 === 0) {
-      const b = bass[Math.floor(beatInBar / 2 + barInSection * 2) % bass.length];
-      tuba.frequency.setValueAtTime(b, t);
-      tubaGain.gain.cancelScheduledValues(t);
-      tubaGain.gain.setValueAtTime(0.0001, t);
-      tubaGain.gain.exponentialRampToValueAtTime(0.32 * breath, t + 0.025);
-      tubaGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 1.4);
-    }
-  },
-  onSongEnd: null,
-};
+export const JAM = makeLiveStageGenre('jam');
+export const BRASS = makeLiveStageGenre('brass');
+export const FOLK = makeLiveStageGenre('folk');
+export const FUNK = makeLiveStageGenre('funk');
 
 // DANCE genre def — four-on-floor kick, acid bass, 16th arp pluck, supersaw stab.
 export const DANCE = {
@@ -2804,7 +2610,8 @@ export const DANCE = {
       ['outro',  4, 0.40],
     ], rng);
   },
-  makeVoices(ctx, dest, rng, tonicHz) {
+  makeVoices(ctx, dest, rng, tonicHz, identity) {
+    const noise = mulberry32((identity ?? 0) ^ 0x64616e63);
     // 4-on-floor kick.
     const kick = ctx.createOscillator(); kick.type = 'sine';
     const kickGain = ctx.createGain(); kickGain.gain.value = 0;
@@ -2813,7 +2620,7 @@ export const DANCE = {
     // Closed hi-hat (short HP noise).
     const hatBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.04), ctx.sampleRate);
     const hatData = hatBuf.getChannelData(0);
-    for (let i = 0; i < hatData.length; i++) hatData[i] = Math.random() * 2 - 1;
+    for (let i = 0; i < hatData.length; i++) hatData[i] = noise() * 2 - 1;
     const hatSrc = ctx.createBufferSource(); hatSrc.buffer = hatBuf; hatSrc.loop = true;
     const hatHpf = ctx.createBiquadFilter(); hatHpf.type = 'highpass'; hatHpf.frequency.value = 7000;
     const hatGain = ctx.createGain(); hatGain.gain.value = 0;
@@ -2822,7 +2629,7 @@ export const DANCE = {
     // Clap/snare on 2 and 4.
     const clapBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.06), ctx.sampleRate);
     const clapData = clapBuf.getChannelData(0);
-    for (let i = 0; i < clapData.length; i++) clapData[i] = Math.random() * 2 - 1;
+    for (let i = 0; i < clapData.length; i++) clapData[i] = noise() * 2 - 1;
     const clapSrc = ctx.createBufferSource(); clapSrc.buffer = clapBuf; clapSrc.loop = true;
     const clapBpf = ctx.createBiquadFilter(); clapBpf.type = 'bandpass'; clapBpf.frequency.value = 1800; clapBpf.Q.value = 1.8;
     const clapGain = ctx.createGain(); clapGain.gain.value = 0;
@@ -2852,21 +2659,17 @@ export const DANCE = {
     // Build noise riser — white noise through rising HP filter.
     const riserBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.5), ctx.sampleRate);
     const riserData = riserBuf.getChannelData(0);
-    for (let i = 0; i < riserData.length; i++) riserData[i] = Math.random() * 2 - 1;
+    for (let i = 0; i < riserData.length; i++) riserData[i] = noise() * 2 - 1;
     const riserSrc = ctx.createBufferSource(); riserSrc.buffer = riserBuf; riserSrc.loop = true;
     const riserHpf = ctx.createBiquadFilter(); riserHpf.type = 'highpass'; riserHpf.frequency.value = 8000;
     const riserGain = ctx.createGain(); riserGain.gain.value = 0;
     riserSrc.connect(riserHpf).connect(riserGain).connect(dest); riserSrc.start();
 
-    // Build bass note grid for the acid line.
-    const bassNotes = new Array(8).fill(0).map(() =>
-      tonicHz * 0.5 * SCALE_PENT[Math.floor(rng() * 4)]
-    );
-    const arpNotes = SCALE_PENT.map(r => tonicHz * r);
+    const score = makeStageArrangement('dance',rng,tonicHz,identity);
 
     const voices = { kick, kickGain, hatGain, clapGain, acidOsc, acidLpf, acidGain,
-                     arpOsc, arpGain, arpNotes, stabA, stabB, stabGain, stabLpf,
-                     riserHpf, riserGain, bassNotes };
+                     arpOsc, arpGain, stabA, stabB, stabGain, stabLpf,
+                     riserHpf, riserGain, score };
     const teardown = [
       () => { try { kick.stop(); } catch (e) {} },
       () => { try { hatSrc.stop(); } catch (e) {} },
@@ -2878,10 +2681,10 @@ export const DANCE = {
     ];
     return { voices, teardown };
   },
-  playBeat({ t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx, variation=0, fill=false }) {
+  playBeat({ cue, t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx, variation=0, fill=false }) {
     const { kick, kickGain, hatGain, clapGain, acidOsc, acidLpf, acidGain,
-            arpOsc, arpGain, arpNotes, stabA, stabB, stabGain, stabLpf,
-            riserHpf, riserGain, bassNotes } = voices;
+            arpOsc, arpGain, stabA, stabB, stabGain, stabLpf,
+            riserHpf, riserGain, score } = voices;
     const isDrop = section.name === 'drop';
     const isBuild = section.name === 'build';
     const isBreak = section.name === 'break';
@@ -2891,6 +2694,7 @@ export const DANCE = {
 
     // 4-on-floor kick (every beat).
     if (!isBreak) {
+      cue?.('kick', t, .20);
       kick.frequency.setValueAtTime(140, t);
       kick.frequency.exponentialRampToValueAtTime(42, t + 0.10);
       kickGain.gain.cancelScheduledValues(t);
@@ -2900,6 +2704,7 @@ export const DANCE = {
     }
     // Closed hi-hat off-beats (8th note grid = every 2 sixteenths → every half beat).
     if (inDrop && beatInBar % 1 === 0) {
+      cue?.('hat', t + tick, .025);
       hatGain.gain.cancelScheduledValues(t + tick);
       hatGain.gain.setValueAtTime(0.0001, t + tick);
       hatGain.gain.exponentialRampToValueAtTime(0.10 * breath, t + tick + 0.003);
@@ -2907,6 +2712,7 @@ export const DANCE = {
     }
     // Clap on 2 and 4.
     if (beatInBar === 1 || beatInBar === 3) {
+      cue?.('snare', t, .07);
       clapGain.gain.cancelScheduledValues(t);
       clapGain.gain.setValueAtTime(0.0001, t);
       clapGain.gain.exponentialRampToValueAtTime(0.28 * breath, t + 0.004);
@@ -2914,7 +2720,8 @@ export const DANCE = {
     }
     // Acid bass.
     if (!isBreak || rng() < 0.25) {
-      const bn = bassNotes[(barInSection * 4 + beatInBar) % bassNotes.length];
+      const bn = score.bass(section.name, barInSection, beatInBar === 3 ? 4 : 0);
+      cue?.('bass', t, beat * .9, bn);
       acidOsc.frequency.setValueAtTime(bn, t);
       // Envelope mod on the filter cutoff for the acid squelch.
       acidLpf.frequency.cancelScheduledValues(t);
@@ -2930,10 +2737,11 @@ export const DANCE = {
     if (isDrop && rng() >= restProb * 0.5) {
       for(let sub=0;sub<4;sub++){
         if(sub===2 && (barInSection+variation)%2===0)continue;
-        const index=(beatInBar*4+sub+variation*2)%arpNotes.length;
-        const note=arpNotes[barInSection%4<2?index:arpNotes.length-1-index];
         const at=t+sub*tick;
-        arpOsc.frequency.setValueAtTime(note*(fill?4:2),at);
+        const pitch = sub % 2 === 0 ? score.lead(section.name,barInSection,beatInBar,sub/2)
+          : score.chord(section.name,barInSection,sub === 1 ? 4 : 6) * (fill ? 2 : 1);
+        cue?.('lead', at, tick * .8, pitch);
+        arpOsc.frequency.setValueAtTime(pitch,at);
         arpGain.gain.setValueAtTime(.0001,at);
         arpGain.gain.exponentialRampToValueAtTime(.075*breath,at+.004);
         arpGain.gain.exponentialRampToValueAtTime(.0001,at+tick*.8);
@@ -2941,9 +2749,10 @@ export const DANCE = {
     }
     // Supersaw stab — on every 2 beats in the drop.
     if (isDrop && beatInBar === 0) {
-      const sn = tonicHz * SCALE_PENT[barInSection % SCALE_PENT.length];
+      const sn = score.chord(section.name,barInSection);
+      cue?.('chord', t, beat * 1.8);
       stabA.frequency.setValueAtTime(sn * 1.012, t);
-      stabB.frequency.setValueAtTime(sn * 0.988, t);
+      stabB.frequency.setValueAtTime(score.chord(section.name,barInSection,2) * .997, t);
       stabGain.gain.cancelScheduledValues(t);
       stabGain.gain.setValueAtTime(0.0001, t);
       stabGain.gain.exponentialRampToValueAtTime(0.16 * breath, t + 0.01);
@@ -2983,7 +2792,7 @@ export const WORLD = {
       ['outro',  4, 0.40],
     ], rng);
   },
-  makeVoices(ctx, dest, rng, tonicHz) {
+  makeVoices(ctx, dest, rng, tonicHz, identity) {
     // Son-clave woodblock (triangle oscillator, very short).
     const claveOsc = ctx.createOscillator(); claveOsc.type = 'triangle';
     const claveGain = ctx.createGain(); claveGain.gain.value = 0;
@@ -3013,14 +2822,11 @@ export const WORLD = {
     bassOsc.connect(bassLpf).connect(bassGain).connect(dest); bassOsc.start();
 
     // Euclidean patterns for the clave (son clave: 3-2).
-    const clavePattern = E(5, 12, 0);
-    const shakerPattern = E(8, 12);
-    const marimbaPattern = SCALE_PENT.map(r => tonicHz * r);
-    const bassNotes = [tonicHz * 0.5, tonicHz * 0.5 * (4 / 3), tonicHz * 0.5 * (3 / 2), tonicHz * 0.5 * (2)];
-
+    const score = makeStageArrangement('world',rng,tonicHz,identity);
+    const clavePattern = E(5, 12, score.groove);
     const voices = { claveOsc, claveGain, congaOsc, congaGain, agogo1, agogo2, agogoGain,
                      marimbaOsc, marimbaGain, bassOsc, bassGain, bassLpf,
-                     clavePattern, shakerPattern, marimbaPattern, bassNotes };
+                     clavePattern, score };
     const teardown = [
       () => { try { claveOsc.stop(); } catch (e) {} },
       () => { try { congaOsc.stop(); } catch (e) {} },
@@ -3030,10 +2836,10 @@ export const WORLD = {
     ];
     return { voices, teardown };
   },
-  playBeat({ t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx, variation=0, fill=false }) {
+  playBeat({ cue, t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx, variation=0, fill=false }) {
     const { claveOsc, claveGain, congaOsc, congaGain, agogoGain,
             marimbaOsc, marimbaGain, bassOsc, bassGain, bassLpf,
-            clavePattern, marimbaPattern, bassNotes } = voices;
+            clavePattern, score } = voices;
     const tick = beat / 3;   // 12-tick Euclidean grid uses triplet subdivision
     const ti = (barInSection * 12 + beatInBar * 3) % 12;
     const breath = gainMod;
@@ -3043,6 +2849,7 @@ export const WORLD = {
     for(let sub=0;sub<3;sub++){
       if(!clavePattern[(ti+sub+variation*2)%12])continue;
       const at=t+sub*tick;
+      cue?.('snare', at, .04);
       claveOsc.frequency.setValueAtTime(1200+rng()*160,at);
       claveGain.gain.setValueAtTime(.0001,at);
       claveGain.gain.exponentialRampToValueAtTime(.13*breath,at+.002);
@@ -3050,6 +2857,7 @@ export const WORLD = {
     }
     // Conga on beats 1 and 3 (tick 0 and 6).
     if (ti === 0 || ti === 6) {
+      cue?.('kick', t, .18);
       congaOsc.frequency.setValueAtTime(ti === 0 ? 230 : 180, t);
       congaOsc.frequency.exponentialRampToValueAtTime(ti === 0 ? 140 : 110, t + 0.08);
       congaGain.gain.cancelScheduledValues(t);
@@ -3058,24 +2866,30 @@ export const WORLD = {
       congaGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
     }
     // Agogô bell on accented ticks in verse/chorus.
-    if (intensity > 0.6 && (ti === 2 || ti === 9) && rng() >= restProb) {
-      const isHigh = ti === 2;
-      agogoGain.gain.cancelScheduledValues(t);
-      agogoGain.gain.setValueAtTime(0.0001, t);
-      agogoGain.gain.exponentialRampToValueAtTime(0.12 * breath, t + 0.002);
-      agogoGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.20);
+    if (intensity > 0.6 && (ti === 0 || ti === 9) && rng() >= restProb) {
+      const at = ti === 0 ? t + tick * 2 : t;
+      cue?.('hat', at, .20);
+      agogoGain.gain.cancelScheduledValues(at);
+      agogoGain.gain.setValueAtTime(0.0001, at);
+      agogoGain.gain.exponentialRampToValueAtTime(0.12 * breath, at + 0.002);
+      agogoGain.gain.exponentialRampToValueAtTime(0.0001, at + 0.20);
     }
     // Marimba/kalimba ostinato — denser in chorus.
     if (intensity > 0.5 && rng() >= restProb) {
-      const mn = marimbaPattern[(Math.floor(barInSection/2)*2 + (barInSection%2?3-beatInBar:beatInBar) + variation) % marimbaPattern.length];
-      marimbaOsc.frequency.setValueAtTime(mn * 2, t);
-      marimbaGain.gain.cancelScheduledValues(t);
-      marimbaGain.gain.setValueAtTime(0.0001, t);
-      marimbaGain.gain.exponentialRampToValueAtTime(0.16 * breath, t + 0.004);
-      marimbaGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      const answer = barInSection % 4 === 3;
+      const at = t + (answer ? tick : 0);
+      const pitch = score.lead(section.name, barInSection, beatInBar);
+      cue?.('lead', at, .18, pitch);
+      marimbaOsc.frequency.setValueAtTime(pitch, at);
+      marimbaGain.gain.cancelScheduledValues(at);
+      marimbaGain.gain.setValueAtTime(0.0001, at);
+      marimbaGain.gain.exponentialRampToValueAtTime(0.16 * breath, at + 0.004);
+      marimbaGain.gain.exponentialRampToValueAtTime(0.0001, at + 0.18);
     }
     // Walking bass — every beat.
-    const bn = bassNotes[(barInSection * 4 + beatInBar) % bassNotes.length];
+    if (section.name === 'break' && beatInBar % 2) return;
+    const bn = score.bass(section.name,barInSection,[0,2,4,2][beatInBar]);
+    cue?.('bass', t, beat * .8, bn);
     bassOsc.frequency.setValueAtTime(bn, t);
     bassGain.gain.cancelScheduledValues(t);
     bassGain.gain.setValueAtTime(0.0001, t);
@@ -3104,7 +2918,8 @@ const DUB = {
       ['outro',  4, 0.35],
     ]);
   },
-  makeVoices(ctx, dest, rng, tonicHz) {
+  makeVoices(ctx, dest, rng, tonicHz, identity) {
+    const noise = mulberry32((identity ?? 0) ^ 0x647562);
     // Off-beat skank chord stabs — square/saw through lowpass + feedback delay for echo.
     const skankOsc = ctx.createOscillator(); skankOsc.type = 'sawtooth';
     const skankLpf = ctx.createBiquadFilter(); skankLpf.type = 'lowpass'; skankLpf.frequency.value = 1400;
@@ -3124,7 +2939,7 @@ const DUB = {
     // Cross-stick rim — short noise burst.
     const rimBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.05), ctx.sampleRate);
     const rimData = rimBuf.getChannelData(0);
-    for (let i = 0; i < rimData.length; i++) rimData[i] = Math.random() * 2 - 1;
+    for (let i = 0; i < rimData.length; i++) rimData[i] = noise() * 2 - 1;
     const rimSrc = ctx.createBufferSource(); rimSrc.buffer = rimBuf; rimSrc.loop = true;
     const rimBpf = ctx.createBiquadFilter(); rimBpf.type = 'bandpass'; rimBpf.frequency.value = 2400; rimBpf.Q.value = 2;
     const rimGain = ctx.createGain(); rimGain.gain.value = 0;
@@ -3136,24 +2951,23 @@ const DUB = {
     const melodicaGain = ctx.createGain(); melodicaGain.gain.value = 0;
     melodicaOsc.connect(melodicaBpf).connect(melodicaGain).connect(dest); melodicaOsc.start();
 
-    const bassNotes = SCALE_MINOR.slice(0, 4).map(r => tonicHz * r * 0.5);
-    const skankNotes = SCALE_MINOR.map(r => tonicHz * r);
-    const melodicaNotes = SCALE_MINOR.map(r => tonicHz * r * 2);
-
+    const score = makeStageArrangement('dub',rng,tonicHz,identity);
     const voices = { skankOsc, skankLpf, skankGain, subOsc, subGain,
                      rimGain, melodicaOsc, melodicaGain,
-                     bassNotes, skankNotes, melodicaNotes };
+                     score };
     const teardown = [
       () => { try { skankOsc.stop(); } catch (e) {} },
       () => { try { subOsc.stop(); } catch (e) {} },
       () => { try { rimSrc.stop(); } catch (e) {} },
       () => { try { melodicaOsc.stop(); } catch (e) {} },
+      // A cyclic delay can continue processing after its sources have stopped.
+      () => { skankFeedback.disconnect(); skankDelay.disconnect(); },
     ];
     return { voices, teardown };
   },
-  playBeat({ t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx }) {
+  playBeat({ cue, t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx }) {
     const { skankOsc, skankGain, subOsc, subGain, rimGain,
-            melodicaOsc, melodicaGain, bassNotes, skankNotes, melodicaNotes } = voices;
+            melodicaOsc, melodicaGain, score } = voices;
     const breath = gainMod;
     const isBreak = section.name === 'break';
     const inChorus = section.name === 'chorus';
@@ -3161,7 +2975,8 @@ const DUB = {
     // Off-beat skank — plays on the "&" of each beat (half-beat offset).
     // In a break section, the skank drops out (just bass + echo).
     if (!isBreak && beatInBar % 1 === 0) {
-      const sn = skankNotes[(barInSection * 4 + beatInBar) % skankNotes.length];
+      const sn = score.chord(section.name,barInSection,beatInBar % 2 ? 2 : 4);
+      cue?.('chord', t + beat * .5, .14);
       skankOsc.frequency.setValueAtTime(sn, t + beat * 0.5);
       skankGain.gain.cancelScheduledValues(t + beat * 0.5);
       skankGain.gain.setValueAtTime(0.0001, t + beat * 0.5);
@@ -3169,7 +2984,8 @@ const DUB = {
       skankGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.5 + 0.14);
     }
     // Deep sub-bass — plays every beat or half-beat in chorus.
-    const bn = bassNotes[(barInSection * 4 + beatInBar) % bassNotes.length];
+    const bn = score.bass(section.name,barInSection,beatInBar === 3 ? 4 : 0);
+    cue?.('bass', t, beat * (isBreak ? 1.8 : .9), bn);
     subOsc.frequency.setValueAtTime(bn, t);
     subGain.gain.cancelScheduledValues(t);
     subGain.gain.setValueAtTime(0.0001, t);
@@ -3177,6 +2993,7 @@ const DUB = {
     subGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * (isBreak ? 1.8 : 0.9));
     // Cross-stick rim on beat 3 (and 2 in chorus).
     if (beatInBar === 2 || (inChorus && beatInBar === 1)) {
+      cue?.('snare', t, .06);
       rimGain.gain.cancelScheduledValues(t);
       rimGain.gain.setValueAtTime(0.0001, t);
       rimGain.gain.exponentialRampToValueAtTime(0.18 * breath, t + 0.003);
@@ -3184,7 +3001,8 @@ const DUB = {
     }
     // Melodica lead — sparse, only in verse/chorus.
     if (!isBreak && rng() >= (restProb + 0.15) && (beatInBar === 0 || beatInBar === 2)) {
-      const mn = melodicaNotes[(barInSection * 2 + Math.floor(beatInBar / 2)) % melodicaNotes.length];
+      const mn = score.lead(section.name,barInSection,beatInBar);
+      cue?.('lead', t, beat * 1.2, mn);
       melodicaOsc.frequency.setValueAtTime(mn, t);
       melodicaGain.gain.cancelScheduledValues(t);
       melodicaGain.gain.setValueAtTime(0.0001, t);
@@ -3234,7 +3052,7 @@ export const NUT_WAGON_REGGAE = {
       for(const n of nodes)n.disconnect();
     }]};
   },
-  playBeat({t,beatInBar:b,barInSection:bar,section,beat,tonicHz,voices:v,gainMod=1}) {
+  playBeat({ cue,t,beatInBar:b,barInSection:bar,section,beat,tonicHz,voices:v,gainMod=1}) {
     const hit=(amp,time,level,length)=>{
       amp.gain.setValueAtTime(.0001,time);
       amp.gain.exponentialRampToValueAtTime(Math.max(.0002,level*gainMod),time+.004);
@@ -3245,6 +3063,7 @@ export const NUT_WAGON_REGGAE = {
     const chord=progression[Math.floor(bar/2)%4], sparse=section.name==='break'||section.name==='outro';
     v.delay.delayTime.setValueAtTime(beat*.75,t);
     if(!sparse || b===3){
+      cue?.('chord', t + beat * .5, Math.min(.12,beat*.22));
       v.chords.forEach((voice,i)=>{
         voice.osc.frequency.setValueAtTime(hz(chord[i]),t+beat*.5);
         hit(voice.amp,t+beat*.5,.045,Math.min(.12,beat*.22));
@@ -3253,25 +3072,33 @@ export const NUT_WAGON_REGGAE = {
     // Leave beat one open on alternate bars; anticipation carries into the next bar.
     if(b!==0 || bar%2===0){
       const note=chord[0]-12+([0,7,0,12][b]);
-      v.bass.osc.frequency.setValueAtTime(hz(note),t);
+      const pitch = hz(note);
+      v.bass.osc.frequency.setValueAtTime(pitch,t);
+      cue?.('bass', t, beat * .65, pitch);
       hit(v.bass.amp,t,.23,beat*.65);
     }
     if(b===3&&!sparse){
-      v.bass.osc.frequency.setValueAtTime(hz(chord[0]-12+7),t+beat*.75);
+      const pitch = hz(chord[0] - 12 + 7);
+      v.bass.osc.frequency.setValueAtTime(pitch,t+beat*.75);
+      cue?.('bass', t + beat * .75, beat * .22, pitch);
       hit(v.bass.amp,t+beat*.75,.16,beat*.22);
     }
     if(b===2){
       v.kick.osc.frequency.setValueAtTime(105,t);
       v.kick.osc.frequency.exponentialRampToValueAtTime(45,t+.13);
+      cue?.('kick', t, .19); cue?.('snare', t, .055);
       hit(v.kick.amp,t,.24,.19);hit(v.rim,t,.12,.055);
     }
     if(!sparse){
+      cue?.('hat', t, .035); cue?.('hat', t + beat * .5, .05);
       hit(v.hat,t,.026,.035);hit(v.hat,t+beat*.5,.045,.05);
     }
     const motif=[7,9,7,4,2,4,2,0];
     if((section.name==='chorus'||section.name==='verse')&&bar%4>=2&&(b===0||b===2)){
       const n=motif[(bar%4-2)*4+b];
-      v.lead.osc.frequency.setValueAtTime(hz(n+12),t+beat*.25);
+      const pitch = hz(n + 12);
+      v.lead.osc.frequency.setValueAtTime(pitch,t+beat*.25);
+      cue?.('lead', t + beat * .25, beat * .6, pitch);
       hit(v.lead.amp,t+beat*.25,.075,beat*.6);
     }
   },

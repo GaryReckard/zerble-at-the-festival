@@ -92,22 +92,14 @@ perimeter — wide open inside the circle, muffled by trees as you leave; the pl
 
 ### Requirement: Stage music songform with cheer gap
 
-The melodic stage genres (`jam`, `brass`, `dance`, `world`, `dub`) SHALL run through
-one shared `runStageSong` engine: a finite arc of named sections (intro → verse/build →
-chorus/drop → bridge/break → outro) with per-section voice sets and intensity, a
-per-song tempo + key (re-rolled within the genre's range, never repeating the last key),
-dynamics-coupled rests, and lead-timbre drift. At the outro it SHALL enter a ~4.5s
-**cheer gap**, fire `onSongEnd` (positional applause swell + the registered
-`crowd.cheerNear` callback), then start a fresh song. `drum`/`forest_drum`/`second_line`
-SHALL stay continuous (no songform). Each stage's genre SHALL be seeded
-(origin 0,0 stays `jam`), with distance-ridden master gain cross-fades between stages
-(`sound.js`, `ARCHITECTURE.md:268-269`).
+The seven melodic stage genres (`jam`, `folk`, `funk`, `brass`, `dance`, `world`, `dub`) SHALL share a song scheduler. Each song SHALL have named sections, its own tempo, and a key different from the previous song. The origin stage SHALL play jam. Each other venue SHALL select its style from its seeded program. The continuous drum circle and second-line generators SHALL retain their own schedules.
 
-#### Scenario: A song ends, the crowd cheers, a new song starts
+A stage SHALL expose the current beat, section and individual scheduled voices to its musicians. An attack SHALL become visible when the audio clock reaches the scheduled time. A musician SHALL rest their playing hands during a break or when the transport is pending, suspended or stopped. The stage SHALL release its transport and any associated applause when it unloads. [Scheduler and playback](../../../src/sound.js), [clock](../../../src/stagePerformanceClock.js) and [band sampling](../../../src/stageBand.js).
 
-- **WHEN** a stage song reaches its outro
-- **THEN** it opens a cheer gap, fires `onSongEnd` (applause + `crowd.cheerNear`), then
-  starts a fresh song in a new key
+#### Scenario: A stage reaches the end of its song
+
+- **WHEN** the scheduler reaches the outro’s final beat
+- **THEN** the band SHALL enter a break before starting the next song. The completed song SHALL request an audience response at its venue. A populated audience within hearing range SHALL supply the position and size of the applause, subject to the simultaneous sound limit. An empty audience SHALL produce no applause.
 
 ### Requirement: MIDI player with GM routing and trip-coupled FX
 

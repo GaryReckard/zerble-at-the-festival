@@ -92,6 +92,32 @@ const LIMBS = [[0,1,.23], [1,3,.085], [3,4,.07], [1,5,.085], [5,6,.07], [0,7,.11
 const SHIRTS = [0xd16c4c, 0x428d89, 0x8e659c, 0xd7aa4d, 0x487b69, 0xb85980];
 const SKIN = [0xe5ba94, 0xa16c49, 0x694536, 0xd59a73];
 
+// The two platters sit at local x = ±.75, z = .85 from the DJ, with their
+// upper faces at y = 1.435. Hands hover just above them between tracks.
+function sampleDjPoint(joint, cue, out) {
+  const playing = cue?.playing;
+  const low = playing ? Math.max(cue.kick,cue.bass) : 0;
+  const high = playing ? Math.max(cue.lead,cue.chord,cue.snare,cue.hat) : 0;
+  const side = joint === 3 || joint === 4 ? -1 : 1;
+  const arm = side < 0 ? low : high;
+  out.x = HEALING_DANCE_REST[joint*3];
+  out.y = HEALING_DANCE_REST[joint*3+1];
+  out.z = HEALING_DANCE_REST[joint*3+2];
+  if (joint === 3 || joint === 5) {
+    out.x = side * (.47 + arm*.04);
+    out.y = 1.48 - arm*.025;
+    out.z = .35 + arm*.05;
+  } else if (joint === 4 || joint === 6) {
+    out.x = side * (.67 + arm*.10);
+    out.y = 1.53 - arm*.09;
+    out.z = .76 + arm*.08;
+  } else if (joint < 3) {
+    out.y -= low * (joint === 2 ? .085 : .035);
+    out.z += .075 + high*.04;
+  }
+  return out;
+}
+
 /** Returns an origin-anchored Group. Collider coordinates are local to the group. */
 export function buildHealingArts({ rng = () => 0.5 } = {}) {
   const group = new THREE.Group(); group.name = 'Healing Arts';
@@ -189,7 +215,7 @@ export function buildHealingArts({ rng = () => 0.5 } = {}) {
 }
 
 /** Display consumes the owner's cached pose; dt remains reserved for rendering. */
-export function updateHealingArts(group, dt, time, nightness) {
+export function updateHealingArts(group, dt, time, nightness, djCue = null) {
   const u = group.userData.healingArts;
   if (!u) return;
   const n = THREE.MathUtils.smoothstep(Number.isFinite(nightness) ? nightness : 0, .2, .75);
@@ -210,7 +236,8 @@ export function updateHealingArts(group, dt, time, nightness) {
     for (let j = 0; j < 33; j++) pose[j] = a[j] + (b[j] - a[j]) * blend;
     const dance = p.dj ? 1 : p.mix, point=u.dancePoint??={};
     for (let j = 0; j < 11; j++) {
-      sampleHealingDancePoint(j,t,p.phase,p.dj,point);
+      if (p.dj) sampleDjPoint(j,djCue,point);
+      else sampleHealingDancePoint(j,t,p.phase,false,point);
       const {x,y,z}=point;
       pose[j * 3] += (x - pose[j * 3]) * dance;
       pose[j * 3 + 1] += (y - pose[j * 3 + 1]) * dance;

@@ -31,17 +31,20 @@ for(const managed of [false,true])for(let seed=0;seed<8;seed++) {
 const chunks=readFileSync(new URL('../src/chunks.js',import.meta.url),'utf8');
 const start=chunks.indexOf('export function updateHealingArtsTents('),end=chunks.indexOf('\n// Spatial music handles',start);
 function cadence(display){
- const motion=createHealingArtsMotion(layout(),true),reads=[];let samples=0,renders=0;
+ const motion=createHealingArtsMotion(layout(),true),reads=[], boothFrames=[];let samples=0,renders=0,cueReads=0;
  const entry={group:{position:{distanceToSquared:pos=>pos.near?0:1e9}},night:null,music:null,seed:1,activity:{
   update(){reads.push(motion.participants[1].currentX);},sample(time,night){samples++;sampleHealingArtsMotion(motion,time,night);},
  }};
  const tick=runInNewContext(chunks.slice(start,end).replace('export function','function')+';updateHealingArtsTents',{
-  healingArtsTents:[entry],Sound:{attachStageMusic:()=>({}),detachStageMusic(){}},updateHealingArts(){renders++;},
+  healingArtsTents:[entry],Sound:{attachStageMusic:()=>({samplePerformance(out){cueReads++;out.beat=37;return out;}}),detachStageMusic(){}},
+  updateHealingArts(_group,_dt,_time,_night,cue){renders++;boothFrames.push(cue?.beat ?? null);},
  });
  for(const [time,night,near] of [[0,0,false],[1,0,false],[2,0,true],[3,1,false],[4,1,false],[5,.6,false],[6,.4,true],[7,0,true]])tick(.016,time,night,{near},display);
- return {reads,positions:Array.from(motion.positions),samples,renders};
+ return {reads,positions:Array.from(motion.positions),samples,renders,cueReads,boothFrames};
 }
 const visible=cadence(true),skipped=cadence(false);
 assert.deepEqual(visible.reads,skipped.reads);assert.deepEqual(visible.positions,skipped.positions);
+assert.equal(visible.cueReads,1); assert.equal(skipped.cueReads,0);
+assert.deepEqual(visible.boothFrames,[null,null,37,null,null],'real stage cue on first visible night frame, none after dawn');
 assert.equal(visible.samples,5);assert.equal(skipped.samples,5);assert.equal(visible.renders,5);assert.equal(skipped.renders,0);
 console.log(`PASS Healing Arts sampler: ${samples} exact frozen-oracle samples, private cache, prior-sample cadence, near/night transitions and display-skipped equivalence.`);
