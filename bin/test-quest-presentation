@@ -150,6 +150,7 @@ console.log('PASS: cardinal text at rotated headings, arrival/handoff suppressio
 const occupiedAlternate={...q,kind:'hammock',x:500,z:500,dist:700,arrivalBlocked:'occupied',blockedTarget:{x:8,z:0,radius:10}};
 const occupiedState=chipState(occupiedAlternate,{x:0,z:0});
 assert.equal(occupiedState.text,'Occupied · try nearby');
+assert.equal(chipState({...occupiedAlternate,blockedTarget:{...occupiedAlternate.blockedTarget,approaching:true}},{x:0,z:0}).text,'Someone heading here');
 assert.equal(occupiedState.inside,true);assert.equal(occupiedState.showArrow,false);
 const distantOccupied=chipState(occupiedAlternate,{x:-30,z:0});
 assert.equal(distantOccupied.direction,'Right');assert.equal(distantOccupied.text,'30 m');

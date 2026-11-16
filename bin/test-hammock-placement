@@ -1,0 +1,76 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { Scene } from 'three';
+import { nearestRoad } from '../src/worldgen/roads.js';
+import { woodlandCampingClearance, woodlandCampsNear } from '../src/woodlandCamping.js';
+
+// Real builders, registry and geometry. Canvas drawing is irrelevant headlessly.
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:720,__perfProfile:'low'};
+globalThis.document={addEventListener(){},createElement:()=>({getContext:()=>new Proxy({measureText:()=>({width:100}),
+  createLinearGradient:()=>({addColorStop(){}}),createRadialGradient:()=>({addColorStop(){}})},
+  {get:(o,k)=>k in o?o[k]:()=>{}})})};
+
+const {buildWoodlandCampPreview,ChunkManager}=await import('../src/chunks.js');
+const {registry}=await import('../src/registry.js');
+const {setSessionSeed}=await import('../src/rng.js');
+
+const { setTerrainEnabled, sampleTerrain } = await import('../src/worldgen/terrain.js');
+setSessionSeed(0);
+const scene = new Scene();
+const preview = buildWoodlandCampPreview(scene);
+try {
+  const shrubs = preview.group.children.filter(g => g.name === 'shrub').map(g =>
+    [g.position.toArray(), g.children[0].scale.x, g.children[0].rotation.y]);
+  const digest = createHash('sha256').update(JSON.stringify(shrubs)).digest('hex');
+  assert.equal(digest,'d3680b734ab95958597c87ec117dfea3d6ab5d9931a01ccbea7411b041aa6c92',
+    'nine seeded tree chunks preserve shrub position, size, rotation and draw order from before contextual hammocks');
+} finally {
+  preview.dispose();
+}
+
+setTerrainEnabled(true);
+const crowd = { spawn() {}, spawnLost() {}, unloadChunk() {} };
+const manager = new ChunkManager(scene, crowd);
+function generate(cx, cz) {
+  manager._generate(cx, cz);
+  const key = [...manager.loaded.keys()][0], chunk = manager.loaded.get(key);
+  try {
+    const entries = registry.byChunk(key);
+    const camps = entries.filter(e => e.kind === 'campsite' && e.campNeighborhood);
+    const hammocks = entries.filter(e => e.kind === 'hammock');
+    const trees = entries.filter(e => e.kind === 'forest_tree');
+    assert(hammocks.length <= 1);
+    assert(!chunk.group.children.some(g => g.name === 'hammock'), 'no free-standing posts in worldgen woods');
+    const districts = woodlandCampsNear({minX:cx*80-40,minZ:cz*80-40,maxX:cx*80+40,maxZ:cz*80+40});
+    for (const e of hammocks) {
+      const {x,z} = e.position;
+      assert(camps.some(c => {
+        const edge = Math.hypot(c.position.x-x,c.position.z-z)-c.footprint;
+        return edge >= 3 && edge <= 10;
+      }), 'actual hammock belongs to a built residential pitch');
+      assert(chunk.group.children.some(g => g.name === 'tree_hammock'));
+      assert(trees.filter(t => Math.hypot(t.position.x-x,t.position.z-z) <= 3.2).length >= 2);
+      for (const point of [e.position,...e.hammock.approaches]) {
+        const ground = sampleTerrain(point.x,point.z);
+        const road = nearestRoad(point.x,point.z);
+        assert(ground.traversable && ground.surfaceClass === 'grass' && ground.grade <= .12);
+        assert(road.dist > (road.width ?? 8)/2 + 1);
+        assert(!woodlandCampingClearance(point.x,point.z,districts,.4));
+        assert(trees.every(t => Math.hypot(point.x-t.position.x,point.z-t.position.z) > t.collider.radius+.3));
+      }
+    }
+    return {camps:camps.length, trees:trees.length, seats:hammocks.map(e => e.hammock.seatPos.toArray())};
+  } finally {
+    manager._unload(key,chunk);
+    assert.equal(registry.byChunk(key).length,0);
+  }
+}
+const admitted = generate(-4,-1);
+assert(admitted.camps && admitted.seats.length === 1, 'a real residential pitch admits a loungeable sling');
+const uninhabited = generate(-5,-1);
+assert(uninhabited.trees >= 6 && !uninhabited.camps && !uninhabited.seats.length, 'uninhabited woods stay empty');
+assert.deepEqual(generate(-4,-1),admitted,'regeneration reproduces the camp and seat');
+const declined = generate(6,1);
+assert(declined.camps && !declined.seats.length,'a camp without a suitable pair gets no hammock');
+console.log('PASS deterministic same-chunk campsite hammocks, clear approaches, empty woods, unsuitable camps, unload/reload and preserved undergrowth.');

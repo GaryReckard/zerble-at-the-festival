@@ -40,6 +40,38 @@ for(const kind of ['hammock','table']){
  console.log('PASS '+kind+': 800 exact approach/occupancy/pose/timer/publication/RNG frames, including the existing population plus activity timer decrement and normal exit.');
 }
 if(!process.argv.includes('--baseline')){
+ {
+  const f=fixture('hammock',false),h=f.npc.personHandle;
+  f.entry.position.x=30;f.entry.hammock.seatPos.x=30;
+  assert.equal(f.owner.hammocks.tryClaim(h),false,'distant walkers cannot invisibly reserve a hammock');
+  assert.equal(f.entry.hammock.occupied,false);
+  f.entry.position.x=4;f.entry.hammock.seatPos.x=4;
+  assert(f.owner.hammocks.tryClaim(h));assert.equal(f.entry.hammock.approaching,true);
+  for(let frame=0;frame<200&&f.npc.state==='walking_to_hammock';frame++){
+   f.npc.stateTimer-=.05;f.owner.hammocks.tickWalking(.05,h);
+  }
+  assert.equal(f.npc.state,'hammock_riding');assert.equal(f.entry.hammock.approaching,false);
+  f.owner.hammocks.release(h);assert.equal(f.entry.hammock.occupied,false);assert.equal(f.entry.hammock.approaching,false);
+ }
+ for(const failure of ['admission','walking','swing','exit']){
+  const f=fixture('hammock',false),h=f.npc.personHandle;
+  if(failure==='admission')f.owner.commitHammockMotion=()=>false;
+  const claimed=f.owner.hammocks.tryClaim(h);
+  if(failure==='admission')assert.equal(claimed,false);
+  else {
+   assert(claimed);
+   if(failure==='exit'){
+    f.npc.stateTimer=0;f.owner.finishHammockMotion=()=>false;
+   } else f.owner.commitHammockMotion=()=>false;
+   if(failure==='swing'){f.npc.state='hammock_riding';f.npc.rideTimer=5;f.owner.hammocks.tickRiding(.05,h);}
+   else f.owner.hammocks.tickWalking(.05,h);
+  }
+  assert.equal(f.entry.hammock.occupied,false,failure);
+  assert.equal(f.entry.hammock.approaching,false,failure);
+  assert.equal(f.owner.hammocks.records.size,0,failure);
+  assert.equal(f.owner.activityClaims.current.size,0,failure);
+ }
+ console.log('PASS nearby-only hammock reservations, approach versus occupant state, and rejected admission/walk/swing/exit cleanup.');
  for(let cycle=0;cycle<2;cycle++){
   const f=fixture('hammock',false),h=f.npc.personHandle;assert(f.owner.hammocks.tryClaim(h));
   const record=f.owner.hammocks.records.get(h),old=f.entry.hammock;

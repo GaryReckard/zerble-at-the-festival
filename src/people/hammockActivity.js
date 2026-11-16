@@ -1,6 +1,8 @@
 // Activity intent and reservations use public person commands. The population
 // retains record storage and applies only this activity's validated pose profile.
 const reservations = new WeakMap();
+// An ambient visitor should be visibly approaching before tying up a seat.
+const AMBIENT_CLAIM_RADIUS = 6;
 const wrapAngle = (a) => {
   while (a > Math.PI) a -= Math.PI * 2;
   while (a < -Math.PI) a += Math.PI * 2;
@@ -34,12 +36,14 @@ export class HammockActivity {
     const ticket = { person: handle, entry, resource };
     reservations.set(resource, ticket);
     resource.occupied = true;
+    resource.approaching = true;
     return ticket;
   }
   releaseArrival(ticket) {
     if (!ticket || reservations.get(ticket.resource) !== ticket) return false;
     reservations.delete(ticket.resource);
     ticket.resource.occupied = false;
+    ticket.resource.approaching = false;
     return true;
   }
   tryClaim(handle, ticket = null) {
@@ -52,7 +56,7 @@ export class HammockActivity {
     )
       return false;
     let best = ticket?.entry ?? null,
-      bestD2 = 60 * 60;
+      bestD2 = AMBIENT_CLAIM_RADIUS * AMBIENT_CLAIM_RADIUS;
     for (const id of ticket ? [] : this.registry.byKind.get('hammock') ?? []) {
       const entry = this.registry.entries.get(id);
       if (
@@ -94,10 +98,12 @@ export class HammockActivity {
             return false;
           reservations.set(record.resource, record.reservation);
           record.resource.occupied = true;
+          record.resource.approaching = true;
           attempt.own(() => {
             if (reservations.get(record.resource) === record.reservation) {
               reservations.delete(record.resource);
               record.resource.occupied = false;
+              record.resource.approaching = false;
             }
           });
           return true;
@@ -130,7 +136,9 @@ export class HammockActivity {
       stateTimer: ticket ? 60 : 18,
       publish: false
     });
-    return this.people.commitHammockMotion(claim, step);
+    const committed = this.people.commitHammockMotion(claim, step);
+    if (!committed) this.release(handle, 'approach-rejected');
+    return committed;
   }
   readStep(record, handle) {
     const s = record.step;
@@ -166,6 +174,7 @@ export class HammockActivity {
       d = Math.hypot(dx, dz);
     if (d < 0.7) {
       s.phase = 'swing';
+      record.resource.approaching = false;
       s.rideTimer = 12 + this.random() * 18;
       s.hammockBob = 0;
       if (record.delivery) {
@@ -187,7 +196,7 @@ export class HammockActivity {
       s.publish = true;
     }
     const committed = this.people.commitHammockMotion(record.claim, s);
-    if (!committed && record.delivery) this.release(handle, 'quest-path-blocked');
+    if (!committed) this.release(handle, 'approach-blocked');
     return committed;
   }
   tickRiding(dt, handle) {
@@ -218,12 +227,14 @@ export class HammockActivity {
         z: s.z + (this.random() - 0.5) * 0.8,
         publish: true
       });
-    return this.people.commitHammockMotion(record.claim, s);
+    const committed = this.people.commitHammockMotion(record.claim, s);
+    if (!committed) this.release(handle, 'rest-support-lost');
+    return committed;
   }
   finish(record, step, exit) {
     Object.assign(step, exit, { phase: 'idle', hammockY: undefined });
     const finished = this.people.finishHammockMotion(record.claim, step);
-    if (!finished && record.delivery) this.release(record.claim.person, 'quest-path-blocked');
+    if (!finished) this.release(record.claim.person, 'rest-exit-blocked');
     return finished;
   }
   release(handle, reason = 'rest-interrupted') {

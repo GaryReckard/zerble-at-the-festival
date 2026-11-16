@@ -63,6 +63,10 @@ if (screen === 'rides') {
     rides[1].phase='handoff';
     rides[2].kind='hammock';rides[2].icon='hammock';rides[2].x=0;rides[2].z=0;rides[2].dist=0;rides[2].arrivalBlocked='occupied';
   }
+  if (flags.get('case') === 'approach') {
+    rides[0].blockedTarget={x:0,z:0,radius:25,approaching:true};
+    rides[0].arrivalBlocked='occupied';
+  }
   compass.sync(rides, {x:0,z:0,heading:0,speed:0});
   HUD.toast('Festival message: keep the driving controls clear.', 600000);
 }

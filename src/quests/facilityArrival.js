@@ -25,7 +25,8 @@ export function resolveNearbyFacility(quest, player, registry, canAccept, { occu
       if (!resource || !!resource.occupied !== occupied) continue;
       const approach = canAccept ? canAccept(entry, quest) : (entry.hammock?.approaches?.[0] ?? p);
       if (!approach || !Number.isFinite(approach.x) || !Number.isFinite(approach.z)) continue;
-      best = d2; nearest = { x: p.x, z: p.z, radius, entryId: id, approach };
+      best = d2; nearest = { x: p.x, z: p.z, radius, entryId: id, approach,
+        ...(occupied && resource.approaching ? { approaching: true } : {}) };
     }
   }
   return nearest;

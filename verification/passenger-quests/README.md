@@ -109,3 +109,5 @@ After Gary approved reloading the active game, local main was fast-forwarded to 
 ## Destination activity follow-up
 
 [Facility handoffs and centered ride guidance](activities/README.md) records live hammock and toilet entry, focused ownership regressions, and compact HUD verification.
+
+[Contextual hammock rest areas and readable reservations](hammock-rest-areas/README.md) documents the follow-up placement and empty-hammock fixes.

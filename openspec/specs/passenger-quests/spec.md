@@ -278,6 +278,13 @@ While `npc.hailing` is set, a person SHALL NOT lane-dodge, flee on proximity or 
 
 Solo hammock and porta-potty requests SHALL accept any currently built free matching facility within 25 m and 16 m respectively, provided a valid approach and checked route are available. Tree hammocks SHALL expose real seats and ground-sampled approaches through nonblocking, zero-footprint, chunk-owned metadata without consuming RNG. Group requests SHALL exclude these single-person facilities. Other destinations SHALL retain their stored specific target. Planned but absent facilities, occupied facilities, wrong kinds and streamed-out entries SHALL NOT complete a ride. The activity owner SHALL reserve the resource before safe disembarkation and release the temporary reservation on every exit path. A successful transfer SHALL keep the request in `handoff`, pausing patience and urgent time until the rider enters `hammock_riding` or `using_potty`. Reward and log mutation SHALL occur only then; interruption or resource loss SHALL cancel without reward and release the activity claim. Alternate facilities SHALL NOT reset urgent deadlines or increase distance reward beyond the offered trip.
 
+#### Scenario: An empty hammock has an approaching visitor
+
+- **GIVEN** a nearby NPC is already walking to the hammock
+- **THEN** the ride card says “Someone heading here” rather than “Occupied”
+- **AND** ambient visitors can reserve only within 6 m, while a rejected movement or exit releases the reservation immediately
+- **AND** a passenger does not displace a nearby approaching visitor or an actual occupant
+
 #### Scenario: Another hammock on the way
 
 - **GIVEN** a rider asked for a hammock at a suggested location
@@ -303,3 +310,7 @@ After a completed non-facility solo ride, a bounded destination intent SHALL wai
 - **WHEN** the exit reaction ends
 - **THEN** the passenger walks to a checked gathering point and is invited into existing watching behavior
 - **AND** the temporary walking claim is released
+
+### Requirement: Contextual hammock locations
+
+Worldgen woodland hammocks SHALL use a suitable tree pair beside a built residential campsite in their owning chunk, with at most one per chunk. Empty woods, vendor back rooms and unsuitable camps SHALL NOT receive random hammock scatter. Ground and both approaches SHALL be dry, gently graded and clear of traffic and venue obstructions. Legacy grove posted hammocks SHALL likewise require a built camp. Hammock placement SHALL preserve the existing undergrowth RNG sequence.

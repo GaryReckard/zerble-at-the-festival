@@ -48,7 +48,7 @@ export function chipState(quest, player) {
     help: quest.kind === 'hammock' ? 'Any free hammock works' : quest.kind === 'porta_potty' ? 'Any free porta-potty works' : 'This destination',
     urgent: quest.type === 'urgent' && !pending,
     angle,
-    text: pending ? 'Passenger walking in' : unavailable ? (quest.arrivalBlocked === 'occupied' ? 'Occupied · try nearby' : 'Try another nearby') : blocked ? 'Pull over nearby' : missing ? (quest.kind === 'hammock' ? 'Find a hammock' : 'Find a potty') : fast ? 'Slow down!' : inside ? 'Stop here!' : formatDistance(Math.max(0, distance - target.radius)),
+    text: pending ? 'Passenger walking in' : unavailable ? (quest.arrivalBlocked === 'occupied' ? (quest.blockedTarget?.approaching ? 'Someone heading here' : 'Occupied · try nearby') : 'Try another nearby') : blocked ? 'Pull over nearby' : missing ? (quest.kind === 'hammock' ? 'Find a hammock' : 'Find a potty') : fast ? 'Slow down!' : inside ? 'Stop here!' : formatDistance(Math.max(0, distance - target.radius)),
     clock: quest.type === 'urgent' && !pending ? formatClock(quest.timeLeft) : '',
     warm: Math.round(quest.warmth * 10) / 10,
     inside, missed: quest.missed,

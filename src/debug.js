@@ -582,7 +582,7 @@ function getCommandController() {
         for(const kind of ['hammock','hammock_dropoff','porta_potty'])for(const id of h().registry.byKind.get(kind)||[]){
           const e=h().registry.entries.get(id);if(!e)continue;
           const distance=Math.hypot(e.position.x-z.position.x,e.position.z-z.position.z);
-          if(distance<=100)facilities.push({kind,x:e.position.x,z:e.position.z,distance:Math.round(distance*10)/10,occupied:!!(e.hammock??e.potty)?.occupied});
+          if(distance<=100)facilities.push({kind,x:e.position.x,z:e.position.z,distance:Math.round(distance*10)/10,occupied:!!(e.hammock??e.potty)?.occupied,approaching:!!e.hammock?.approaching});
         }
         const quests=dbg.quests(),person={};
         const passenger=quests.lastEvent?.riderId && h().crowd.readPerson(quests.lastEvent.riderId,person)

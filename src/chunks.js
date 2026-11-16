@@ -3,7 +3,7 @@ import { vendorCanopyAppearance } from './festivalShapes.js';
 import { ribbonTriangles, trimRoadTriangles, pavedCutters, footprintBounds } from './roadGeometry.js';
 import { roadMaterial } from './roadMaterials.js';
 import {sampleHealingArtsPreview} from './people/healingArtsMotion.js';
-import { terrainHeight, terrainEnabled, TERRAIN_STEP, drapeTerrainTriangles } from './worldgen/terrain.js';
+import { sampleTerrain, terrainHeight, terrainEnabled, TERRAIN_STEP, drapeTerrainTriangles } from './worldgen/terrain.js';
 import { woodlandCampsNear, woodlandCampingClearance } from './woodlandCamping.js';
 import { planCampNeighborhood } from './campPlanning.js';
 import { registerCampsite, canPlaceCampsite, registerStageChair } from './campRegistry.js';
@@ -34,6 +34,7 @@ import { register as registerContextLight } from './contextLights.js';
 import { placeChunkProps, ownerCellCoord, vendorRowSlots, foodCourtShackFallback } from './worldgen/placement.js';
 import { queryRegion, queryPoint as pureQueryPoint } from './worldgen/index.js';
 import { treeDensity } from './worldgen/density.js';
+import { lakeAt } from './worldgen/water.js';
 import { dancefloorRectsNear, drumClearingsNear, festivalPlan, campVillagesNear, seamHedgesNear, welcomeFoodCourt, MAX_POI_REACH } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
 import { roadsInBounds, nearestRoad as nearestArterialRoad, shapesClearOfRoads, PAVED_ROAD_WIDTH } from './worldgen/roads.js';
@@ -49,7 +50,7 @@ import { buildBubbleJug } from './models/bubbleJug.js';
 import { buildBubbleVendor } from './models/bubbleVendor.js';
 import { buildSugarShack, SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH, sugarShackCooks } from './models/sugarShack.js';
 import { buildPortaPotty, createPottyState, POTTY_SPACING, POTTY_FOOTPRINT, POTTY_COLLIDER_R } from './models/portaPotty.js';
-import { buildHammock as buildHammockModel, buildTreeHammock } from './models/hammock.js';
+import { buildHammock as buildHammockModel, buildTreeHammock, treeHammockAnchors } from './models/hammock.js';
 import { registerTreeHammock, hammockResource } from './quests/facilityArrival.js';
 import { buildPicnicTable } from './models/picnicTable.js';
 import { buildInfoKiosk, INFO_KIOSK_COLLIDER_R, INFO_KIOSK_FOOTPRINT } from './models/infoKiosk.js';
@@ -1131,50 +1132,34 @@ function scatterWorldgenTrees(ctx) {
     placeTree(x, z);
     lone++;
   }
-  // C1 — string a post-less hammock between the occasional pair of CLOSE trees (the
-  // trunks ARE the posts). Register the real sling seat without a footprint or
-  // collider, so later scenery placement stays unchanged. Both the seat and mesh
-  // unload with their chunk. Capped so it stays a woodland discovery.
-  let hammocks = 0;
-  for (let i = 0; i < placed.length && hammocks < 2; i++) {
-    for (let j = i + 1; j < placed.length; j++) {
+  // These historical draws also seed the undergrowth. Preserve the two cloth
+  // rolls and the former post pockets as shrub scatter anchors, without making
+  // them game objects or treating a dense forest as a place to pitch a hammock.
+  const treeCount = placed.length;
+  let clothRolls = 0;
+  for (let i = 0; i < treeCount && clothRolls < 2; i++) {
+    for (let j = i + 1; j < treeCount; j++) {
       const d = Math.hypot(placed[i].x - placed[j].x, placed[i].z - placed[j].z);
-      if (d < 3.0 || d > 5.5) continue;
-      if (rng() > 0.22) continue;
-      const centerX = (placed[i].x + placed[j].x) / 2;
-      const centerZ = (placed[i].z + placed[j].z) / 2;
-      const groupGroundY = terrainHeight(centerX, centerZ);
-      const supportWorldY = groupGroundY + 1.45;
-      const hammock = buildTreeHammock(placed[i].x, placed[i].z, placed[j].x, placed[j].z, rng,
-        treeTrunkRadiusAtWorldHeight(placed[i].descriptor, supportWorldY, placed[i].groundY),
-        treeTrunkRadiusAtWorldHeight(placed[j].descriptor, supportWorldY, placed[j].groundY));
-      hammock.group.position.y = groupGroundY;
-      ctx.group.add(hammock.group);
-      registerTreeHammock(registry, hammock, groupGroundY, ctx.key, terrainHeight);
-      hammocks++;
+      if (d < 3 || d > 5.5 || rng() > .22) continue;
+      rng();
+      clothRolls++;
       break;
     }
   }
-  // Posted hammocks slung in the woods — the REGISTERED, NPC-loungeable kind
-  // ('hammock', with a seatPos crowd.js parks a wook in). v1 placed these in
-  // buildGrove, which worldgen=1 never runs, so the v2 woods had none (Gary
-  // 2026-06-16: "fix missing hammocks" — same gap as the bubble jugs). Uses the
-  // LOCAL tree rng, so it can't desync the ctx.rng order the crowd/jugs/camps
-  // ride. Density-gated + capped so they stay a woodland discovery, not a carpet.
-  if (placed.length >= 6) {
-    const hCount = rng() < 0.45 ? 1 + Math.floor(rng() * 2) : 0;   // 0..2, ~45% of woods chunks
-    let hung = 0;
-    for (let attempt = 0; attempt < 16 && hung < hCount; attempt++) {
-      const hx = minX + rng() * CHUNK_SIZE, hz = minZ + rng() * CHUNK_SIZE;
-      if (treeDensity(hx, hz) < 0.08) continue;         // in/near the woods, not hub core or open field
-      // 3.5 m clearance = a real pocket to hang in (posts ~3 m apart) without jamming it
-      // inside a trunk; still off roads / dancefloors / buildings via clearOfStuff.
-      if (!clearOfStuff(hx, hz, 3.5)) continue;
-      buildHammock(ctx, hx, hz, rng);
-      placed.push({ x: hx, z: hz });                    // later trees keep clear of it
-      hung++;
+  const scatterPockets = [];
+  if (treeCount >= 6) {
+    const count = rng() < .45 ? 1 + Math.floor(rng() * 2) : 0;
+    for (let attempt = 0; attempt < 16 && scatterPockets.length < count; attempt++) {
+      const x = minX + rng() * CHUNK_SIZE, z = minZ + rng() * CHUNK_SIZE;
+      if (treeDensity(x, z) < .08 || !clearOfStuff(x, z, 3.5)) continue;
+      if (scatterPockets.some(p => Math.hypot(x-p.x,z-p.z) < 2.5+1.6)) continue;
+      rng(); rng(); // Old posted model color and yaw.
+      const pocket = {x, z};
+      placed.push(pocket);
+      scatterPockets.push(pocket);
     }
   }
+  const shrubPositions = [];
   // Low shrubs as woodland undergrowth + ground cover — visual-only (soft bushes
   // you drive over; no collider/registry entry, disposed with the chunk group),
   // on the LOCAL tree rng so they don't shift the ctx.rng order. Cluster mostly at
@@ -1195,16 +1180,101 @@ function scatterWorldgenTrees(ctx) {
     if (pointNearWorldgenRoad(sx, sz, chunkRoads, roadHalf)) continue;
     if (pointInDancefloor(sx, sz, danceRects)) continue;
     if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(sx, terrainHeight(sx, sz), sz), 1.5, TREE_GUARD_SKIP)) continue;
+    if (scatterPockets.some(p => Math.hypot(sx-p.x,sz-p.z) < 1.5+1.6)) continue;
+    shrubPositions.push({x:sx,z:sz});
     const shrub = buildShrub(rng);
     shrub.position.set(sx, terrainHeight(sx, sz), sz);
     ctx.group.add(shrub);
   }
+  placeCampTreeHammock(ctx, placed.slice(0,treeCount), shrubPositions, woodland, chunkRoads, danceRects, drumClears);
   // CG3: collapse this chunk's whole woods into ~5 InstancedMeshes (one per
   // cast/no-cast bucket). Added to ctx.group → disposed with the chunk.
   const visualStartedAt = CHUNK_TIMING ? performance.now() : 0;
   const treeMeshes = buildForestInstanced(treeInstances);
   for (let i = 0; i < treeMeshes.length; i++) ctx.group.add(treeMeshes[i]);
   if (CHUNK_TIMING) recordChunkStage('tree:instanced-visuals', performance.now() - visualStartedAt);
+}
+
+// A residential pitch must already exist in this chunk. Vendor back rooms also
+// register as campsites, but only residential pitches carry campNeighborhood.
+function besideCamp(x, z, camps) {
+  return camps.some(camp => {
+    const edge = Math.hypot(x - camp.position.x, z - camp.position.z) - camp.footprint;
+    return edge >= 3 && edge <= 10;
+  });
+}
+
+function hammockGroundClear(x, z, centerHeight) {
+  const ground = sampleTerrain(x, z);
+  return ground.traversable && ground.surfaceClass === 'grass' && ground.grade <= .12 &&
+    Math.abs(ground.height - centerHeight) <= .32 && !(USE_WORLDGEN_V2 ? lakeAt(x,z) : isPointInLake(x,z));
+}
+
+const HAMMOCK_TRAFFIC_KINDS = new Set(['arch', 'tent', 'truck', 'bubble_vendor', 'porta_potty']);
+function hammockPocketBlocked(x, z) {
+  let blocked = false;
+  registry.generationFootprintsNear(x, z, 9, entry => {
+    if (TREE_GUARD_SKIP.has(entry.kind)) return;
+    const margin = HAMMOCK_TRAFFIC_KINDS.has(entry.kind) ? 9 : 3.5;
+    if (Math.hypot(x - entry.position.x, z - entry.position.z) < entry.footprint + margin) blocked = true;
+  });
+  return blocked;
+}
+
+function placeCampTreeHammock(ctx, trees, shrubs, woodland, roads, danceRects, drumClears) {
+  const entries = registry.byChunk(ctx.key);
+  const camps = entries.filter(e => e.kind === 'campsite' && e.campNeighborhood);
+  if (!camps.length || entries.some(e => e.kind === 'hammock')) return;
+  const drumPaths = ctx.group.children.filter(g => g.name === 'drum_path').map(g => {
+    if (!g.geometry.boundingBox) g.geometry.computeBoundingBox();
+    return g.geometry.boundingBox;
+  });
+  for (let i = 0; i < trees.length; i++) {
+    const a = trees[i];
+    for (let j = i + 1; j < trees.length; j++) {
+      const b = trees[j], span = Math.hypot(a.x-b.x, a.z-b.z);
+      if (span < 3 || span > 5.5) continue;
+      const x = (a.x+b.x)/2, z = (a.z+b.z)/2;
+      if (!besideCamp(x, z, camps)) continue;
+      if (drumPaths.some(box => x > box.min.x-3.5 && x < box.max.x+3.5 &&
+          z > box.min.z-3.5 && z < box.max.z+3.5)) continue;
+      // Keep the whole pocket inside its owning chunk, including the two
+      // approaches. An unloaded neighbor cannot supply either anchor.
+      if (Math.max(Math.abs(x-ctx.cxWorld),Math.abs(z-ctx.czWorld)) > CHUNK_SIZE/2-4) continue;
+      if (landscapeClearance(x,z,3.5) || woodlandCampingClearance(x,z,woodland,3.5) ||
+          pointNearWorldgenRoad(x,z,roads,ROAD_RIBBON_WIDTH/2+4) || pointInDancefloor(x,z,danceRects) ||
+          drumClears.some(d => Math.hypot(x-d.x,z-d.z) < d.r+4)) continue;
+      if (trees.some(t => t!==a && t!==b && Math.hypot(t.x-x,t.z-z)<4) ||
+          shrubs.some(p => Math.hypot(p.x-x,p.z-z)<2.5)) continue;
+      const y = terrainHeight(x,z);
+      if (hammockPocketBlocked(x, z)) continue;
+      const radiusA = treeTrunkRadiusAtWorldHeight(a.descriptor,y+1.45,a.groundY);
+      const radiusB = treeTrunkRadiusAtWorldHeight(b.descriptor,y+1.45,b.groundY);
+      if (span-radiusA-radiusB-.08 < 2.4) continue;
+      const {cx,cz,ux,uz} = treeHammockAnchors(a.x,a.z,b.x,b.z,radiusA,radiusB);
+      if (!besideCamp(cx,cz,camps) || !hammockGroundClear(a.x,a.z,y) ||
+          !hammockGroundClear(b.x,b.z,y) || !hammockGroundClear(cx,cz,y)) continue;
+      if (![-1,1].every(side => {
+        const px = cx-side*uz*1.2, pz = cz+side*ux*1.2;
+        return hammockGroundClear(px,pz,y) && !pointInDancefloor(px,pz,danceRects);
+      })) continue;
+      // The register uses a zero footprint. Check the real walking corridor
+      // against canonical colliders, including those with no building footprint.
+      let obstructed = false;
+      registry.generationCollidersNear(cx, cz, 1.65, entry => {
+        const dx = entry.position.x - cx, dz = entry.position.z - cz;
+        const across = Math.max(-1.2, Math.min(1.2, -dx*uz + dz*ux));
+        if (Math.hypot(dx + across*uz, dz - across*ux) < entry.collider.radius + .45) obstructed = true;
+      });
+      if (obstructed) continue;
+      const rng = mulberry32(worldHash(ctx.cx,ctx.cz,0x48414d4d));
+      const model = buildTreeHammock(a.x,a.z,b.x,b.z,rng,radiusA,radiusB);
+      model.group.position.y = y;
+      ctx.group.add(model.group);
+      registerTreeHammock(registry,model,y,ctx.key,terrainHeight);
+      return;
+    }
+  }
 }
 
 // Is (x,z) inside any hub's oriented dancefloor rect? Project onto the rect's +F
@@ -2636,19 +2706,28 @@ function buildDrumCircleAt(ctx, x, z) {
 }
 
 function buildGrove(ctx) {
-  // Already covered by tree scattering — add a few hammocks (was 1-2, now 2-4)
+  // Roll the historical candidates before pitching tents to preserve the theme
+  // stream. Only a dry pocket adjoining a completed camp gets a posted sling.
   const count = 2 + Math.floor(ctx.rng() * 3);
+  const candidates = [];
   for (let i = 0; i < count; i++) {
     const x = ctx.cxWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE * 0.6);
     const z = ctx.czWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE * 0.6);
     if (Math.abs(x - ctx.cxWorld) < 6 && Math.abs(z - ctx.czWorld) < 6) continue;
-    buildHammock(ctx, x, z);
+    candidates.push({ x, z, color:ctx.rng(), rotation:ctx.rng() });
   }
-  // Pitch tents under the trees — treed groves should read as prime camping
-  // ground, so most get sites and half of those become a tight clump ("a crew
-  // of friends camped together"). Raised from 0.5/0.20 after Gary's 2026-06-16
-  // playtest ("should see a lot more campsite clusters in forests like these").
   scatterChunkCampsites(ctx, { chance: 0.7, max: 2, clumpChance: 0.5 });
+  const camps = registry.byChunk(ctx.key).filter(e => e.kind === 'campsite');
+  for (const {x,z,color,rotation} of candidates) {
+    if (!besideCamp(x,z,camps) || Math.min(Math.abs(x-ctx.cxWorld), Math.abs(z-ctx.czWorld)) < 14) continue;
+    const y = terrainHeight(x,z), yaw = rotation*Math.PI*2;
+    if (hammockPocketBlocked(x, z)) continue;
+    if (![[0,0],[2,0],[-2,0],[0,1.2],[0,-1.2]].every(([along,across]) =>
+      hammockGroundClear(x+along*Math.cos(yaw)-across*Math.sin(yaw),z+along*Math.sin(yaw)+across*Math.cos(yaw),y))) continue;
+    const rolls = [color,rotation];
+    buildHammock(ctx,x,z,() => rolls.shift());
+    break;
+  }
 }
 
 function buildOpenLawn(ctx) {

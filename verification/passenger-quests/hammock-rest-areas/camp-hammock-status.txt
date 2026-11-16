@@ -1,0 +1,69 @@
+{
+  "enabled": true,
+  "completed": 0,
+  "offered": 0,
+  "hails": [],
+  "log": {
+    "total": 4,
+    "smiles": 32,
+    "byType": {
+      "ride": 3,
+      "urgent": 1
+    },
+    "byKind": {
+      "hammock": 3,
+      "porta_potty": 1
+    },
+    "recent": [
+      {
+        "kind": "porta_potty",
+        "type": "urgent",
+        "label": "the nearest porta-potty",
+        "reward": 14,
+        "at": 1794797466976
+      },
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794797391360
+      },
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794796403808
+      },
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794796377974
+      }
+    ]
+  },
+  "lastGatherMs": 0.8,
+  "lastEvent": null,
+  "active": [],
+  "lastPassenger": null,
+  "cart": {
+    "x": -325.9976501464844,
+    "z": -82.00348663330078,
+    "speed": 0.00031221715387604905,
+    "grounded": true,
+    "immersion": 0
+  },
+  "nearbyFacilities": [
+    {
+      "kind": "hammock",
+      "x": -326.62067047416275,
+      "z": -67.31064543013431,
+      "distance": 14.7,
+      "occupied": false,
+      "approaching": false
+    }
+  ]
+}

@@ -1016,3 +1016,7 @@ For the actual hailer approach check, create a hail with `/quest hail`, then run
 
 
 `node bin/test-quest-facilities` checks actual facility resources and alternative selection, `node bin/test-quest-activities` checks reservation, route and delayed-completion ownership, and `node bin/test-destination-intent` checks the post-delivery venue walk and supported ambient handoffs. These are included in `npm run check`. For live guidance, inspect the top-center panel at desktop and touch sizes: arrows and plain direction words while traveling, slow/stop guidance inside the arrival radius, and “Passenger walking in” during a facility handoff. Follow ordinary solo drops to verify that clear routes lead to live activities and that blockers or streamed-out venues release the walking claim. Physical-phone readability, driving feel and audio acceptance remain in [ROADMAP.md](ROADMAP.md).
+
+### Hammock rest-area checks
+
+`node bin/test-hammock-placement` builds real contextual campsite hammocks and checks empty woods, unsuitable camps, clear approaches, regeneration and the retained undergrowth fingerprint. `/quest status` distinguishes `approaching` from the resource's occupied reservation flag. The ride-card fixture `/menu-preview.html?screen=rides&case=approach&mute=1` previews approaching-visitor guidance. [Evidence and limits](verification/passenger-quests/hammock-rest-areas/README.md).
