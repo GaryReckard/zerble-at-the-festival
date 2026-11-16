@@ -41,4 +41,4 @@ Merge the reviewed passenger follow-up while preserving current main’s UI and 
 
 ## Verdict
 
-**Approve**, for the tested combined implementation. The raw pushed tip required the above fixes before integration. Applying the prepared update to the active dev checkout remains a separate step because Vite reloads running games when JavaScript changes.
+**Approve**, for the tested combined implementation. The raw pushed tip required the above fixes before integration. Gary subsequently approved the reload, and the tested integration `c9fcb63` was applied to local main. A fresh ready-title click, passenger-panel request and console check passed on the existing dev server. No remote push was performed.

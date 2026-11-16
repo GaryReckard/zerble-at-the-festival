@@ -40,6 +40,6 @@ Open `/?mute=1`, click a ready mode plank, and inspect the console after world b
 
 See [the verification record](../../../verification/passenger-quests/README.md) for measurements and unverified paths. A plan can describe a venue that its builder omitted, so examine built destinations during playtesting. `HUD.toast` holds one message, and closely seated riders can crowd the bubbles. Phones use landscape; a desktop phone-sized viewport does not replace a physical phone or iPad test.
 
-## Follow-up under review
+## Applied follow-up
 
-The November 15 follow-up integrates `dd1516c` with current main in an isolated checkout, fixes the repeated review findings, and makes hammock/porta-potty requests interchangeable. Main and the active player session stay untouched until the tested update is applied. See reviews/002-follow-up-audit and the forthcoming integration evidence. Capture exclusion covers offers, hails and searches, not all presentation allocation or empty frame updates. The unresolved economy question is audit finding 5 (hailing economy), not finding 4.
+The November 15 follow-up integrates `dd1516c` with current main, fixes the repeated review findings, and makes hammock/porta-potty requests interchangeable. Gary approved the game reload, and the tested integration `c9fcb63` was fast-forwarded into local main. The existing dev server passed a fresh ready-title click, passenger request and clean-console smoke check. No remote push was requested. See reviews/002-follow-up-audit and the forthcoming integration evidence. Capture exclusion covers offers, hails and searches, not all presentation allocation or empty frame updates. The unresolved economy question is audit finding 5 (hailing economy), not finding 4.
