@@ -1,3 +1,4 @@
+import {A11y} from './a11y.js';
 import {buildGaryHair,buildGaryLowerBody,buildGaryArms,buildGaryFootwellGeometry,buildGaryFootwellLiner} from './models/garyDriver.js';
 // Zerble: the anthropomorphic golf cart. Geometry + arcade physics.
 
@@ -88,6 +89,7 @@ export class Zerble {
     // each frame. Drives the bubble-machine liquid level + reserve jugs. Default
     // full so the sandbox shows liquid without the bubbles module wired in.
     this._juiceLevel = 1.0;
+    this._drySputterLeft = 0;
 
     // For bubbles & smile attraction: a stable world point on Zerble.
     this.nozzleWorld = new THREE.Vector3();
@@ -603,6 +605,14 @@ export class Zerble {
     const rear = new THREE.Mesh(new THREE.ShapeGeometry(rectShape), purpleMat);
     rear.position.set(0, 0, hd);             // ShapeGeometry lies in XY, normal +Z (out the back)
     bmGroup.add(rear);
+
+    // One unlit status ring stays readable on Low and adds no real light/caster.
+    this._juiceIndicator = new THREE.Mesh(
+      new THREE.RingGeometry(0.202, 0.236, 24),
+      new THREE.MeshBasicMaterial({color: 0x6fe0ff, toneMapped: false}),
+    );
+    this._juiceIndicator.position.set(0, HOLE_CY, hd + 0.004);
+    bmGroup.add(this._juiceIndicator);
 
     // Strap from box down to the bar (world space).
     const strap = new THREE.Mesh(
@@ -1408,9 +1418,14 @@ export class Zerble {
       }
     }
 
-    // ----- Bubble-machine wand wheel — always turning, faster during a blast.
+    const dry = this._juiceLevel <= 0.02;
+    this._drySputterLeft = Math.max(0, this._drySputterLeft - dt);
+    if (this._juiceIndicator) this._juiceIndicator.material.color.setHex(dry ? 0xffbb45 : 0x6fe0ff);
+    // A dry wheel stalls; the one-shot cough briefly tries to turn it again.
     if (this._bubbleWheel) {
-      this._bubbleWheel.rotation.z += dt * (2.4 + (this._bubbleBlast ? 4.0 : 0));
+      const cough = this._drySputterLeft > 0 && !A11y.reducedMotion;
+      const rate = dry ? (cough ? 1.4 * (0.5 + 0.5 * Math.sin(this._drySputterLeft * 45)) : 0) : 2.4 + (this._bubbleBlast ? 4.0 : 0);
+      this._bubbleWheel.rotation.z += dt * rate;
     }
 
     // ----- Bubble-machine liquid level + reserve jugs track the juice meter.
@@ -1580,8 +1595,9 @@ export class Zerble {
     this._bubbleBlast = !!on;
   }
 
-  // Current bubble-juice meter (0..JUICE_STACK_MAX, in meters). Drives the
-  // bubble-machine liquid level + how many reserve jugs show under the seat.
+  showDrySputter() { this._drySputterLeft = 0.4; }
+
+  // Drives the machine liquid, status ring and spare jugs under the seat.
   setJuiceLevel(meters) {
     this._juiceLevel = meters;
   }

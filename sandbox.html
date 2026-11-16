@@ -425,6 +425,8 @@
                 style="margin-top:4px;width:100%;background:rgba(255,190,90,0.16);color:#ffe5ba;border:1px solid rgba(255,190,90,0.38);border-radius:3px;padding:4px;cursor:pointer;font:inherit">
             Empty-juice sputter
         </button>
+        <button id="juice-dry-btn" style="margin-top:4px">Empty machine</button>
+        <button id="juice-full-btn" style="margin-top:4px">Refill machine</button>
     </div>
 
     <!-- Music + MIDI panel: trigger any stage-music style or the MIDI player
@@ -3639,7 +3641,13 @@ import {buildShrub} from './src/models/shrub.js';
     document.getElementById('juice-sputter-btn').addEventListener('click', () => {
         ensureSoundInit();
         Sound.playJuiceSputter();
+        currentEntity?.showDrySputter?.();
     });
+    document.getElementById('juice-dry-btn').onclick = () => {
+        currentEntity?.setJuiceLevel?.(0);
+        currentEntity?.showDrySputter?.();
+    };
+    document.getElementById('juice-full-btn').onclick = () => currentEntity?.setJuiceLevel?.(1);
     window.__sandbox.playJuiceSputter = () => {
         ensureSoundInit();
         Sound.playJuiceSputter();

@@ -1,0 +1,51 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {DryJuiceReminder} from '../src/juiceFeedback.js';
+const r = new DryJuiceReminder(1);
+assert.equal(r.update(.016, 0, true), false, 'depletion already has its own one-shot');
+for(let i=0;i<600;i++) assert.equal(r.update(1/60,0,true),false,'holding never repeats');
+assert.equal(r.update(.016,0,false),false);
+assert.equal(r.update(.016,0,true),true,'fresh attempt after cooldown reminds');
+r.update(.016,0,false);
+assert.equal(r.update(.016,0,true),false,'rapid taps are rate limited');
+r.update(3,0,false);
+assert.equal(r.update(.016,0,false),false,'cooldown expiry alone is silent');
+assert.equal(r.update(.016,0,true),true);
+r.update(.016,1,false);
+assert.equal(r.update(.016,1,true),false,'refill clears dry feedback');
+r.update(.016,0,false);
+assert.equal(r.update(.016,0,true),false,'new depletion also blocks overlapping reminders');
+const resumed = new DryJuiceReminder(0);
+assert.equal(resumed.update(.016,0,true),true,'resumed empty tank accepts a deliberate attempt');
+
+globalThis.window = {addEventListener(){}, innerWidth:1280, innerHeight:800};
+globalThis.document = {addEventListener(){},createElement:()=>({width:0,height:0,
+getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})}, {get:(o,k)=>k in o?o[k]:()=>{}})})};
+const {Zerble} = await import('../src/zerble.js');
+const {A11y} = await import('../src/a11y.js');
+const z = new Zerble(), input = {throttle:0,steer:0,boost:false,isDown:()=>false,consumePressed:()=>false};
+z.setJuiceLevel(0);z.update(.1,input);
+assert.equal(z._juiceIndicator.material.color.getHex(),0xffbb45);
+assert.equal(z._juiceIndicator.castShadow,false);
+assert.equal(z._juiceIndicator.geometry.index.count/3,48);
+const stopped = z._bubbleWheel.rotation.z;
+z.update(.1,input);assert.equal(z._bubbleWheel.rotation.z,stopped,'dry wand stalls');
+z.showDrySputter();z.update(.1,input);assert(z._bubbleWheel.rotation.z>stopped,'cough briefly tries wand');
+z.update(.5,input);const rest=z._bubbleWheel.rotation.z;z.update(.1,input);assert.equal(z._bubbleWheel.rotation.z,rest);
+A11y.setReducedMotion(true);z.showDrySputter();z.update(.1,input);assert.equal(z._bubbleWheel.rotation.z,rest,'calm keeps dry wheel still');
+z.setJuiceLevel(1);z.update(.1,input);assert.equal(z._juiceIndicator.material.color.getHex(),0x6fe0ff);assert(z._bubbleWheel.rotation.z>rest,'refill restores wheel');
+console.log('PASS juice feedback: depletion, held input, fresh attempts, cooldown, refill, resumed empty tank, real machine indicator/wand and reduced motion.');
+
+// Every voice must stop on the audio clock without a recurring scheduler.
+const {scheduleJuiceSputter, Sound} = await import('../src/sound.js');
+assert.doesNotThrow(()=>Sound.playJuiceSputter());
+const voices=[];
+const param=()=>({setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}});
+const node=()=>({connect(dest){return dest;},gain:param(),frequency:param()});
+const ctx={currentTime:10,createGain:node,createBiquadFilter:node,createOscillator(){
+ const n={...node(),start(t){this.started=t;},stop(t){this.stopped=t;}};voices.push(n);return n;
+}};
+scheduleJuiceSputter(ctx,{});
+assert.equal(voices.length,3,'two cough voices and one relay click');
+assert(voices.every(v=>v.started>=10 && v.stopped>v.started && v.stopped<=10.42),'all voices have bounded scheduled stops');
+console.log('PASS dry audio: safe before unlock, SFX scheduling, all three voices stop within 420 ms.');

@@ -408,26 +408,25 @@ body {
   box-shadow: 0 0 8px rgba(255, 210, 122, 0.85);
 }
 
-/* Bone dry: red, and the whole meter pulses as an unmissable warning. */
-#juice-meter.empty .juice-fill {
-  background: linear-gradient(90deg, #c0392b 0%, #e74c3c 100%);
+/* Empty remains legible after two brief attention pulses, including without color. */
+#juice-meter.empty { border-color: #ffc568; color: #ffda96; }
+#juice-meter.empty .sputter-count {
+  position: absolute;
+  right: 5px;
+  bottom: -8px;
+  padding: 1px 5px;
+  border: 1px solid #ffc568;
+  border-radius: 6px;
+  background: #211832;
+  font: 700 10px/1.2 system-ui, sans-serif;
+  animation: none;
 }
-#juice-meter.empty .juice-track {
-  border-color: rgba(231, 76, 60, 1);
-  box-shadow: 0 0 14px rgba(231, 76, 60, 0.85);
-}
-#juice-meter.empty .juice-dot {
-  background: radial-gradient(circle at 32% 30%, #fff 0%, #ff8a7a 38%, #c0392b 100%);
-  box-shadow: 0 0 9px rgba(231, 76, 60, 0.95);
-}
-#juice-meter.empty {
-  animation: juice-empty-pulse 0.85s ease-in-out infinite;
-}
-
-@keyframes juice-empty-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.55; }
-}
+#juice-meter.empty .juice-track, #juice-meter.empty .juice-dot { display: none; }
+#juice-empty:not([hidden]) { display: flex; align-items: center; gap: 5px; white-space: nowrap; font: 700 11px/1.1 system-ui, sans-serif; letter-spacing: .02em; }
+#juice-meter.empty.juice-attention-a { animation: juice-empty-pulse-a .65s ease-in-out 2; }
+#juice-meter.empty.juice-attention-b { animation: juice-empty-pulse-b .65s ease-in-out 2; }
+@keyframes juice-empty-pulse-a { 50% { box-shadow: 0 0 0 3px #ffc56899; } }
+@keyframes juice-empty-pulse-b { 50% { box-shadow: 0 0 0 3px #ffc56899; } }
 
 /* Ride cards stay in the center corridor, leaving the driving controls free.
    ResizeObserver publishes the actual panel bottom for the toast below it. */
@@ -2171,7 +2170,8 @@ body.reduced-motion .upgrade-toggle span { transition: none; }
    The star-power end strobe + trip warp are damped in JS (starPower.js /
    trip.js read A11y.reducedMotion). */
 body.reduced-motion #star-vignette.on,
-body.reduced-motion #juice-meter.empty,
+body.reduced-motion #juice-meter.empty.juice-attention-a,
+body.reduced-motion #juice-meter.empty.juice-attention-b,
 body.reduced-motion #toast.tappable,
 body.reduced-motion .lurleen-heart,
 body.reduced-motion .lurleen-status.visible {
@@ -2314,4 +2314,8 @@ body.reduced-motion .best-confetti {
 
 @media (orientation: landscape) and (max-height: 500px) {
   #toast { max-width: calc(100vw - 420px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #juice-meter.empty.juice-attention-a, #juice-meter.empty.juice-attention-b { animation: none; }
 }

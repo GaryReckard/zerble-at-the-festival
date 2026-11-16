@@ -56,6 +56,17 @@ Open `http://127.0.0.1:8765/player-driving.html?mute=1` for the real dynamic cha
 
 Open `/menu-preview.html?screen=settings&mute=1` on the local Vite development or preview server for the production menu components without the 3D world. Other `screen` values are `passport`, `upgrades`, `results`, `loading` and `failed`; `locked=1`, `empty=1`, `blocked=1` and `new=1` exercise state variants. Passport and upgrades use memory-only progress, while Settings uses real preferences, so restore changes made during inspection. This page is outside the guided LAN allowlist. [Usage, evidence and limits](verification/lantern-night/README.md).
 
+## Empty-juice feedback workshop
+
+Open `/menu-preview.html?screen=juice&mute=1` for the production HUD with Empty,
+Low, Refill, held bubble-action and Calm controls. **Hear dry cue** unlocks audio
+inside the click, briefly unmutes the session and remutes after the one-shot;
+it never writes player volume preferences. In `/sandbox.html?entity=zerble&mute=1`,
+**Empty machine** and **Refill machine** exercise the actual cart status ring,
+liquid and wand, while **Empty-juice sputter** triggers its brief mechanical retry.
+The live game also accepts `/juice 0` and `/juice 1` in the debug command prompt;
+`G` exercises a fresh attempt. [Checks and limits](verification/juice-feedback/README.md).
+
 ## Festival Passport preview
 
 Open `http://127.0.0.1:8765/passport-preview.html?case=populated&mute=1` on the loopback Vite server. Fixtures `empty`, `populated`, `migrated`, `long` and `blocked` use the production menu with memory-only progress, without GA or WebGL. This preview is intentionally outside the LAN page allowlist. Test the live title and book buttons or `P` for integration; `__dbg.passport()` reads the live snapshot and `__dbg.passport(true)` opens it. A passport pauses gameplay, including Festival Run resource/timer changes, while preserving rendering.

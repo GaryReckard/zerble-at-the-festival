@@ -117,7 +117,6 @@ let _tripDelay = null;
 let _tripFeedback = null;
 let sfxBus = null;       // shared bus for all SFX (engine, collisions, honks, bumps)
 let _smileVoices = 0;    // live smile-ladder blips (6-voice cap)
-let _sputterLoop = null; // Festival Run sputter chug ({osc, lfo, g} or null)
 // SFX trip chain — the SFX-tuned sibling of the music trip chain above. Sits
 // between sfxBus and masterGain, same wet/dry topology. Tuned to keep the
 // engine drone legible (gentler lowpass, more dry signal) while smearing
@@ -993,35 +992,6 @@ export const Sound = {
   },
 
   // ---- Festival Run stakes cues ----
-  // Sputter loop: a low chugging put-put while the grace timer runs. Handle
-  // kept so runState can stop it the moment juice arrives.
-  startSputterLoop() {
-    if (!ctx || !sfxBus || _sputterLoop) return;
-    const osc = ctx.createOscillator(); osc.type = 'sawtooth';
-    osc.frequency.value = 55;
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 240;
-    const g = ctx.createGain(); g.gain.value = 0.0;
-    const lfo = ctx.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 5;
-    const lfoG = ctx.createGain(); lfoG.gain.value = 0.05;
-    lfo.connect(lfoG).connect(g.gain);
-    osc.connect(lp).connect(g).connect(sfxBus);
-    const t = ctx.currentTime;
-    g.gain.setValueAtTime(0.0, t);
-    g.gain.linearRampToValueAtTime(0.05, t + 0.3);
-    osc.start(t); lfo.start(t);
-    _sputterLoop = { osc, lfo, g };
-  },
-  stopSputterLoop() {
-    if (!ctx || !_sputterLoop) return;
-    const { osc, lfo, g } = _sputterLoop;
-    _sputterLoop = null;
-    const t = ctx.currentTime;
-    g.gain.cancelScheduledValues(t);
-    g.gain.setValueAtTime(g.gain.value, t);
-    g.gain.linearRampToValueAtTime(0.0001, t + 0.2);
-    osc.stop(t + 0.25); lfo.stop(t + 0.25);
-  },
-
   // Marshal whistle — two sharp warbles; the vibe meter's warning voice.
   playMarshalWhistle() {
     if (!ctx || !sfxBus) return;
@@ -1107,11 +1077,11 @@ export const Sound = {
   },
 
   // One short mechanical cough when the working bubble-juice meter runs dry.
-  // main.js owns the nonempty→empty edge, so this one-shot never polls or
-  // repeats while the tank remains empty.
+  // main.js owns depletion and rate-limited fresh-action reminders.
+  // This cue has no repeating timer or persistent audio nodes.
   playJuiceSputter() {
     if (!ctx || !sfxBus) return;
-    juiceSputter(ctx, sfxBus);
+    scheduleJuiceSputter(ctx, sfxBus);
   },
 
   // Comedic positional "blat" from an occupied porta-potty at (x, z). Routed
@@ -1703,7 +1673,7 @@ function questNote(ctx, dest, freq, delay, duration, volume, type) {
   osc.start(t); osc.stop(t + duration + 0.05);
 }
 
-function juiceSputter(ctx, dest) {
+export function scheduleJuiceSputter(ctx, dest) {
   const t = ctx.currentTime;
   const body = ctx.createOscillator();
   body.type = 'sawtooth';
@@ -1737,6 +1707,17 @@ function juiceSputter(ctx, dest) {
   flutter.start(t);
   body.stop(t + 0.4);
   flutter.stop(t + 0.4);
+  // A quiet final relay click makes the dry cough read as a machine stopping.
+  const click = ctx.createOscillator();
+  click.type = 'triangle';
+  click.frequency.setValueAtTime(210, t + 0.33);
+  click.frequency.exponentialRampToValueAtTime(65, t + 0.39);
+  const clickEnv = ctx.createGain();
+  clickEnv.gain.setValueAtTime(0, t);
+  clickEnv.gain.setValueAtTime(0.09, t + 0.33);
+  clickEnv.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+  click.connect(clickEnv).connect(dest);
+  click.start(t + 0.33); click.stop(t + 0.42);
 }
 
 function clang(ctx, dest) {

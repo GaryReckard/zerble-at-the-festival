@@ -70,3 +70,39 @@ if (screen === 'rides') {
   compass.sync(rides, {x:0,z:0,heading:0,speed:0});
   HUD.toast('Festival message: keep the driving controls clear.', 600000);
 }
+
+// Production HUD and reminder policy without waiting through a whole tank.
+if (screen === 'juice') {
+  const [{DryJuiceReminder}, {Sound}, {A11y}] = await Promise.all([
+    import('./juiceFeedback.js'), import('./sound.js'), import('./a11y.js'),
+  ]);
+  A11y.init();
+  document.body.classList.add('game-started');
+  document.getElementById('title-card').classList.add('hidden');
+  let juice = 1, held = false, last = performance.now(), wasEmpty = false;
+  const reminder = new DryJuiceReminder(juice);
+  const controls = document.createElement('span');
+  controls.innerHTML = '<button id="juice-dry">Empty tank</button><button id="juice-low">Low tank</button><button id="juice-refill">Refill tank</button><button id="juice-try">Try bubbles (hold)</button><button id="juice-countdown">Show countdown</button><button id="juice-calm">Toggle calm</button><button id="juice-audio">Hear dry cue</button>';
+  toolbar.append(controls);
+  controls.querySelector('#juice-dry').onclick = () => {juice = 0;};
+  controls.querySelector('#juice-low').onclick = () => {juice = .2;};
+  controls.querySelector('#juice-refill').onclick = () => {juice = 1;};
+  const tryButton = controls.querySelector('#juice-try');
+  tryButton.onpointerdown = e => {held = true; tryButton.setPointerCapture(e.pointerId);};
+  tryButton.onpointerup = tryButton.onpointercancel = tryButton.onlostpointercapture = () => {held = false;};
+  tryButton.onkeydown = e => {if (e.key === ' ' || e.key === 'Enter') {held = true; e.preventDefault();}};
+  tryButton.onkeyup = tryButton.onblur = () => {held = false;};
+  controls.querySelector('#juice-countdown').onclick = () => {juice = 0; HUD.setSputter(45);};
+  controls.querySelector('#juice-calm').onclick = () => document.body.classList.toggle('reduced-motion');
+  controls.querySelector('#juice-audio').onclick = () => {Sound.init(); Sound.setMuted(false); Sound.playJuiceSputter(); setTimeout(() => Sound.setMuted(true), 600);};
+  const tick = now => {
+    const remind = reminder.update((now-last)/1000, juice, held); last = now;
+    HUD.setJuice(juice);
+    if (juice > .02) HUD.setSputter(null);
+    if (remind) {HUD.remindJuiceEmpty(); Sound.playJuiceSputter();}
+    if (juice <= .02 && !wasEmpty) Sound.playJuiceSputter();
+    wasEmpty = juice <= .02;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}

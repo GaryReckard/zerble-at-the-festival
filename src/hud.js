@@ -14,6 +14,8 @@ const $starVignette = document.getElementById('star-vignette');
 const $title = document.getElementById('title-card');
 const $start = document.getElementById('start-btn');
 const $juiceMeter = document.getElementById('juice-meter');
+const $juiceEmpty = document.getElementById('juice-empty');
+let _juiceAttention = false;
 const $juiceFill = document.getElementById('juice-fill');
 const $juiceReserve = document.getElementById('juice-reserve');
 const $juiceReserveN = document.getElementById('juice-reserve-n');
@@ -482,8 +484,15 @@ export const HUD = {
   // Bubble-juice gauge. `total` is in meters (unbounded — gather as many jugs
   // as you like). The bar shows the working meter (min(1, total)); spare whole
   // meters show as a "N× jug" count to the right (no cap, unlike the old pips).
-  // Below 0.45 (and no reserve) → amber low; ~empty → red pulsing. Called every
+  // Below 0.45 (and no reserve) → amber low; ~empty → persistent empty label. Called every
   // frame — guards against redundant DOM writes.
+  remindJuiceEmpty() {
+    if (!$juiceMeter || _juiceState !== 'empty') return;
+    _juiceAttention = !_juiceAttention;
+    $juiceMeter.classList.toggle('juice-attention-a', _juiceAttention);
+    $juiceMeter.classList.toggle('juice-attention-b', !_juiceAttention);
+  },
+
   setJuice(total) {
     const t = Math.max(0, total || 0);
     const bar = Math.min(1, t);
@@ -498,6 +507,9 @@ export const HUD = {
       if ($juiceMeter) {
         $juiceMeter.classList.toggle('low', state === 'low');
         $juiceMeter.classList.toggle('empty', state === 'empty');
+        if ($juiceEmpty) $juiceEmpty.hidden = state !== 'empty';
+        if (state === 'empty') this.remindJuiceEmpty();
+        else $juiceMeter.classList.remove('juice-attention-a', 'juice-attention-b');
       }
     }
 
@@ -517,7 +529,7 @@ export const HUD = {
     if ($juiceMeter) {
       const percent = Math.round(bar * 100);
       const reserveText = reserves > 0 ? `, ${reserves} reserve jug${reserves === 1 ? '' : 's'}` : '';
-      const label = `Bubble juice ${percent}%${reserveText}`;
+      const label = state === 'empty' ? 'Out of bubble juice. Find a jug or a refill stall.' : `Bubble juice ${percent}%${reserveText}`;
       if (label !== _juiceAria) {
         _juiceAria = label;
         $juiceMeter.setAttribute('aria-label', label);

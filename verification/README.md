@@ -1,5 +1,7 @@
 # Verification evidence
 
+- [Empty bubble-juice feedback](juice-feedback/README.md): persistent HUD label, machine status, contextual sound, reduced motion and refill checks.
+
 - [Landscape and Mountain Top, November 1](landscape/README.md): shared terrain/support, varied populated districts, streams/bridges, real mover/activity and physics-surface integration, desktop tier/streaming evidence and remaining phone/player rollout gates.
 
 [Contributor documentation](../docs/README.md) · [Pending acceptance](../ROADMAP.md)

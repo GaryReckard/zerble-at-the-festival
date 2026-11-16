@@ -1,3 +1,4 @@
+import {DryJuiceReminder} from './juiceFeedback.js';
 import {PERFORMANCE_LAB,DEVICE_AUTOPILOT,DEVICE_CHILD_COHORT,childConstructionRandom} from './performanceLab/config.js';
 import {createWorldTimings} from './worldTimings.js';
 import {createFrameAttribution} from './frameAttribution.js';
@@ -963,6 +964,7 @@ let _vendorToastCd = 0;
 let _vendorRefusalCd = 0;      // "can't afford" toast cooldown (Festival Run)
 let _vendorCostAccum = 0;      // fractional smile cost accrual while drawing
 let _vendorWasFilling = false;   // were we actively drawing juice last frame?
+const dryJuiceReminder = new DryJuiceReminder(bubbles.juice);
 let _wasEmpty = bubbles.juice <= 0.02; // edge-detect the bubble tank running dry
 let _collectedThisFrame = 0;     // per-frame smile-collect coalescing buffer
 // Analytics edge-detect / rollup state (see src/analytics.js).
@@ -1106,7 +1108,7 @@ HUD.onStart(() => {
   if (RunMode.isFestival()) {
     if (!RunState.active) RunState.begin();   // active = restored (mode-matched) resume run
     setJugKeepFraction(RunMode.config.jugKeep(RunState.day));
-    if (RunState.sputter) zerble.sputtering = true;   // audio loop re-arms after Sound.init below
+    if (RunState.sputter) zerble.sputtering = true;   // restored limp mode retains the countdown
     Analytics.runStart({ day: RunState.day, resumed: resumedMatch });
     // A resumed run re-adopts its Worker token — a fresh /run/start would reset
     // elapsed time and trip the Worker's own day/rate plausibility guards.
@@ -1134,9 +1136,6 @@ HUD.onStart(() => {
   // await/setTimeout boundary loses the "user gesture" status and the
   // AudioContext starts suspended (silent).
   Sound.init();
-  // A run resumed mid-sputter restores the death clock — restore its cues too
-  // (the limp flag is set above; the chug loop needs the fresh AudioContext).
-  if (RunState.active && RunState.sputter) Sound.startSputterLoop();
   // Explicit local-device perf captures arm from the URL, but recording begins
   // only after this real gesture and after synchronous iOS audio initialization.
   window.__debug?.startDeviceCapture?.();
@@ -1479,10 +1478,11 @@ function tickBody(dt) {
     // the disco light into a fast, bright-white strobe so the effect reads
     // even in bright sunlight. Per-frame: hold for blast, release for normal.
     const blasting = Input.isDown('G');
+    const dryReminder = dryJuiceReminder.update(dt, bubbles.juice, blasting);
     if (blasting && !_wasBlasting) Analytics.bubbleBlast();   // marquee verb, once per run
     _wasBlasting = blasting;
     bubbles.setBlast(blasting);
-    zerble.setBubbleBlast(blasting);
+    zerble.setBubbleBlast(blasting && bubbles.juice > 0.02);
     zerble.setJuiceLevel(bubbles.juice);   // drives the bubble-machine liquid level + reserve jugs
     bubbleChallenges.tick(dt);
     bubbles.setSpecialContext(bubbleChallenges.context);
@@ -1504,7 +1504,13 @@ function tickBody(dt) {
         'Out of bubble juice — grab a jug!',
         'Out of bubble juice, {name} — grab a jug!'), 2200);
       Sound.playJuiceSputter();
+      zerble.showDrySputter();
       Analytics.bubbleRanDry();
+    }
+    if (dryReminder && bubblesEmpty) {
+      HUD.remindJuiceEmpty();
+      Sound.playJuiceSputter();
+      zerble.showDrySputter();
     }
     _wasEmpty = bubblesEmpty;
 
@@ -1525,13 +1531,11 @@ function tickBody(dt) {
       const sput = RunState.tickSputter(dt, bubbles.juice);
       if (sput === 'start') {
         zerble.sputtering = true;
-        Sound.startSputterLoop();
         HUD.toast(HUD.withName(
           'Zerble is running on fumes — find juice, fast!',
           '{name}! Zerble is running on fumes — find juice, fast!', 0.5), 3200);
       } else if (sput === 'end') {
         zerble.sputtering = false;
-        Sound.stopSputterLoop();
       } else if (sput === 'expired') {
         if (!RunState.rescueUsed && lurleen.isFollowing) {
           performLurleenRescue();
@@ -2137,7 +2141,6 @@ function endFestivalRun(cause) {
   playerStats.flush();
   reportPassport('run_end');
   zerble.sputtering = false;
-  Sound.stopSputterLoop();
   Sound.playRunEndSting(cause);
   controlsLocked = true;
   const days = RunState.day;
@@ -2174,7 +2177,7 @@ function endVehicleRun(cause){
   vehicleGameOver=cause;controlsLocked=true;quests.stop();destinationIntent.clear();
   if(RunMode.isFestival()){endFestivalRun(cause);return;}
   playerStats.flush();reportPassport('run_end');
-  Sound.stopSputterLoop();Sound.playRunEndSting(cause);
+  Sound.playRunEndSting(cause);
   Sound.setEngineSpeed(0,0,{revs:0,volume:0,muffle:1});
   HUD.showScoreScreen({cause:runEndMessage(cause,1),score:Scoring.current,days:1,bestCombo:Scoring.bestCombo,board:Leaderboard.localTop()});
 }
@@ -2211,7 +2214,6 @@ function performLurleenRescue() {
   }
   bubbles.addJuice(0.35, 1.0);
   zerble.sputtering = false;
-  Sound.stopSputterLoop();
   Sound.playJuicePickup();
   HUD.toast(HUD.withName(
     'Lurleen to the rescue! 💗 One tow per festival…',
@@ -2451,7 +2453,6 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       if (tc) tc.setAttribute('aria-hidden', 'false');
       try {
         Sound.init();
-        if (RunState.active && RunState.sputter) Sound.startSputterLoop();
       } catch (_) { /* silent audio is fine for dev */ }
       // Skip the opening reveal entirely: controls live immediately.
       controlsLocked = false;
