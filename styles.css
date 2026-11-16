@@ -429,119 +429,81 @@ body {
   50% { opacity: 0.55; }
 }
 
-/* Passenger-quest compass: a short column of chips under the top-right
-   buttons. `--warm` (0..1) is set per chip from script and slides the chip
-   from cool slate through festival yellow to pink as the stop gets close. */
+/* Ride cards stay in the center corridor, leaving the driving controls free.
+   ResizeObserver publishes the actual panel bottom for the toast below it. */
 #quest-strip {
   position: absolute;
   top: calc(80px + env(safe-area-inset-top, 0));
-  right: calc(22px + env(safe-area-inset-right, 0));
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(780px, calc(100vw - 48px));
+  text-align: center;
 }
 #quest-strip.hidden { display: none; }
 .quest-heading { font-size: 13px; font-weight: 800; color: #ffe59b; text-shadow: 0 2px 5px #20172d; }
-.quest-help { font-size: 10px; color: var(--paper); text-shadow: 0 2px 5px #20172d; }
-.quest-copy { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
-.quest-rule { font-size: 10px; opacity: 0.85; white-space: nowrap; }
+.quest-help { font-size: 11px; color: var(--paper); text-shadow: 0 2px 5px #20172d; margin: 2px 0 6px; }
+.quest-cards { display: flex; justify-content: center; gap: 6px; }
 .quest-chip {
   --warm: 0;
   pointer-events: auto;
-  display: flex;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
-  gap: 7px;
-  height: 40px;
-  padding: 0 12px 0 6px;
+  gap: 4px 7px;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 256px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 7px 9px;
   font: inherit;
-  font-size: 14px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.03em;
   color: var(--paper);
-  background: linear-gradient(160deg, rgba(40, 28, 66, 0.66), rgba(22, 16, 40, 0.7));
+  background: linear-gradient(160deg, rgba(40, 28, 66, 0.88), rgba(22, 16, 40, 0.9));
   backdrop-filter: blur(6px);
   border: 1.5px solid hsl(calc(215 + 130 * var(--warm)) calc(30% + 60% * var(--warm)) calc(62% + 8% * var(--warm)) / calc(0.45 + 0.5 * var(--warm)));
-  border-radius: 999px;
+  border-radius: 12px;
   box-shadow: 0 5px 16px rgba(0, 0, 0, 0.26);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.quest-icon { width: 30px; height: 30px; border-radius: 50%; background: #fffaf0; }
-.quest-arrow {
-  display: inline-block;
-  width: 14px;
-  text-align: center;
-  font-size: 12px;
-  color: hsl(calc(215 + 130 * var(--warm)) 90% 78%);
-  transition: transform 0.18s linear;
-}
-.quest-name { font-size: 12px; opacity: 0.86; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.quest-dist, .quest-clock { white-space: nowrap; flex-shrink: 0; }
+.quest-copy { display: flex; flex-direction: column; text-align: left; min-width: 0; }
+.quest-name { font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
+.quest-rule { font-size: 11px; opacity: 0.85; }
+.quest-icon { width: 28px; height: 28px; border-radius: 50%; background: #fffaf0; }
+.quest-navigation { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px; min-width: 0; }
+.quest-arrow { width: 22px; height: 28px; flex-shrink: 0; color: #ffe59b; transition: transform 0.18s linear; }
+.quest-chip:not(.has-direction) .quest-arrow, .quest-direction:empty { display: none; }
+.quest-direction { font-weight: 700; }
+.quest-dist, .quest-clock { white-space: nowrap; }
 .quest-clock:empty { display: none; }
 .quest-clock { font-weight: 700; color: #ffb3c4; }
 .quest-chip.is-inside { border-color: #ffe59b; }
-.quest-chip.is-inside .quest-arrow { visibility: hidden; width: 0; }
 .quest-chip.is-inside .quest-dist { color: #ffe59b; font-weight: 700; }
 .quest-chip.is-urgent { animation: quest-urgent 0.9s ease-in-out infinite; }
 @keyframes quest-urgent { 50% { border-color: #ff6f9c; box-shadow: 0 0 0 3px rgba(255, 111, 156, 0.25), 0 5px 16px rgba(0, 0, 0, 0.26); } }
-/* Keep touch targets large; in landscape the rides occupy the column
-   between the thumbstick and right-hand buttons, never the stick's column. */
-@media (pointer: coarse) {
+@media (max-width: 600px) {
+  #quest-strip { top: calc(96px + env(safe-area-inset-top, 0)); }
+}
+/* Landscape phones have a second right-hand SLOW column. Reserve both
+   banks at every landscape width, including 844px phones. */
+@media (orientation: landscape) and (max-height: 500px) {
   #quest-strip {
-    top: calc(74px + env(safe-area-inset-top, 0));
-    left: calc(22px + env(safe-area-inset-left, 0));
-    right: calc(124px + env(safe-area-inset-right, 0));
-    align-items: flex-start;
-    gap: 4px;
+    top: calc(64px + env(safe-area-inset-top, 0));
+    left: calc(176px + env(safe-area-inset-left, 0));
+    right: calc(228px + env(safe-area-inset-right, 0));
+    width: auto;
+    transform: none;
   }
-  .quest-chip { min-height: 44px; height: auto; max-width: 100%; box-sizing: border-box; font-size: 11px; padding: 4px 8px 4px 5px; gap: 5px; }
-  .quest-copy { flex: 1 1 90px; }
-  .quest-name { font-size: 11px; max-width: 100%; }
-  .quest-rule { font-size: 9px; white-space: normal; text-align: left; }
-  .quest-dist { max-width: 80px; }
-  .quest-help { font-size: 9px; }
-  .quest-icon { width: 24px; height: 24px; flex-shrink: 0; }
-}
-body.is-touch #quest-strip {
-    top: calc(74px + env(safe-area-inset-top, 0));
-    left: calc(22px + env(safe-area-inset-left, 0));
-    right: calc(124px + env(safe-area-inset-right, 0));
-    align-items: flex-start;
-    gap: 4px;
-  }
-body.is-touch .quest-chip { min-height: 44px; height: auto; max-width: 100%; box-sizing: border-box; font-size: 11px; padding: 4px 8px 4px 5px; gap: 5px; }
-body.is-touch .quest-copy { flex: 1 1 90px; }
-body.is-touch .quest-name { font-size: 11px; max-width: 100%; }
-body.is-touch .quest-rule { font-size: 9px; white-space: normal; text-align: left; }
-body.is-touch .quest-dist { max-width: 80px; }
-body.is-touch .quest-help { font-size: 9px; }
-body.is-touch .quest-icon { width: 24px; height: 24px; flex-shrink: 0; }
-@media (orientation: landscape) and (pointer: coarse) {
-  #quest-strip { left: calc(180px + env(safe-area-inset-left, 0)); }
-}
-@media (orientation: landscape) {
-  body.is-touch #quest-strip { left: calc(180px + env(safe-area-inset-left, 0)); }
-}
-/* The narrow landscape SLOW button occupies a second control column.
-   Use two short rows so the complete ride stays between both control banks. */
-@media (orientation: landscape) and (max-width: 650px) and (pointer: coarse) {
-  #quest-strip { right: calc(228px + env(safe-area-inset-right, 0)); }
-  .quest-chip { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; width: 100%; gap: 2px 5px; }
+  .quest-cards { flex-wrap: wrap; max-height: calc(100dvh - 210px); overflow-y: auto; pointer-events: auto; scrollbar-width: thin; padding: 2px; }
+  .quest-chip { flex-basis: 160px; max-width: none; padding: 4px 6px; }
   .quest-icon, .quest-rule { display: none; }
-  .quest-copy { grid-column: 1 / -1; }
-  .quest-name { max-width: 100%; white-space: normal; }
-  .quest-dist { max-width: none; white-space: nowrap; text-align: left; }
-  .quest-chip.is-inside .quest-arrow { width: 14px; }
-}
-@media (orientation: landscape) and (max-width: 650px) {
-  body.is-touch #quest-strip { right: calc(228px + env(safe-area-inset-right, 0)); }
-  body.is-touch .quest-chip { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; width: 100%; gap: 2px 5px; }
-  body.is-touch .quest-icon, body.is-touch .quest-rule { display: none; }
-  body.is-touch .quest-copy { grid-column: 1 / -1; }
-  body.is-touch .quest-name { max-width: 100%; white-space: normal; }
-  body.is-touch .quest-dist { max-width: none; white-space: nowrap; text-align: left; }
-  body.is-touch .quest-chip.is-inside .quest-arrow { width: 14px; }
+  .quest-copy { grid-column: 1 / -1; text-align: center; }
+  .quest-name { font-size: 12px; }
+  .quest-help { font-size: 10px; }
+  .quest-navigation { gap: 4px; }
+  .quest-arrow { width: 18px; height: 24px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .quest-arrow { transition: none; }
@@ -553,7 +515,7 @@ body.reduced-motion .quest-chip.is-urgent { animation: none; border-color: #ff6f
 
 #toast {
   position: absolute;
-  top: calc(80px + env(safe-area-inset-top, 0));
+  top: max(calc(80px + env(safe-area-inset-top, 0)), var(--quest-toast-top, 0px));
   max-width: min(92vw, 560px);
   left: 50%;
   transform: translateX(-50%);
@@ -568,6 +530,19 @@ body.reduced-motion .quest-chip.is-urgent { animation: none; border-color: #ff6f
   opacity: 0;
   transition: opacity 0.35s ease;
   white-space: nowrap;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  #toast {
+    left: calc(176px + (100vw - 404px) / 2);
+    width: max-content;
+    max-width: calc(100vw - 420px);
+    box-sizing: border-box;
+    white-space: normal;
+    text-align: center;
+    padding: 8px;
+    font-size: 12px;
+  }
 }
 
 #toast.show {
@@ -1766,7 +1741,7 @@ body.reduced-motion .upgrade-toggle span { transition: none; }
      must clear it or the marshal warning covers the vibe meter it's warning
      about (adversary A6). */
   #toast {
-    top: calc(96px + env(safe-area-inset-top, 0));
+    top: max(calc(96px + env(safe-area-inset-top, 0)), var(--quest-toast-top, 0px));
     font-size: 13px;
   }
 
@@ -1858,7 +1833,7 @@ body.reduced-motion .upgrade-toggle span { transition: none; }
   }
 
   #toast {
-    top: calc(58px + env(safe-area-inset-top, 0));
+    top: max(calc(58px + env(safe-area-inset-top, 0)), var(--quest-toast-top, 0px));
     max-width: calc(100vw - 24px);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2335,4 +2310,8 @@ body.reduced-motion .best-confetti {
   min-height: 44px;
   padding: 11px 20px;
   font-size: 14px;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  #toast { max-width: calc(100vw - 420px); }
 }

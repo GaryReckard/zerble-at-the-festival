@@ -1,0 +1,101 @@
+{
+  "enabled": true,
+  "completed": 2,
+  "offered": 2,
+  "hails": [
+    {
+      "id": "hail:7",
+      "type": "ride",
+      "kind": "side_stage",
+      "label": "the side stage",
+      "age": 3,
+      "boarding": false
+    }
+  ],
+  "log": {
+    "total": 4,
+    "smiles": 32,
+    "byType": {
+      "ride": 3,
+      "urgent": 1
+    },
+    "byKind": {
+      "hammock": 3,
+      "porta_potty": 1
+    },
+    "recent": [
+      {
+        "kind": "porta_potty",
+        "type": "urgent",
+        "label": "the nearest porta-potty",
+        "reward": 14,
+        "at": 1794797466976
+      },
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794797391360
+      },
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794796403808
+      },
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794796377974
+      }
+    ]
+  },
+  "lastGatherMs": 0.5,
+  "lastEvent": {
+    "type": "arrived",
+    "kind": "porta_potty",
+    "riderId": {
+      "ownerToken": {},
+      "slot": 134,
+      "generation": 2
+    },
+    "reward": 14,
+    "line": "Phew. I owe you one!"
+  },
+  "active": [],
+  "lastPassenger": {
+    "state": "using_potty",
+    "x": 242.1854921846285,
+    "y": 0,
+    "z": -104.65120898461429,
+    "claimed": true,
+    "hidden": false
+  },
+  "cart": {
+    "x": 235.13307189941406,
+    "z": -104.8036117553711,
+    "speed": 0.00028176824404943355,
+    "grounded": true,
+    "immersion": 0
+  },
+  "nearbyFacilities": [
+    {
+      "kind": "porta_potty",
+      "x": 242.1854921846285,
+      "z": -104.65120898461429,
+      "distance": 7.1,
+      "occupied": true
+    },
+    {
+      "kind": "hammock",
+      "x": 295.3568998026323,
+      "z": -37.53623470519251,
+      "distance": 90.3,
+      "occupied": false
+    }
+  ]
+}

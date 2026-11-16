@@ -105,3 +105,7 @@ On seed 4, the `/quest approach` helper positioned the cart 35 m away, then nati
 Full branch and combined checks/builds passed; the review folder contains logs, executable defect probes and native game/compact-layout evidence. Physical-phone comfort, audible cues, full urgent door/flee motion, mountaintop guidance and raw reward rate remain open. These functional checks make no frame-time or iPad performance claim.
 
 After Gary approved reloading the active game, local main was fast-forwarded to `c9fcb63`. A fresh native title click and specific camp request on the original port 8765 showed the new Passenger rides heading and destination rule, with no captured console warnings/errors. The temporary review servers and test tabs were closed; the original user-requested dev server remains running.
+
+## Destination activity follow-up
+
+[Facility handoffs and centered ride guidance](activities/README.md) records live hammock and toilet entry, focused ownership regressions, and compact HUD verification.

@@ -1,5 +1,5 @@
-// The person claim covers the whole errand; a unit is reserved only on arrival,
-// preserving occupied-door discovery. Motion caches contain copied values, never
+// Ambient errands reserve a unit on arrival, preserving occupied-door discovery.
+// Quest deliveries reserve before leaving the cart and transfer that reservation. Motion caches contain copied values, never
 // population records. Unit ownership validates the full handle/claim incarnation.
 import {
   STINK_DUR,
@@ -12,6 +12,7 @@ const POTTY_SEARCH_R2 = 90 * 90,
   POTTY_USE_MAX = 13,
   POTTY_LOCK_CHANCE = 0.7;
 const occupants = new WeakMap();
+const arrivals = new WeakMap();
 const OCCUPYING_STATES = new Set([
   "entering_potty",
   "using_potty",
@@ -51,7 +52,21 @@ export class PottyActivity {
     s.pottyEntry = entry;
     s.pottyResource = entry?.potty ?? null;
   }
-  tryClaim(handle) {
+  reserveArrival(handle, entry) {
+    const resource = entry?.potty;
+    if (this.disposed || !resource || this.registry.entries.get(entry.id) !== entry || resource.occupied || occupants.has(resource) || arrivals.has(resource)) return null;
+    const ticket = { person: handle, entry, resource };
+    arrivals.set(resource, ticket);
+    resource.occupied = true;
+    return ticket;
+  }
+  releaseArrival(ticket) {
+    if (!ticket || arrivals.get(ticket.resource) !== ticket) return false;
+    arrivals.delete(ticket.resource);
+    ticket.resource.occupied = false;
+    return true;
+  }
+  tryClaim(handle, ticket = null) {
     if (this.disposed || !this.people.canUsePotty(handle)) return false;
     const motion = {
       person: handle,
@@ -70,7 +85,8 @@ export class PottyActivity {
     };
     if (!this.people.readPottyMotion(handle, motion) || motion.claimed)
       return false;
-    const entry = this._findNearestPotty(motion, null);
+    const entry = ticket?.entry ?? this._findNearestPotty(motion, null);
+    if (ticket && (ticket.person !== handle || arrivals.get(ticket.resource) !== ticket || this.registry.entries.get(entry.id) !== entry || entry.potty !== ticket.resource)) return false;
     if (!entry) return false;
     const record = { motion, claim: null, occupied: null };
     const claim = this.people.claimActivity(
@@ -97,6 +113,12 @@ export class PottyActivity {
       return false;
     }
     this._setEntry(motion, entry);
+    if (ticket) {
+      this.releaseArrival(ticket);
+      if (!this._claimOccupancy(motion)) { this.release(handle); return false; }
+      record.delivery = true;
+      motion.deliveryRoute = ticket.route;
+    }
     motion.pottyTried = [entry.id];
     motion.state = "seeking_potty";
     motion.stateTimer = 30;
@@ -179,8 +201,11 @@ export class PottyActivity {
   }
   _commit(r) {
     const s = r.motion;
-    if (!POTTY_TICKS[s.state]) return this.people.finishPottyMotion(r.claim, s);
-    return this.people.commitPottyMotion(r.claim, s);
+    const committed = POTTY_TICKS[s.state]
+      ? this.people.commitPottyMotion(r.claim, s)
+      : this.people.finishPottyMotion(r.claim, s);
+    if (!committed && r.delivery) this.release(s.person, 'quest-path-blocked');
+    return committed;
   }
   release(handle, reason = "rest-interrupted") {
     const r = this.records.get(handle);
@@ -300,6 +325,19 @@ export class PottyActivity {
     const p = e.potty;
 
     // Walk to the door stand point.
+    if (npc.deliveryRoute?.length) {
+      while (npc.deliveryRoute.length > 1 && Math.hypot(npc.deliveryRoute[0].x - npc.pos.x, npc.deliveryRoute[0].z - npc.pos.z) < .08) npc.deliveryRoute.shift();
+      const target = npc.deliveryRoute[0], distance = Math.hypot(target.x - npc.pos.x, target.z - npc.pos.z);
+      if (distance > .05) {
+        const stride = Math.min(distance, dt * 1.8 * npc.energy);
+        const next = { x: npc.pos.x + (target.x - npc.pos.x) / distance * stride, z: npc.pos.z + (target.z - npc.pos.z) / distance * stride };
+        if (!this.people.questActivityStepClear(npc.person, npc.pos, next)) { this._abortPotty(npc); this._writeMatrices(npc); return; }
+        npc.vel.x = (next.x - npc.pos.x) / dt; npc.vel.z = (next.z - npc.pos.z) / dt;
+        npc.pos.x = next.x; npc.pos.z = next.z; npc.yaw = Math.atan2(-npc.vel.x, -npc.vel.z);
+        this._writeMatrices(npc); return;
+      }
+      npc.deliveryRoute = null;
+    }
     const standX = e.position.x + p.outX * POTTY_DOOR_STAND;
     const standZ = e.position.z + p.outZ * POTTY_DOOR_STAND;
     const tdx = standX - npc.pos.x;
@@ -324,9 +362,9 @@ export class PottyActivity {
     npc.yaw +=
       wrapAngle(Math.atan2(p.outX, p.outZ) - npc.yaw) * Math.min(1, dt * 8);
 
-    if (!p.occupied) {
+    if (!p.occupied || this._ownsOccupancy(npc)) {
       // Vacant → go in. Roll whether the occupant will lock the door behind them.
-      if (!this._claimOccupancy(npc)) {
+      if (!this._ownsOccupancy(npc) && !this._claimOccupancy(npc)) {
         this._writeMatrices(npc);
         return;
       }
@@ -381,12 +419,20 @@ export class PottyActivity {
     const e = npc.pottyEntry;
     const p = e.potty;
 
+    if (this.records.get(npc.person)?.delivery && !this.people.questActivityStepClear(npc.person, npc.pos, e.position, e)) {
+      this._abortPotty(npc); this._writeMatrices(npc); return;
+    }
     const cx = e.position.x,
       cz = e.position.z;
     const tdx = cx - npc.pos.x,
       tdz = cz - npc.pos.z;
     const td = Math.hypot(tdx, tdz);
 
+    if (td > 0.25 && npc.stateTimer <= 0 && this.records.get(npc.person)?.delivery) {
+      this._abortPotty(npc);
+      this._writeMatrices(npc);
+      return;
+    }
     if (td > 0.25 && npc.stateTimer > 0) {
       // Step in only once the door's actually open.
       if (p.doorOpen > 0.5) {

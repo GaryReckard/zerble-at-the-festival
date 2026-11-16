@@ -53,9 +53,16 @@ if (screen === 'rides') {
   document.getElementById('title-card').classList.add('hidden');
   const [{QuestCompass},{iconDataURL}] = await Promise.all([import('./questHud.js'), import('./models/questBubble.js')]);
   const compass = new QuestCompass(document.getElementById('quest-strip'), {iconURL:iconDataURL, onPick:id=>HUD.toast(`Selected sample passenger ${id}`,1600)});
-  compass.sync([
+  const rides = [
     {id:1,kind:'hammock',short:'Hammocks',icon:'hammock',x:0,z:-180,dist:180,radius:25,warmth:.5,type:'ride'},
     {id:2,kind:'porta_potty',short:'Potty!!!',icon:'potty',x:120,z:0,dist:120,radius:16,warmth:.3,type:'urgent',timeLeft:39},
     {id:3,kind:'camp_village',short:'My camp',icon:'camp',x:-80,z:-80,dist:113,radius:40,warmth:.2,type:'ride'},
-  ], {x:0,z:0,heading:0,speed:0});
+  ];
+  if (flags.get('case') === 'arrival') {
+    rides[0].arrivalTarget={x:0,z:0,radius:25};
+    rides[1].phase='handoff';
+    rides[2].kind='hammock';rides[2].icon='hammock';rides[2].x=0;rides[2].z=0;rides[2].dist=0;rides[2].arrivalBlocked='occupied';
+  }
+  compass.sync(rides, {x:0,z:0,heading:0,speed:0});
+  HUD.toast('Festival message: keep the driving controls clear.', 600000);
 }

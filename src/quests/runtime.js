@@ -9,6 +9,7 @@ import { QUEST, DESTINATIONS } from './catalog.js';
 import { gatherDestinations, isGenericFacility, resolveNearbyFacility } from './worldSource.js';
 
 const CELEBRATE_SECONDS = 2.6;
+const HANDOFF_TIMEOUT = 65;
 
 export class QuestRuntime {
   constructor({
@@ -38,10 +39,30 @@ export class QuestRuntime {
       // Facility requests need a currently built matching stop, even when the
       // original suggested location has since unloaded or was only a plan.
       if (isGenericFacility(quest) && !quest.arrivalTarget) {
-        quest.arrivalBlocked = 'facility_missing'; return false;
+        quest.arrivalBlocked = quest.blockedTarget ? 'occupied' : 'facility_missing'; return false;
       }
       if (this.zerble.physicsDriven && (!this.zerble.grounded || (this.zerble.engineState?.immersion ?? 0) > 0.4)) {
         quest.arrivalBlocked = 'unsafe_exit'; return false;
+      }
+      if (quest.type !== 'party' && ['hammock', 'porta_potty'].includes(quest.kind)) {
+        const retry = quest.arrivalRetry;
+        if (retry && retry.entryId === quest.arrivalTarget.entryId && quest.age < retry.at) {
+          quest.arrivalBlocked = retry.reason;
+          return false;
+        }
+        quest.arrivalRetry = null;
+        const handoff = this.crowd.beginQuestActivity(quest.riderId, this.zerble, quest.kind, quest.arrivalTarget?.entryId);
+        if (handoff.blocked) {
+          quest.arrivalBlocked = handoff.blocked;
+          if (handoff.blocked === 'unreachable') {
+            quest.arrivalRetry = { entryId: quest.arrivalTarget.entryId, at: quest.age + .5, reason: handoff.blocked };
+          }
+          if (handoff.exited) this.engine.cancel(quest.riderId, this._emit, 'activity_unavailable');
+          return false;
+        }
+        quest.handoff = handoff;
+        quest.handoffTimeLeft = HANDOFF_TIMEOUT;
+        return true;
       }
       const ready = quest.type === 'party' || this.crowd.endRide(quest.riderId, this.zerble, { celebrate: CELEBRATE_SECONDS, retainHold: true });
       if (!ready) quest.arrivalBlocked = 'unsafe_exit';
@@ -100,7 +121,7 @@ export class QuestRuntime {
     if (!this.enabled || this.engine.full || this.engine.has(key)) return null;
     if (!force && this.engine.active.length + this.hails.length >= QUEST.MAX_ACTIVE) return null;
     const origin = this._player();
-    const candidates = gatherDestinations(origin, { registry: this.registry, worldgen: this.worldgen, reach: QUEST.MAX_DIST });
+    const candidates = gatherDestinations(origin, { registry: this.registry, worldgen: this.worldgen, reach: QUEST.MAX_DIST }).filter(candidate => !isGenericFacility(candidate));
     const plan = planOffer(candidates, origin, { random: this.random, activeKinds: this.engine.activeKinds(), allowUrgent: false, allowSummit: false, force });
     if (!plan) return null;
     const quest = this.engine.offer(key, origin, plan.dest, { type: 'party', members, voice }, this._emit);
@@ -179,18 +200,32 @@ export class QuestRuntime {
     // Notice riders who left for any other reason (ordinary timeout cannot
     // happen while held, but a dry tank, a scatter or a despawn can).
     for (const quest of [...this.engine.active]) {
+      if (quest.phase === 'handoff') {
+        const status = this.crowd.questActivityStatus(quest.handoff);
+        quest.handoffTimeLeft -= dt;
+        if (status === 'entered') this.engine.settleArrival(quest.riderId, this._emit);
+        else if (status === 'cancelled' || quest.handoffTimeLeft <= 0) this.engine.cancel(quest.riderId, this._emit, 'activity_interrupted');
+        continue;
+      }
       if (quest.type === 'party') continue;   // the party owner reports its own exits
       if (!this.crowd.riderInfo(quest.riderId, this._rider)) this.engine.cancel(quest.riderId, this._emit, 'left');
     }
     const player = this._player();
-    for (const quest of this.engine.active) quest.arrivalBlocked = false;
+    for (const quest of this.engine.active) quest.arrivalBlocked = quest.blockedTarget ? 'occupied' : false;
     this._facilityIn -= dt;
     if (Math.abs(player.speed) < QUEST.ARRIVE_SPEED || this._facilityIn <= 0) {
       this._facilityIn = 0.25;
       for (const quest of this.engine.active) {
         // Moving carts get bounded-cadence "Slow down" guidance; every actual
         // drop-off rechecks built facilities without resetting the deadline.
-        quest.arrivalTarget = resolveNearbyFacility(quest, player, this.registry);
+        if (quest.phase !== 'handoff') {
+          const canAccept = this.crowd.canReachQuestActivity ? (entry) => this.crowd.canReachQuestActivity(quest.riderId, entry, quest.kind, this.zerble) : null;
+          quest.arrivalTarget = resolveNearbyFacility(quest, player, this.registry, canAccept);
+          // Unavailable stops are guidance only: the engine must never accept
+          // them or pause the deadline until a real reservation is obtained.
+          quest.blockedTarget = quest.arrivalTarget ? null : resolveNearbyFacility(quest, player, this.registry, canAccept, { occupied: true });
+          quest.arrivalBlocked = quest.blockedTarget ? 'occupied' : false;
+        }
       }
     }
     this.engine.update(dt, player, this._emit, this._prepareArrival);
@@ -241,9 +276,7 @@ export class QuestRuntime {
         this.toast(say('💭', data.line), 2400, { low: true });
         break;
       case 'arrived':
-        if (solo) {
-          if (quest.type === 'urgent') this.crowd.sendToPotty(quest.riderId);
-        } else party?.leave();
+        if (!solo) party?.leave();
         this._spawnBurst(data.reward);
         {
           const total = this.log ? this.log.record({ type: quest.type, kind: quest.kind, label: quest.label, reward: data.reward }) : 0;
@@ -266,6 +299,7 @@ export class QuestRuntime {
         this.analytics?.questEnded?.(quest.type, quest.kind, 'failed', quest.age);
         break;
       case 'cancelled':
+        if (quest.handoff) this.crowd.cancelQuestActivity(quest.handoff);
         // The rider is already gone or the world reset; release the hold if
         // they are somehow still seated.
         if (solo) this.crowd.holdRide(quest.riderId, false);

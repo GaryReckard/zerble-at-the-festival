@@ -50,7 +50,7 @@ import { buildBubbleVendor } from './models/bubbleVendor.js';
 import { buildSugarShack, SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH, sugarShackCooks } from './models/sugarShack.js';
 import { buildPortaPotty, createPottyState, POTTY_SPACING, POTTY_FOOTPRINT, POTTY_COLLIDER_R } from './models/portaPotty.js';
 import { buildHammock as buildHammockModel, buildTreeHammock } from './models/hammock.js';
-import { registerHammockDropoff } from './quests/facilityArrival.js';
+import { registerTreeHammock, hammockResource } from './quests/facilityArrival.js';
 import { buildPicnicTable } from './models/picnicTable.js';
 import { buildInfoKiosk, INFO_KIOSK_COLLIDER_R, INFO_KIOSK_FOOTPRINT } from './models/infoKiosk.js';
 import { buildEntranceArch as buildEntranceArchModel } from './models/entranceArch.js';
@@ -1132,8 +1132,8 @@ function scatterWorldgenTrees(ctx) {
     lone++;
   }
   // C1 — string a post-less hammock between the occasional pair of CLOSE trees (the
-  // trunks ARE the posts). It hangs in the un-driveable gap between two trunks, so
-  // its drop-off marker has no seat, footprint or collider. The mesh and marker
+  // trunks ARE the posts). Register the real sling seat without a footprint or
+  // collider, so later scenery placement stays unchanged. Both the seat and mesh
   // unload with their chunk. Capped so it stays a woodland discovery.
   let hammocks = 0;
   for (let i = 0; i < placed.length && hammocks < 2; i++) {
@@ -1150,7 +1150,7 @@ function scatterWorldgenTrees(ctx) {
         treeTrunkRadiusAtWorldHeight(placed[j].descriptor, supportWorldY, placed[j].groundY));
       hammock.group.position.y = groupGroundY;
       ctx.group.add(hammock.group);
-      registerHammockDropoff(registry, centerX, groupGroundY, centerZ, ctx.key);
+      registerTreeHammock(registry, hammock, groupGroundY, ctx.key, terrainHeight);
       hammocks++;
       break;
     }
@@ -3085,9 +3085,9 @@ function buildEntranceArch(ctx, x, z) {
 
 // Hammock wrapper — uses the model and registers the entry crowd.js consults.
 function buildHammock(ctx, x, z, rng = ctx.rng) {
-  const { group, seatPos, yaw } = buildHammockModel(x, z, rng);
+  const model = buildHammockModel(x, z, rng);
+  const { group } = model;
   group.position.y = terrainHeight(x, z);
-  seatPos.y += group.position.y;
   ctx.group.add(group);
 
   registry.add({
@@ -3096,7 +3096,7 @@ function buildHammock(ctx, x, z, rng = ctx.rng) {
     footprint: 1.6,
     attractor: { radius: 3, weight: 0.6 },
     chunkKey: ctx.key,
-    hammock: { seatPos, yaw, occupied: false },
+    hammock: hammockResource(model, group.position.y, terrainHeight),
   });
 }
 

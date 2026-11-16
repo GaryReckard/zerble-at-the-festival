@@ -52,7 +52,14 @@ export class QuestPresentation {
     let stack = 0;
     for (const quest of quests) {
       const options = { warmth: quest.warmth, urgent: quest.type === 'urgent', reducedMotion: motion };
-      if (quest.type === 'party') {
+      if (quest.phase === 'handoff') {
+        // The passenger has left the seat but still owns the quest until the
+        // activity accepts them. Follow their real head instead of the cart.
+        if (this.crowd.readPerson(quest.riderId, this._rider) && !this._rider.hidden) {
+          if (!this.bubbles.has(quest.id)) this.bubbles.show(quest.id, quest.icon, this.time);
+          this.bubbles.place(quest.id, this._rider.x, this._rider.y + 1.9 * (this._rider.scale || 1), this._rider.z, options, this.time);
+        } else this.bubbles.hide(quest.id);
+      } else if (quest.type === 'party') {
         // One shared bubble floats over the cart for a whole party.
         const p = this.zerble.position;
         this.bubbles.place(quest.id, p.x, p.y + 4.6, p.z, options, this.time);
@@ -85,13 +92,13 @@ export class QuestPresentation {
     }
     // Flexible facility requests can point at a nearby acceptable stop without
     // changing the original quest's reward or deadline basis.
-    const pinSignature = quests.map(q => `${q.id}:${q.arrivalTarget?.x ?? q.x}:${q.arrivalTarget?.z ?? q.z}`).join('|');
+    const pinSignature = quests.map(q => `${q.id}:${q.arrivalTarget?.x ?? q.blockedTarget?.x ?? q.x}:${q.arrivalTarget?.z ?? q.blockedTarget?.z ?? q.z}`).join('|');
     if (pinSignature !== this._pinSignature) { this._pinSignature = pinSignature; this._pinsDirty = true; }
     if (this._pinsDirty && this.festivalMap) {
       this._pinsDirty = false;
       const pins = [];
       for (const q of quests) {
-        const target = q.arrivalTarget || q;
+        const target = q.arrivalTarget || q.blockedTarget || q;
         pins.push({ id: `quest:${q.id}`, x: target.x, z: target.z, label: q.short });
         if (q.via && !q.viaReached) pins.push({ id: `quest:${q.id}:via`, x: q.via.x, z: q.via.z, label: 'Road up' });
       }
@@ -100,5 +107,5 @@ export class QuestPresentation {
     }
   }
 
-  dispose() { this._off(); this.bubbles.dispose(); }
+  dispose() { this._off(); this.bubbles.dispose(); this.compass?.dispose(); }
 }

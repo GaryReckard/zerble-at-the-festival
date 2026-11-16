@@ -1,0 +1,158 @@
+{
+  "enabled": true,
+  "completed": 1,
+  "offered": 2,
+  "hails": [
+    {
+      "id": "hail:4",
+      "type": "ride",
+      "kind": "arch",
+      "label": "the front gate",
+      "age": 16,
+      "boarding": false
+    }
+  ],
+  "log": {
+    "total": 3,
+    "smiles": 18,
+    "byType": {
+      "ride": 3
+    },
+    "byKind": {
+      "hammock": 3
+    },
+    "recent": [
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794797391360
+      },
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794796403808
+      },
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794796377974
+      }
+    ]
+  },
+  "lastGatherMs": 0.6,
+  "lastEvent": {
+    "type": "offered",
+    "kind": "porta_potty",
+    "riderId": {
+      "ownerToken": {},
+      "slot": 134,
+      "generation": 2
+    },
+    "line": "Oh no oh no. Potty. NOW. Please!"
+  },
+  "active": [
+    {
+      "phase": "riding",
+      "id": 2,
+      "riderId": {
+        "ownerToken": {},
+        "slot": 134,
+        "generation": 2
+      },
+      "type": "urgent",
+      "kind": "porta_potty",
+      "label": "the nearest porta-potty",
+      "x": 242.1854921846285,
+      "z": -104.65120898461429,
+      "radius": 16,
+      "dist": 125,
+      "startDist": 125,
+      "warmth": 0,
+      "stall": 0,
+      "missed": false,
+      "timeLeft": 51.7,
+      "reward": 15,
+      "via": null,
+      "viaReached": false
+    }
+  ],
+  "lastPassenger": {
+    "state": "riding",
+    "x": 187.276641519331,
+    "y": 6.010040796896645,
+    "z": 6.780319818983006,
+    "claimed": false,
+    "hidden": false
+  },
+  "cart": {
+    "x": 186.841796875,
+    "z": 7.7720441818237305,
+    "speed": 0.11234341219555863,
+    "grounded": true,
+    "immersion": 0
+  },
+  "nearbyFacilities": [
+    {
+      "kind": "hammock",
+      "x": 189.3079933260844,
+      "z": -0.7746524045407104,
+      "distance": 8.9,
+      "occupied": true
+    },
+    {
+      "kind": "hammock",
+      "x": 178.0370049001624,
+      "z": 17.79183334404579,
+      "distance": 13.3,
+      "occupied": true
+    },
+    {
+      "kind": "hammock",
+      "x": 158.58108902350068,
+      "z": -10.606677923351526,
+      "distance": 33.7,
+      "occupied": false
+    },
+    {
+      "kind": "hammock",
+      "x": 232.0867040926595,
+      "z": 45.44000882988617,
+      "distance": 58.9,
+      "occupied": true
+    },
+    {
+      "kind": "hammock",
+      "x": 255.5682027858174,
+      "z": 22.84706596789507,
+      "distance": 70.4,
+      "occupied": false
+    },
+    {
+      "kind": "hammock",
+      "x": 258.498647552693,
+      "z": 23.191929116180034,
+      "distance": 73.3,
+      "occupied": false
+    },
+    {
+      "kind": "hammock",
+      "x": 248.6679073106601,
+      "z": 72.10623947668284,
+      "distance": 89.2,
+      "occupied": true
+    },
+    {
+      "kind": "hammock",
+      "x": 248.83278204128146,
+      "z": 78.34726367145777,
+      "distance": 93.9,
+      "occupied": true
+    }
+  ]
+}

@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 const base=path.resolve(new URL('..', import.meta.url).pathname);
 const read=p=>fs.readFileSync(path.join(base,p),'utf8');
 const sourceImport=p=>import(pathToFileURL(path.join(base,p)).href);
-const el=()=>({children:[],listeners:{},dataset:{},classList:{toggle(){},add(){},remove(){},contains(){return false}},style:{setProperty(){}},append(...nodes){this.children.push(...nodes)},setAttribute(k,v){this[k]=v},remove(){},addEventListener(type,fn){this.listeners[type]=fn}});
+const el=()=>({children:[],listeners:{},dataset:{},classList:{toggle(){},add(){},remove(){},contains(){return false}},style:{setProperty(){}},append(...nodes){for(const node of nodes){node.parentElement=this;this.children.push(node)}},setAttribute(k,v){this[k]=v},remove(){if(this.parentElement?.children)this.parentElement.children=this.parentElement.children.filter(node=>node!==this)},addEventListener(type,fn){this.listeners[type]=fn},removeEventListener(type,fn){if(this.listeners[type]===fn)delete this.listeners[type]}});
 
 // Evaluate the complete unmodified class bodies, avoiding CSS/Three.js imports.
 // The constructors are bypassed; only DOM, drawing, discovery and geography
@@ -59,7 +59,7 @@ assert.equal(map.objectives.get('quest:2').z,30);
 console.log('PASS: real map reconciliation preserves valid targets and tracks summit after hidden objective removal; alternate pin updates.');
 
 const {QuestCompass}=await sourceImport('src/questHud.js');
-globalThis.document={createElement:el};
+globalThis.document={createElement:el,createElementNS:el};
 const root=el();let picked=null;
 const compass=new QuestCompass(root,{onPick(id){picked=id}});
 assert.equal(root.children[0].textContent,'Passenger rides');
@@ -73,8 +73,20 @@ const sync=heading=>{compass.sync([q],{x:0,z:0,heading,speed:0});return compass.
 let last=sync(.1),max=0;
 for(let i=1;i<=4000;i++){const next=sync(.1+i*.05);max=Math.max(max,Math.abs(next-last));last=next;}
 assert(max<=6);
-assert.match(compass.chips.get(1).el['aria-label'], /Main stage: 75 m/);
+assert.match(compass.chips.get(1).el['aria-label'], /Main stage: (Ahead|Right|Behind|Left), 75 m/);
 compass.sync([],{x:0,z:0});assert.equal(compass.chips.size,0);
+compass.sync([q],{x:0,z:0});
+compass.dispose();
+assert.equal(root.listeners.click,undefined,'disposed compass releases its map tracking listener');
+assert.equal(root.listeners.keydown,undefined,'disposed compass releases its keyboard listener');
+assert.equal(root.children.length,0,'disposed compass removes only its owned DOM');
+assert.equal(compass.chips.size,0);
+const replacementCompass=new QuestCompass(root,{onPick(id){picked=id+1}});
+replacementCompass.sync([q],{x:0,z:0});
+assert.equal(root.children.length,3,'remount has one heading, help and card container');
+root.listeners.click({target:{closest:()=>({dataset:{quest:'7'}})}});
+assert.equal(picked,8,'remount uses the replacement tracking callback');
+replacementCompass.dispose();
 console.log(`PASS: actual QuestCompass, 4000 bearings, maximum turn ${max} degrees, label and cleanup.`);
 
 const hudSource=read('src/hud.js');
@@ -92,8 +104,8 @@ const {chipState}=await sourceImport('src/quests/compassMath.js');
 const flexible={...q,kind:'hammock',arrivalTarget:{x:0,z:8,radius:10}};
 assert.equal(chipState(flexible,{x:0,z:0,speed:3}).text,'Slow down!');
 assert.equal(chipState(flexible,{x:0,z:0,speed:0}).text,'Stop here!');
-assert.equal(chipState(flexible,{x:0,z:0,speed:0}).help,'Any hammock works');
-assert.equal(chipState({...q,kind:'porta_potty'},{x:0,z:0}).help,'Any porta-potty works');
+assert.equal(chipState(flexible,{x:0,z:0,speed:0}).help,'Any free hammock works');
+assert.equal(chipState({...q,kind:'porta_potty'},{x:0,z:0}).help,'Any free porta-potty works');
 assert.equal(chipState({...q,kind:'main_stage'},{x:0,z:0}).help,'This destination');
 console.log('PASS: flexible stop guidance uses accepted target, speed and facility copy.');
 
@@ -102,3 +114,55 @@ assert.equal(chipState({...q,kind:'porta_potty',dist:0},{x:0,z:0,speed:4}).text,
 assert.equal(chipState({...flexible,arrivalBlocked:'unsafe_exit'},{x:0,z:0}).text,'Pull over nearby');
 assert.equal(chipState(flexible,{x:0,z:0}).label,'Any hammock');
 console.log('PASS: missing built facility and unsafe exit have actionable guidance.');
+
+const {relativeBearing, relativeDirection}=await sourceImport('src/quests/compassMath.js');
+for (const heading of [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2, 17 * Math.PI]) {
+  for (const [degrees,word] of [[0,'Ahead'],[90,'Right'],[180,'Behind'],[-90,'Left']]) {
+    const bearing=heading-degrees*Math.PI/180;
+    const target={x:-Math.sin(bearing)*100,z:-Math.cos(bearing)*100};
+    assert.equal(relativeDirection(relativeBearing({x:0,z:0,heading},target)*180/Math.PI),word);
+  }
+}
+for (const blocked of ['unsafe_exit','occupied','unreachable','activity_unavailable']) {
+  const state=chipState({...flexible,arrivalBlocked:blocked},{x:0,z:0});
+  assert.equal(state.showArrow,false); assert.equal(state.direction,'');
+}
+const pendingState=chipState({...q,phase:'handoff'},{x:0,z:0,speed:5});
+assert.equal(pendingState.showArrow,false);assert.equal(pendingState.direction,'');
+assert.equal(pendingState.text,'Passenger walking in');
+let observed,disconnected=false,resizeHandler,removedHandler,measurements=0,toastTop;
+globalThis.ResizeObserver=class {constructor(fn){this.fn=fn}observe(root){observed=root;this.fn()}disconnect(){disconnected=true}};
+globalThis.addEventListener=(event,fn)=>{resizeHandler=fn};
+globalThis.removeEventListener=(event,fn)=>{removedHandler=fn};
+const measuredRoot=el();measuredRoot.parentElement={style:{setProperty(key,value){toastTop=value}}};
+measuredRoot.getBoundingClientRect=()=>{measurements++;return {bottom:186}};
+const measuredCompass=new QuestCompass(measuredRoot);
+assert.equal(observed,measuredRoot);
+measuredCompass.sync([q],{x:0,z:0});
+resizeHandler();assert.equal(toastTop,'194px');
+const reads=measurements;
+for(let i=0;i<20;i++)measuredCompass.sync([q],{x:0,z:0,heading:i});
+assert.equal(measurements,reads,'frame updates do not measure layout');
+measuredCompass.setVisible(false);assert.equal(toastTop,'0px');
+measuredCompass.dispose();assert.equal(disconnected,true);assert.equal(removedHandler,resizeHandler);
+console.log('PASS: cardinal text at rotated headings, arrival/handoff suppression, measured toast offset and observer teardown.');
+
+const occupiedAlternate={...q,kind:'hammock',x:500,z:500,dist:700,arrivalBlocked:'occupied',blockedTarget:{x:8,z:0,radius:10}};
+const occupiedState=chipState(occupiedAlternate,{x:0,z:0});
+assert.equal(occupiedState.text,'Occupied · try nearby');
+assert.equal(occupiedState.inside,true);assert.equal(occupiedState.showArrow,false);
+const distantOccupied=chipState(occupiedAlternate,{x:-30,z:0});
+assert.equal(distantOccupied.direction,'Right');assert.equal(distantOccupied.text,'30 m');
+let bubblePosition,hiddenBubble,shownBubble;
+view.runtime.active=[{...q,id:9,riderId:'walker',phase:'handoff'}];
+view.bubbles={has(){return false},show(id){shownBubble=id},hide(id){hiddenBubble=id},place(id,x,y,z){bubblePosition={id,x,y,z}}};
+view.crowd.readPerson=(handle,out)=>{assert.equal(handle,'walker');Object.assign(out,{x:20,y:3,z:40,scale:1.2,hidden:false});return true};
+view.update(.016);
+assert.equal(shownBubble,9);assert.deepEqual(bubblePosition,{id:9,x:20,y:3+1.9*1.2,z:40});
+view.crowd.readPerson=(handle,out)=>{out.hidden=true;return true};view.update(.016);assert.equal(hiddenBubble,9);
+view.crowd.readPerson=()=>false;view.update(.016);assert.equal(hiddenBubble,9);
+console.log('PASS: occupied alternate geometry and production handoff bubble follows passenger, hides for hidden/unavailable person.');
+
+view.runtime.active=[occupiedAlternate];view.update(.016);
+assert.equal(map.objectives.get('quest:1').x,8);assert.equal(map.objectives.get('quest:1').z,0);
+console.log('PASS: occupied alternate map pin matches the compass target.');

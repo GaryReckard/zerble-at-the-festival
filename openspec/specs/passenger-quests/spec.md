@@ -70,8 +70,8 @@ SHALL NOT advance any seeded stream (`worldSource.js` `fromPlan`,
 
 ### Requirement: Arrival needs a near stop
 
-A request SHALL complete when the cart is within the destination's arrive radius and
-slower than `QUEST.ARRIVE_SPEED` (2 m/s). The radius SHALL be the larger of the
+An arrival SHALL require the cart to be within the destination’s arrive radius and
+slower than `QUEST.ARRIVE_SPEED` (2 m/s), with a safe disembarkation. Solo facility requests SHALL additionally wait for activity entry before completion. The radius SHALL be the larger of the
 kind's catalog radius and the radius the source supplies for a sprawling venue
 (`engine.js` `offer`, `update`).
 
@@ -82,8 +82,9 @@ kind's catalog radius and the radius the source supplies for a sprawling venue
 
 #### Scenario: Stopping inside completes
 
-- **WHEN** the cart is inside the radius and slower than 2 m/s
-- **THEN** an `arrived` event fires with the reward and the request is removed
+- **WHEN** the cart is inside the radius, slower than 2 m/s and a safe exit succeeds
+- **THEN** an ordinary non-facility request emits `arrived` with the reward and is removed
+- **AND** a solo facility request waits for its reserved activity to begin
 
 ### Requirement: Missed stops halve the reward
 
@@ -118,17 +119,17 @@ rider SHALL give up politely with no penalty, and the crowd releases the seat
 ### Requirement: Urgent run countdown, reward and penalty
 
 About `QUEST.URGENT_CHANCE` (12%) of offers, when a potty is in the urgent band, SHALL
-be urgent. The countdown SHALL be `30 + distance / 5` seconds. Arriving SHALL pay
-`URGENT_REWARD` (10) plus up to `URGENT_BONUS` (5) in proportion to time left, and the
-rider SHALL then head for a free porta-potty. Running out of time SHALL emit `failed`,
+be urgent. The countdown SHALL be `30 + distance / 5` seconds. Entering the reserved potty SHALL pay
+`URGENT_REWARD` (10) plus up to `URGENT_BONUS` (5) in proportion to time left at drop-off. The countdown SHALL pause during a committed facility handoff. Running out of time SHALL emit `failed`,
 deduct `URGENT_PENALTY` (2) smiles through `Scoring.deduct`, and send the rider
 fleeing. The urgent rider SHALL fidget while seated (`engine.js` `reward`, `update`;
-`runtime.js` `failed` handling; `crowd.js` `setRideMood`, `sendToPotty`).
+`runtime.js` `failed` handling; `crowd.js` `setRideMood`, `beginQuestActivity`, `questActivityStatus`).
 
 #### Scenario: Made it in time
 
 - **WHEN** the cart stops in the potty's radius with time left
-- **THEN** the rider is rewarded 10 to 15 smiles and walks toward a porta-potty
+- **THEN** a free reachable potty is reserved, the rider exits safely and walks in with the countdown paused
+- **AND** entering `using_potty` awards 10 to 15 smiles
 
 #### Scenario: Too late
 
@@ -205,10 +206,7 @@ polling `crowd.riderInfo` for each active request, at most three, each frame
 The live `QuestPresentation` SHALL allocate five reusable `QuestBubbles` sprite slots with shared canvas icon textures owned
 by one instance, with `dispose()` as the only teardown path. A bubble SHALL brighten with proximity, pulse when almost there and jitter for
 an urgent request, honouring reduced motion. The compass strip SHALL list one chip per
-request with a nose-relative arrow and the distance left, read "Stop here!" inside the
-radius, and be hideable by the Passenger compass setting. On coarse-pointer layouts it
-SHALL sit in the left column under the status rail so it clears the toast and the touch
-buttons. Each request SHALL be a pin through `festivalMap.setObjectives`
+request with a shaft arrow, plain nose-relative direction words and the distance left, and be hideable by the Passenger compass setting. It SHALL sit at the top center on desktop and touch layouts, with toasts positioned below its measured height. Inside the arrival radius, slow/stop or blocked-arrival instructions SHALL replace directional guidance; pending facility handoffs SHALL show “Passenger walking in” without an arrow or urgent countdown. Each request SHALL be a pin through `festivalMap.setObjectives`
 (`models/questBubble.js`; `questHud.js`; `presentation.js`; `compassMath.js`
 `relativeBearing`, `chipState`).
 
@@ -278,13 +276,14 @@ While `npc.hailing` is set, a person SHALL NOT lane-dodge, flee on proximity or 
 
 ### Requirement: Generic facilities accept built alternatives
 
-Hammock and porta-potty requests SHALL accept any currently built matching facility within 25 m and 16 m respectively. Decorative tree hammocks SHALL expose nonblocking, chunk-owned drop-off metadata without exposing an NPC seat or consuming RNG. Other destinations SHALL retain their stored specific target. Planned but absent facilities, wrong kinds and streamed-out entries SHALL NOT complete a ride. Every arrival SHALL satisfy the speed and safe-disembarkation gates before completion, reward or log mutation. Alternate facilities SHALL NOT reset urgent deadlines or increase distance reward beyond the offered trip.
+Solo hammock and porta-potty requests SHALL accept any currently built free matching facility within 25 m and 16 m respectively, provided a valid approach and checked route are available. Tree hammocks SHALL expose real seats and ground-sampled approaches through nonblocking, zero-footprint, chunk-owned metadata without consuming RNG. Group requests SHALL exclude these single-person facilities. Other destinations SHALL retain their stored specific target. Planned but absent facilities, occupied facilities, wrong kinds and streamed-out entries SHALL NOT complete a ride. The activity owner SHALL reserve the resource before safe disembarkation and release the temporary reservation on every exit path. A successful transfer SHALL keep the request in `handoff`, pausing patience and urgent time until the rider enters `hammock_riding` or `using_potty`. Reward and log mutation SHALL occur only then; interruption or resource loss SHALL cancel without reward and release the activity claim. Alternate facilities SHALL NOT reset urgent deadlines or increase distance reward beyond the offered trip.
 
 #### Scenario: Another hammock on the way
 
 - **GIVEN** a rider asked for a hammock at a suggested location
-- **WHEN** the cart slows beside another built hammock with a safe exit
-- **THEN** the rider completes the request at that alternative
+- **WHEN** the cart slows beside another free, reachable built hammock with a safe exit
+- **THEN** that hammock is reserved and the rider walks to it
+- **AND** settling into `hammock_riding` completes the request at that alternative
 - **AND** any distance bonus is capped by the closer accepted trip
 
 #### Scenario: A specific camp
@@ -292,3 +291,15 @@ Hammock and porta-potty requests SHALL accept any currently built matching facil
 - **GIVEN** a rider asked for their camp
 - **WHEN** the cart stops beside another camp
 - **THEN** the request remains active and points to the original destination
+
+
+### Requirement: Ordinary solo deliveries approach their activity
+
+After a completed non-facility solo ride, a bounded destination intent SHALL wait for the exit reaction, choose a nearby live venue and validate a traversable, unobstructed route before claiming walking authority. It SHALL allow at most three active intents and release authority on interruption, unload, route blockage, run end, page hide or the 32-second limit. It SHALL invite existing watching, picnic, market or camp owners where supported after reaching the gathering point; those owners retain their own eligibility and capacity checks. Unsupported venues SHALL use a short gathering-point dwell, and an unavailable route SHALL leave ordinary behavior in control. Mountaintop requests MAY use a checked gathering point without a live campsite. This intent SHALL neither gate nor duplicate the completed ride’s reward (`src/people/destinationIntent.js`; `src/main.js`).
+
+#### Scenario: A stage passenger joins the audience
+
+- **GIVEN** a solo rider completed a stage request with a nearby live stage front and clear route
+- **WHEN** the exit reaction ends
+- **THEN** the passenger walks to a checked gathering point and is invited into existing watching behavior
+- **AND** the temporary walking claim is released

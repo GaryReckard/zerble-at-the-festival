@@ -582,9 +582,12 @@ function getCommandController() {
         for(const kind of ['hammock','hammock_dropoff','porta_potty'])for(const id of h().registry.byKind.get(kind)||[]){
           const e=h().registry.entries.get(id);if(!e)continue;
           const distance=Math.hypot(e.position.x-z.position.x,e.position.z-z.position.z);
-          if(distance<=100)facilities.push({kind,x:e.position.x,z:e.position.z,distance:Math.round(distance*10)/10});
+          if(distance<=100)facilities.push({kind,x:e.position.x,z:e.position.z,distance:Math.round(distance*10)/10,occupied:!!(e.hammock??e.potty)?.occupied});
         }
-        return JSON.stringify({...dbg.quests(),cart:{x:z.position.x,z:z.position.z,speed:z.speed,grounded:z.grounded,immersion:z.engineState?.immersion??0},nearbyFacilities:facilities.sort((a,b)=>a.distance-b.distance)},null,2);
+        const quests=dbg.quests(),person={};
+        const passenger=quests.lastEvent?.riderId && h().crowd.readPerson(quests.lastEvent.riderId,person)
+          ? {state:person.state,x:person.x,y:person.y,z:person.z,claimed:person.claimed,hidden:person.hidden}:null;
+        return JSON.stringify({...quests,lastPassenger:passenger,cart:{x:z.position.x,z:z.position.z,speed:z.speed,grounded:z.grounded,immersion:z.engineState?.immersion??0},nearbyFacilities:facilities.sort((a,b)=>a.distance-b.distance)},null,2);
       }
       if(verb==='log')return JSON.stringify(dbg.questLog(),null,2);
       if(verb==='give')return dbg.giveQuest(kind);

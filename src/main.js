@@ -76,6 +76,7 @@ import { QuestRuntime } from './quests/runtime.js';
 import { QuestPresentation } from './quests/presentation.js';
 import { summitDestinations } from './quests/summitSource.js';
 import { createQuestLog } from './quests/questLog.js';
+import { DestinationIntent } from './people/destinationIntent.js';
 import { Lurleen } from './lurleen.js';
 import { Birds } from './birds.js';
 import { ChaseCamera } from './camera.js';
@@ -916,13 +917,17 @@ crowd.onFrown = () => {
 // event; every board feeds the session_end count).
 // Passenger quests: some boarders ask to be driven somewhere. The runtime owns
 // the rules; thought bubbles, the compass and map pins subscribe to it.
+const destinationIntent = new DestinationIntent(crowd, registry, { getTime: () => getTimeOfDay()?.t ?? .25 });
 const quests = new QuestRuntime({
   crowd, zerble, smiles, registry, worldgen: USE_WORLDGEN_V2,
   toast: (msg, ms, opts) => HUD.toast(msg, ms, opts), sound: Sound, analytics: Analytics,
   deductSmiles: (n) => { Scoring.deduct(n); HUD.setSmiles(Scoring.current); },
   extraDestinations: (origin) => summitDestinations(origin, landscapeRuntime),
   log: createQuestLog((() => { try { return localStorage; } catch { return null; } })()),
-  onCompleted: (quest, log) => bubbleChallenges.onQuestCompleted(quest.type, log?.total ?? 0),
+  onCompleted: (quest, log) => {
+    bubbleChallenges.onQuestCompleted(quest.type, log?.total ?? 0);
+    if (quest.type !== 'party' && !['hammock','porta_potty'].includes(quest.kind)) destinationIntent.start(quest.riderId, quest);
+  },
 });
 // A monk party that boards Zerble shares one destination. The party stays
 // aboard until the quest ends; if it leaves first (dry tank, lost seats) the
@@ -1235,7 +1240,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) { bubbleProgress.flush(); playerStats.flush(); reportPassport('hide'); reportSessionEnd(); }
   else { _sessionEndReported = false; Sound.resume(); }
 });
-window.addEventListener('pagehide', () => { bubbleProgress.flush(); playerStats.flush(); reportPassport('hide'); reportSessionEnd(); });
+window.addEventListener('pagehide', () => { destinationIntent.clear(); bubbleProgress.flush(); playerStats.flush(); reportPassport('hide'); reportSessionEnd(); });
 window.addEventListener('pageshow', () => Sound.resume());
 // Belt-and-suspenders: any touch/click after we're running revives audio if
 // iOS dropped it for a reason we didn't see (route changes, headset unplug).
@@ -1555,7 +1560,7 @@ function tickBody(dt) {
     peopleFrameTrace?.mark('spatial');
     peopleFrameTrace?.pickups('adults-before', smiles);
     if (!npcsFrozen()) people.run('adults',peopleFrame);
-    if (!npcsFrozen()) quests.update(dt);   // after the crowd, so a rider who just left is seen at once
+    if (!npcsFrozen()) { quests.update(dt); destinationIntent.update(dt); }   // after the crowd, so a rider who just left is seen at once
     questView.update(dt);
     peopleFrameTrace?.pickups('adults-after', smiles);
     peopleFrameTrace?.population('adult-poses',crowd);
@@ -2127,7 +2132,7 @@ function registerPeopleHit(hit) {
 // ---- Festival Run death + rescue ----
 function endFestivalRun(cause) {
   if (!RunState.endRun(cause)) return;
-  quests.stop();   // no requests resolve or pay out after the run is over
+  quests.stop(); destinationIntent.clear();   // no requests resolve or pay out after the run is over
   playerStats.flush();
   reportPassport('run_end');
   zerble.sputtering = false;
@@ -2165,7 +2170,7 @@ function runEndMessage(cause,days){
 }
 function endVehicleRun(cause){
   if(vehicleGameOver)return;
-  vehicleGameOver=cause;controlsLocked=true;quests.stop();
+  vehicleGameOver=cause;controlsLocked=true;quests.stop();destinationIntent.clear();
   if(RunMode.isFestival()){endFestivalRun(cause);return;}
   playerStats.flush();reportPassport('run_end');
   Sound.stopSputterLoop();Sound.playRunEndSting(cause);

@@ -43,7 +43,7 @@ export class PassengerQuests {
     const radius = Math.max(info.radius ?? QUEST.ARRIVE_RADIUS, dest.radius ?? 0);
     const total = type === 'urgent' ? QUEST.URGENT_BASE_SECONDS + startDist / QUEST.URGENT_METRES_PER_SECOND : 0;
     const quest = {
-      id: this._nextId++, riderId, type, kind: dest.kind, icon: info.icon, voice: voice || dest.kind,
+      phase: 'riding', id: this._nextId++, riderId, type, kind: dest.kind, icon: info.icon, voice: voice || dest.kind,
       label: dest.label || info.label, short: info.short,
       x: dest.x, z: dest.z, radius, members: Math.max(1, members | 0),
       originX: origin.x, originZ: origin.z,
@@ -102,12 +102,22 @@ export class PassengerQuests {
     return true;
   }
 
+  settleArrival(riderId, emit = null) {
+    const quest = this.get(riderId);
+    if (!quest || quest.phase !== 'handoff') return false;
+    this._remove(quest);
+    this.completed++;
+    emit?.('arrived', quest, { reward: this.reward(quest), line: this._line(quest.voice, 'thanks') });
+    return true;
+  }
+
   update(dt, player, emit = null, prepareArrival = null) {
     if (!(dt > 0)) return;
     this._hintCooldown = Math.max(0, this._hintCooldown - dt);
     const speed = Math.abs(player.speed || 0);
     for (const quest of [...this.quests]) {
       quest.age += dt;
+      if (quest.phase === 'handoff') continue;
       const dist = Math.hypot(quest.x - player.x, quest.z - player.z);
       quest.dist = dist;
       const span = Math.max(1, quest.startDist - quest.radius);
@@ -122,13 +132,15 @@ export class PassengerQuests {
       // rejected landing leaves the quest active so another stop can retry.
       const stop = quest.arrivalTarget;
       const atStop = stop ? Math.hypot(stop.x - player.x, stop.z - player.z) <= stop.radius : inside;
-      if (atStop && speed < QUEST.ARRIVE_SPEED && (!prepareArrival || prepareArrival(quest))) {
+      const ready = atStop && speed < QUEST.ARRIVE_SPEED && (!prepareArrival || prepareArrival(quest));
+      // A failed physical transfer may cancel the quest inside the host callback.
+      if (!this.quests.includes(quest)) continue;
+      if (ready) {
         // Accepting a closer interchangeable facility must not pay the longer
         // suggested trip's distance bonus. Keep the offered deadline unchanged.
         if (stop) quest.rewardDist = Math.min(quest.startDist, Math.hypot(stop.x - quest.originX, stop.z - quest.originZ));
-        this._remove(quest);
-        this.completed++;
-        emit?.('arrived', quest, { reward: this.reward(quest), line: this._line(quest.voice, 'thanks') });
+        quest.phase = 'handoff';
+        if (!quest.handoff) this.settleArrival(quest.riderId, emit);
         continue;
       }
 
@@ -193,7 +205,7 @@ export class PassengerQuests {
 
   snapshot() {
     return this.quests.map((q) => ({
-      id: q.id, riderId: q.riderId, type: q.type, kind: q.kind, label: q.label,
+      phase: q.phase, id: q.id, riderId: q.riderId, type: q.type, kind: q.kind, label: q.label,
       x: q.x, z: q.z, radius: q.radius, dist: Math.round(q.dist), startDist: Math.round(q.startDist),
       warmth: +q.warmth.toFixed(2), stall: Math.round(q.stall), missed: q.missed,
       timeLeft: q.type === 'urgent' ? +q.timeLeft.toFixed(1) : null, reward: this.reward(q),

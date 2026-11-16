@@ -33,9 +33,18 @@ assert.equal(anchors.cx, (anchors.ax + anchors.bx) / 2, 'the sling centers betwe
 assert.equal(anchors.halfSupport, (anchors.bx - anchors.ax) / 2, 'the sling span uses the bark-to-bark distance');
 
 let draws = 0;
-const { seatPos } = buildTreeHammock(ax, az, bx, bz, () => { draws++; return 0; }, radiusA, radiusB);
+const { seatPos, yaw, group } = buildTreeHammock(ax, az, bx, bz, () => { draws++; return 0; }, radiusA, radiusB);
 assert.equal(draws, 1, 'the adjusted anchors add no random draws');
 assert.equal(seatPos.x, anchors.cx, 'the lounge seat follows the adjusted support midpoint');
 assert.equal(seatPos.z, anchors.cz, 'the lounge seat follows the adjusted support midpoint');
 
 process.stdout.write('PASS tree hammock anchors clear both trunk radii and preserve the RNG draw count\n');
+
+assert.equal(yaw, 0, 'the rest pose follows the horizontal sling tangent');
+const diagonal = buildTreeHammock(1, 2, 4, 6, () => 0, .4, .9);
+assert(Math.abs(diagonal.yaw - Math.atan2(4, 3)) < 1e-12);
+const cloth = group.children.find(child => child.name === 'hammock_cradle').geometry.attributes.position.array;
+const center = 10 * 5 + 2;
+assert(Math.abs(cloth[center * 3] - seatPos.x) < 1e-6);
+assert(Math.abs(cloth[center * 3 + 2] - seatPos.z) < 1e-6);
+assert(Math.abs(cloth[center * 3 + 1] + .2 - seatPos.y) < 1e-6, 'seat rests exactly above actual sagging fabric');

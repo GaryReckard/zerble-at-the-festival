@@ -1,3 +1,4 @@
+import {planActivityRoute, activityLine} from './people/activityRoute.js';
 import {createSupportBinding} from './landscape/support.js';
 import {hoopFootLift} from './people/hoop/feet.js';
 import {validateHoopFeet} from './people/hoop/leg.js';
@@ -1119,8 +1120,9 @@ export class Crowd {
       return;
     }
     if (npc.state === 'walking_to_hammock') {
-      // If Zerble shows up nearby and the NPC is curious, abort the hammock plan.
-      if (dToZerble < SMILE_RANGE && npc.curiosity > 0.65) {
+      // Ambient visitors may turn back to the cart; delivered passengers keep
+      // their reserved destination until entry, interruption or timeout.
+      if (dToZerble < SMILE_RANGE && npc.curiosity > 0.65 && !this.hammocks.records.get(npc.personHandle)?.delivery) {
         this._releaseHammock(npc);
         npc.state = 'approaching';
       } else if (this._tickWalkingToHammock(dt, npc)) {
@@ -2148,8 +2150,11 @@ export class Crowd {
   // seat because every nearby exit crosses a cliff or closed deck edge.
   // `beside` puts a rider without a surface binding next to the cart at once
   // (terrain-bound riders always land there), for exits that end in a pose.
-  _exitRide(npc, zerble, beside = false) {
-    if (npc.surfaceBinding && !this._landPassenger(npc, zerble)) return false;
+  _exitRide(npc, zerble, beside = false, landing = null) {
+    if (landing) {
+      if (landing.binding) npc.surfaceBinding = landing.binding;
+      npc.pos.set(landing.x, landing.y, landing.z);
+    } else if (npc.surfaceBinding && !this._landPassenger(npc, zerble)) return false;
     this._releaseSeat(npc);
     const seatPos = { x: npc.pos.x, z: npc.pos.z };
     npc.seatSlot = null;
@@ -2159,7 +2164,7 @@ export class Crowd {
     // Pick a destination 3-6m away from where we got off
     const a = Math.random() * Math.PI * 2;
     const r = 3 + Math.random() * 3;
-    if (npc.surfaceBinding) npc.target.set(seatPos.x, 0, seatPos.z);
+    if (npc.surfaceBinding || landing) npc.target.set(seatPos.x, 0, seatPos.z);
     else if (beside) {
       const side = zerble.heading + (Math.random() < 0.5 ? Math.PI / 2 : -Math.PI / 2);
       npc.pos.x = zerble.position.x + Math.sin(side) * 3.6;
@@ -2258,10 +2263,10 @@ export class Crowd {
   // cart; `flee` sends them running. Returns false if they could not get off
   // (no safe ground). Arrival retries retain their hold; ended quests release
   // it so the ordinary riding loop can disembark them at the next safe stop.
-  endRide(handle, zerble, { celebrate = 0, flee = false, retainHold = false } = {}) {
+  endRide(handle, zerble, { celebrate = 0, flee = false, retainHold = false, landing = null } = {}) {
     const npc = this.peopleHandles.resolve(handle);
     if (!npc || npc.state !== 'riding' || npc.party || npc.seatSlot?.vehicle) return false;
-    if ((zerble.physicsDriven && (!zerble.grounded || (zerble.engineState?.immersion ?? 0) > 0.4)) || !this._exitRide(npc, zerble, true)) {
+    if ((zerble.physicsDriven && (!zerble.grounded || (zerble.engineState?.immersion ?? 0) > 0.4)) || !this._exitRide(npc, zerble, true, landing)) {
       if (!retainHold) { npc.rideHold = false; npc.rideTimer = 0; }
       return false;
     }
@@ -2277,6 +2282,111 @@ export class Crowd {
     return true;
   }
 
+  sampleActivityGround(handle, x, z, out = {}) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (!npc || !Number.isFinite(x) || !Number.isFinite(z)) return null;
+    if (npc.surfaceBinding) {
+      const sample = npc.surfaceBinding.propose(x, z, out);
+      return sample.valid && sample.traversable ? sample : null;
+    }
+    out.height = terrainHeight(x, z); out.valid = true; out.traversable = true;
+    return out;
+  }
+
+  _questApproaches(entry, kind) {
+    if (kind === 'hammock') return entry.hammock?.approaches ?? [entry.hammock?.seatPos];
+    if (!entry.potty) return [];
+    return [{ x: entry.position.x + entry.potty.outX * 2.4, y: entry.position.y,
+      z: entry.position.z + entry.potty.outZ * 2.4 }];
+  }
+
+  planQuestRoute(handle, entry, kind, landing) {
+    const registry = (kind === 'hammock' ? this.hammocks : this.bathrooms).registry;
+    // A rider's own binding still points to the boarding site. This isolated
+    // binding has the walker's footprint and the cart's accepted support layer.
+    const sampler = landing.binding ? {
+      sampleActivityGround(_handle, x, z, out) {
+        const sample = landing.binding.sample(x, z, out);
+        return sample.valid && sample.traversable ? sample : null;
+      },
+    } : this;
+    for (const point of this._questApproaches(entry, kind)) {
+      if (!point) continue;
+      const ground = sampler.sampleActivityGround(handle, point.x, point.z, {});
+      if (!ground || (Number.isFinite(point.y) && Math.abs(ground.height - point.y) > 2.5)) continue;
+      const interior = kind === 'hammock' ? entry.hammock.seatPos : entry.position;
+      if (!activityLine(sampler, registry, handle, point, interior, kind === 'porta_potty' ? entry : null)) continue;
+      const route = planActivityRoute(sampler, registry, handle, landing, point);
+      if (!route) continue;
+      if (kind === 'hammock') route.push(interior);
+      if (landing.binding) {
+        const walk = landing.binding.fork(landing.binding.snapshot());
+        const checked = kind === 'hammock' ? route : [...route, interior];
+        if (!checked.every(p => {
+          const step = walk.move(p.x, p.z);
+          return step.valid && step.traversable;
+        })) continue;
+      }
+      return route;
+    }
+    return null;
+  }
+
+  questActivityStepClear(handle, from, to, ignore = null) {
+    return activityLine(this, this.hammocks?.registry ?? this.bathrooms.registry, handle, from, to, ignore);
+  }
+
+  canReachQuestActivity(handle, entry, kind, cart = null) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (!npc) return null;
+    const binding = npc.state === 'riding' && cart ? cart.surfaceBinding : npc.surfaceBinding;
+    return this._questApproaches(entry, kind).find(point => {
+      if (!point) return false;
+      if (!binding) return true;
+      const sample = binding.sample(point.x, point.z, {});
+      return sample.valid && sample.traversable && (!Number.isFinite(point.y) || Math.abs(sample.height - point.y) <= 2.5);
+    }) ?? null;
+  }
+
+  // Reserve the resource while the rider still owns a seat, then transfer to
+  // the existing activity only after the physical exit succeeds.
+  beginQuestActivity(handle, zerble, kind, entryId) {
+    const npc = this.peopleHandles.resolve(handle);
+    const owner = kind === 'hammock' ? this.hammocks : kind === 'porta_potty' ? this.bathrooms : null;
+    const entry = this.registry?.entries.get(entryId) ?? owner?.registry.entries.get(entryId);
+    if (!owner || !entry || !npc || npc.state !== 'riding' || npc.party || npc.seatSlot?.vehicle) return { blocked: 'facility_missing' };
+    const ticket = owner.reserveArrival(handle, entry);
+    if (!ticket) return { blocked: 'occupied' };
+    let committed = false;
+    try {
+      const landing = this._findPassengerLanding(npc, zerble);
+      if (!landing) return { blocked: 'unsafe_exit' };
+      ticket.route = this.planQuestRoute(handle, entry, kind, landing);
+      if (!ticket.route) return { blocked: 'unreachable' };
+      if (!this.endRide(handle, zerble, { retainHold: true, landing })) return { blocked: 'unsafe_exit' };
+      npc.state = 'idle'; npc.cheerTimer = 0;
+      if (!owner.tryClaim(handle, ticket)) return { blocked: 'activity_unavailable', exited: true };
+      committed = true;
+      return { owner, handle, record: owner.records.get(handle), entryId };
+    } finally {
+      owner.releaseArrival(ticket);
+      if (!committed && owner.records.has(handle)) owner.release(handle, 'quest-handoff-failed');
+    }
+  }
+
+  questActivityStatus(handoff) {
+    const { owner, handle, record } = handoff;
+    const npc = this.peopleHandles.resolve(handle);
+    if (!npc || owner.records.get(handle) !== record || !this.activityClaims.canWrite(record.claim)) return 'cancelled';
+    const valid = owner === this.hammocks ? owner.valid(record) : !owner._pottyEntryGone(record.motion);
+    if (!valid) return 'cancelled';
+    return npc.state === 'hammock_riding' || npc.state === 'using_potty' ? 'entered' : 'walking';
+  }
+
+  cancelQuestActivity(handoff) {
+    if (handoff.owner.records.get(handoff.handle) === handoff.record) handoff.owner.release(handoff.handle, 'quest-cancelled');
+  }
+
   // A relieved rider heads for the nearest free porta-potty, when one is in reach.
   sendToPotty(handle) {
     const npc = this.peopleHandles.resolve(handle);
@@ -2287,24 +2397,47 @@ export class Crowd {
 
   _landPassenger(npc, vehicle) {
     if (!npc.surfaceBinding) return true;
-    if (!vehicle?.surfaceBinding) return false;
-    const accepted = vehicle.surfaceBinding.snapshot();
-    let landing;
-    try { landing = npc.surfaceBinding.fork({x:vehicle.position.x,z:vehicle.position.z,heading:vehicle.heading,surfaceId:accepted.surfaceId}); }
-    catch (error) { if (error instanceof RangeError) return false; throw error; }
-    for (const offset of [Math.PI/2,-Math.PI/2,Math.PI,0,Math.PI/4,-Math.PI/4,3*Math.PI/4,-3*Math.PI/4]) {
-      const angle=vehicle.heading+offset, x=vehicle.position.x+Math.sin(angle)*3.8, z=vehicle.position.z+Math.cos(angle)*3.8;
-      const support=landing.propose(x,z,npc._surfaceReach || (npc._surfaceReach={}));
-      if (!support.valid || !support.traversable) continue;
-      let clear=true;registry.collidersNear(x,z,.4,e=>{
-        if(vehicle.colliders?.includes(e))return;
-        const c=e.collider;if(c.minY!==undefined&&c.maxY!==undefined&&(support.height>e.position.y+c.maxY||support.height+2.5<e.position.y+c.minY))return;
-        if(Math.hypot(e.position.x-x,e.position.z-z)<c.radius+.4)clear=false;
-      });
-      if(!clear||this.npcs.some(other=>other!==npc&&!['riding','boarding'].includes(other.state)&&Math.abs(other.pos.y-support.height)<2.5&&Math.hypot(other.pos.x-x,other.pos.z-z)<.8))continue;
-      landing.commit(x,z,support);npc.surfaceBinding=landing;npc.pos.set(x,support.height,z);return true;
+    const landing = this._findPassengerLanding(npc, vehicle);
+    if (!landing) return false;
+    npc.surfaceBinding = landing.binding;
+    npc.pos.set(landing.x, landing.y, landing.z);
+    return true;
+  }
+
+  _findPassengerLanding(npc, vehicle) {
+    let binding = null;
+    if (npc.surfaceBinding) {
+      if (!vehicle.surfaceBinding) return null;
+      const { surfaceId } = vehicle.surfaceBinding.snapshot();
+      try {
+        binding = npc.surfaceBinding.fork({ x: vehicle.position.x, z: vehicle.position.z, heading: vehicle.heading, surfaceId });
+      } catch (error) {
+        if (error instanceof RangeError) return null;
+        throw error;
+      }
     }
-    return false;
+    const colliders = this.registry ?? registry;
+    for (const offset of [Math.PI/2, -Math.PI/2, Math.PI, 0, Math.PI/4, -Math.PI/4, 3*Math.PI/4, -3*Math.PI/4]) {
+      const angle = vehicle.heading + offset;
+      const x = vehicle.position.x + Math.sin(angle) * 3.8;
+      const z = vehicle.position.z + Math.cos(angle) * 3.8;
+      const support = binding?.propose(x, z, npc._surfaceReach ??= {});
+      if (support && (!support.valid || !support.traversable)) continue;
+      const y = support?.height ?? terrainHeight(x, z);
+      let blocked = false;
+      colliders.collidersNear(x, z, .4, entry => {
+        if (vehicle.colliders?.includes(entry)) return;
+        const c = entry.collider;
+        if (c.minY !== undefined && c.maxY !== undefined &&
+            (y > entry.position.y + c.maxY || y + 2.5 < entry.position.y + c.minY)) return;
+        if (Math.hypot(entry.position.x - x, entry.position.z - z) < c.radius + .4) blocked = true;
+      });
+      if (blocked || this.npcs.some(other => other !== npc && !['riding','boarding'].includes(other.state) &&
+        Math.abs(other.pos.y - y) < 2.5 && Math.hypot(other.pos.x - x, other.pos.z - z) < .8)) continue;
+      if (binding) binding.commit(x, z, support);
+      return { x, y, z, binding };
+    }
+    return null;
   }
 
   _tickDisembarking(dt, npc) {

@@ -61,7 +61,7 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 - Heart button — open Bubble Upgrades
 - Book button — open the Festival Passport
 
-Facility rides to hammocks or porta-potties accept any matching spot. Other requests name a specific destination, and the Passenger rides panel explains the difference.
+The Passenger rides panel sits at the top center and shows an arrow and plain directions relative to Zerble’s nose, then asks you to slow down or stop as you arrive. Hammock and porta-potty rides accept any nearby free, reachable matching facility; wait for the passenger to settle into the hammock or enter the potty to finish the ride. Other requests name a specific destination, and solo passengers walk toward its nearby activity when a clear route is available.
 
 ## Finding your way
 

@@ -1,0 +1,120 @@
+{
+  "enabled": true,
+  "completed": 1,
+  "offered": 1,
+  "hails": [
+    {
+      "id": "hail:3",
+      "type": "ride",
+      "kind": "food_court",
+      "label": "the food trucks",
+      "age": 6,
+      "boarding": false
+    }
+  ],
+  "log": {
+    "total": 3,
+    "smiles": 18,
+    "byType": {
+      "ride": 3
+    },
+    "byKind": {
+      "hammock": 3
+    },
+    "recent": [
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794797391360
+      },
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794796403808
+      },
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794796377974
+      }
+    ]
+  },
+  "lastGatherMs": 0.5,
+  "lastEvent": {
+    "type": "arrived",
+    "kind": "hammock",
+    "riderId": {
+      "ownerToken": {},
+      "slot": 134,
+      "generation": 2
+    },
+    "reward": 6,
+    "line": "Thanks for the ride!"
+  },
+  "active": [],
+  "lastPassenger": {
+    "state": "hammock_riding",
+    "x": 189.26906643059795,
+    "y": 6.037876633534913,
+    "z": -0.9095525206573751,
+    "claimed": true,
+    "hidden": false
+  },
+  "cart": {
+    "x": 191.00868225097656,
+    "z": -18.024736404418945,
+    "speed": 0.0040076770388855635,
+    "grounded": true,
+    "immersion": 0
+  },
+  "nearbyFacilities": [
+    {
+      "kind": "hammock",
+      "x": 189.3079933260844,
+      "z": -0.7746524045407104,
+      "distance": 17.3,
+      "occupied": true
+    },
+    {
+      "kind": "hammock",
+      "x": 158.58108902350068,
+      "z": -10.606677923351526,
+      "distance": 33.3,
+      "occupied": true
+    },
+    {
+      "kind": "hammock",
+      "x": 178.0370049001624,
+      "z": 17.79183334404579,
+      "distance": 38.1,
+      "occupied": true
+    },
+    {
+      "kind": "hammock",
+      "x": 232.0867040926595,
+      "z": 45.44000882988617,
+      "distance": 75.6,
+      "occupied": true
+    },
+    {
+      "kind": "hammock",
+      "x": 255.5682027858174,
+      "z": 22.84706596789507,
+      "distance": 76.4,
+      "occupied": true
+    },
+    {
+      "kind": "hammock",
+      "x": 258.498647552693,
+      "z": 23.191929116180034,
+      "distance": 79.1,
+      "occupied": true
+    }
+  ]
+}

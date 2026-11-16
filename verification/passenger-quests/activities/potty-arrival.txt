@@ -1,0 +1,108 @@
+{
+  "enabled": true,
+  "completed": 1,
+  "offered": 2,
+  "hails": [],
+  "log": {
+    "total": 3,
+    "smiles": 18,
+    "byType": {
+      "ride": 3
+    },
+    "byKind": {
+      "hammock": 3
+    },
+    "recent": [
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794797391360
+      },
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794796403808
+      },
+      {
+        "kind": "hammock",
+        "type": "ride",
+        "label": "a hammock",
+        "reward": 6,
+        "at": 1794796377974
+      }
+    ]
+  },
+  "lastGatherMs": 0.5,
+  "lastEvent": {
+    "type": "near",
+    "kind": "porta_potty",
+    "riderId": {
+      "ownerToken": {},
+      "slot": 134,
+      "generation": 2
+    },
+    "line": "Almost there!",
+    "tone": "near"
+  },
+  "active": [
+    {
+      "phase": "handoff",
+      "id": 2,
+      "riderId": {
+        "ownerToken": {},
+        "slot": 134,
+        "generation": 2
+      },
+      "type": "urgent",
+      "kind": "porta_potty",
+      "label": "the nearest porta-potty",
+      "x": 242.1854921846285,
+      "z": -104.65120898461429,
+      "radius": 16,
+      "dist": 6,
+      "startDist": 125,
+      "warmth": 1,
+      "stall": 0,
+      "missed": false,
+      "timeLeft": 47.7,
+      "reward": 14,
+      "via": null,
+      "viaReached": false
+    }
+  ],
+  "lastPassenger": {
+    "state": "seeking_potty",
+    "x": 236.15851269053496,
+    "y": 0,
+    "z": -107.01250648475336,
+    "claimed": true,
+    "hidden": false
+  },
+  "cart": {
+    "x": 235.15333557128906,
+    "z": -104.79635620117188,
+    "speed": 0.0008249186116796556,
+    "grounded": true,
+    "immersion": 0
+  },
+  "nearbyFacilities": [
+    {
+      "kind": "porta_potty",
+      "x": 242.1854921846285,
+      "z": -104.65120898461429,
+      "distance": 7,
+      "occupied": true
+    },
+    {
+      "kind": "hammock",
+      "x": 295.3568998026323,
+      "z": -37.53623470519251,
+      "distance": 90.3,
+      "occupied": true
+    }
+  ]
+}

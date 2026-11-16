@@ -252,10 +252,12 @@ assert.equal(planOffer([{ kind: 'food_court', x: 10, z: 0 }], origin), null, 'no
   let chip = chipState(quest, { x: 0, z: 0, heading: 0 });
   assert.equal(chip.angle, 0); assert.equal(chip.text, '130 m', 'distance is to the edge of the stop'); assert.equal(chip.urgent, true); assert.match(chip.clock, /^\d:\d\d$/);
   engine.update(0.1, { x: 0, z: -140, speed: 5 });
+  // The runtime supplies the actual built facility accepted for this stop.
+  quest.arrivalTarget = { x: 0, z: -150, radius: quest.radius };
   chip = chipState(quest, { x: 0, z: -140, heading: 0 });
   assert.equal(chip.text, 'Stop here!'); assert.equal(chip.inside, true);
   assert.equal(chipState(quest, { x: 0, z: -140, heading: 0, speed: 6 }).text, 'Slow down!', 'inside the stop but too fast to let anyone off');
-  assert.equal(chip.label, 'Potty!!!');
+  assert.equal(chip.label, 'Any porta-potty');
 }
 
 // --- a party speaks in its own voice but shows the real destination --------
@@ -363,13 +365,22 @@ console.log('passenger quests: catalog, picking, offers, arrival, missed, patien
   cart.seatSlots = [slot];
   npc._seatReservation = crowd.seatReservations.reserve({ person: handle, vehicle: cart, slot });
   npc.seatSlot = slot; npc.state = 'riding'; npc.rideHold = true; npc.rideTimer = 10;
-  npc.surfaceBinding = {};
   let safe = false, pottyCalls = 0, rewards = 0, completions = 0;
-  crowd._landPassenger = () => safe;
+  crowd._findPassengerLanding = () => safe ? { x: 103.8, y: 0, z: 0, binding: null } : null;
   crowd._publishPerson = () => {};
-  crowd.bathrooms = { has: () => false, tryClaim: () => { pottyCalls++; return true; } };
+  const { readFileSync } = await import('node:fs');
+  const { runInNewContext } = await import('node:vm');
+  const source = readFileSync(new URL('../src/people/pottyActivity.js', import.meta.url), 'utf8').replace(/import[\s\S]*?from [\"'][^\"']+[\"'];?/, '').replace('export class', 'class');
+  const PottyActivity = runInNewContext(source + ';PottyActivity', { POTTY_DOOR_STAND: 2.4, POTTY_SEAT_BACK: .6, POTTY_SEAT_Y: .92, STINK_DUR: 1.7 });
+  crowd.canReachPlace = () => true;
+  crowd.canReachQuestActivity = (_h, entry) => entry.hammock?.approaches?.[0] ?? entry.position;
+  crowd.sampleActivityGround = (_h, _x, _z, out) => Object.assign(out, { height: 0, valid: true, traversable: true });
+  npc.energy = 1;
+
   const log = createQuestLog();
-  const facilityRegistry = { byKind: new Map([['porta_potty', new Set([1])]]), entries: new Map([[1, { kind: 'porta_potty', position: { x: 100, z: 0 } }]]) };
+  const facilityRegistry = { byKind: new Map([['porta_potty', new Set([1])]]), entries: new Map([[1, { id: 1, kind: 'porta_potty', position: { x: 100, y: 0, z: 0 }, potty: { outX: 0, outZ: 1, occupied: false, doorOpen: 1 } }]]) };
+  crowd.bathrooms = new PottyActivity(crowd, facilityRegistry, { random: () => .5 });
+  crowd._inlineActivities = new Set([crowd.bathrooms]);
   const runtime = new QuestRuntime({ crowd, zerble: cart, smiles: { spawn: () => rewards++ }, registry: facilityRegistry, worldgen: false, log, onCompleted: () => completions++, random: () => 0.5 });
   runtime.hailing = false;
   runtime.engine.offer(handle, { x: 0, z: 0 }, { kind: 'porta_potty', x: 100, z: 0 }, { type: 'urgent' });
@@ -388,12 +399,24 @@ console.log('passenger quests: catalog, picking, offers, arrival, missed, patien
     assert.equal(crowd.endRide(handle, cart, { retainHold: true }), false, 'crowd also guards physical exits');
   }
   cart.grounded = true; cart.engineState.immersion = 0;
-  runtime.update(0.05);
+  for (let frame = 0; frame < 15 && runtime.active[0].phase !== 'handoff'; frame++) runtime.update(.05);
+  assert.equal(runtime.active[0].phase, 'handoff');
+  assert.equal(rewards, 0, 'physical exit alone earns nothing');
+  const timeLeft = runtime.active[0].timeLeft;
+  cart.position.x = 500;
+  for (let i = 0; i < 500 && runtime.active.length; i++) {
+    npc.stateTimer -= .05;
+    const method = { seeking_potty: '_tickSeekingPotty', entering_potty: '_tickEnteringPotty', using_potty: '_tickUsingPotty' }[npc.state];
+    if (method) crowd[method](.05, npc);
+    runtime.update(.05);
+    if (runtime.active.length) assert.equal(runtime.active[0].timeLeft, timeLeft);
+  }
   assert.equal(runtime.active.length, 0); assert.equal(runtime.engine.completed, 1);
   assert.equal(slot.occupied, false); assert.equal(npc.seatSlot, null);
-  assert.equal(log.total, 1); assert.equal(completions, 1); assert.equal(pottyCalls, 1); assert(rewards > 0);
+  assert.equal(log.total, 1); assert.equal(completions, 1); assert.equal(npc.state, 'using_potty'); assert(rewards > 0);
   const paid = rewards; runtime.update(0.05); assert.equal(rewards, paid, 'arrival pays exactly once');
 
+  crowd.bathrooms.release(handle); cart.position.x = 100;
   npc.surfaceBinding = null; npc.state = 'idle'; npc.pos.set(120, 0, 0); npc.cheerTimer = 0;
   const candidates = () => { const found = []; crowd.forEachHailCandidate(cart, 10, 75, h => found.push(h)); return found; };
   assert.equal(candidates().length, 0, 'delivered people cannot hail during their cooldown');
@@ -543,6 +566,8 @@ console.log('passenger quests: catalog, picking, offers, arrival, missed, patien
       physicsDriven: true, grounded: true, engineState: { immersion: 0 } };
     const crowd = { riderInfo: () => true, holdRide() {}, forEachHailCandidate() {},
       endRide(_h, _c, opts) { assert.equal(opts.retainHold, true); if (!safe) return false; exits++; return true; },
+      beginQuestActivity() { if (!safe) return { blocked: 'unsafe_exit' }; exits++; return { pending: true }; },
+      questActivityStatus() { return 'entered'; }, cancelQuestActivity() {},
       sendToPotty() { potty++; } };
     const runtime = new QuestRuntime({ crowd, zerble: cart, registry, worldgen: false,
       smiles: { spawn() { rewards++; } }, random: seq(0.5) });
@@ -550,7 +575,7 @@ console.log('passenger quests: catalog, picking, offers, arrival, missed, patien
     const quest = runtime.engine.offer('rider', origin, { kind, x: 180, z: 0 }, { type });
     const put = (facilityKind, x, z = 0) => {
       const id = registry.entries.size + 1;
-      registry.entries.set(id, { kind: facilityKind, position: { x, z } });
+      registry.entries.set(id, { id, kind: facilityKind, position: { x, y: 0, z }, hammock: facilityKind === 'hammock' ? { occupied: false, seatPos: { x, y: 1, z } } : undefined, potty: facilityKind === 'porta_potty' ? { occupied: false, outX: 0, outZ: 1 } : undefined });
       if (!registry.byKind.has(facilityKind)) registry.byKind.set(facilityKind, new Set());
       registry.byKind.get(facilityKind).add(id);
       return id;
@@ -591,13 +616,15 @@ console.log('passenger quests: catalog, picking, offers, arrival, missed, patien
     assert.equal(runtime.active.length, 1);
     f.put(kind, radius); f.setSafe(true);
     runtime.update(0.05);
+    assert.equal(quest.phase, 'handoff');
+    runtime.update(0.05);
     assert.equal(runtime.active.length, 0); assert.equal(runtime.engine.completed, 1);
     const reward = runtime.engine.reward(quest);
     assert.equal(quest.rewardDist, radius);
     assert.equal(quest.startDist, startDist); assert.equal(quest.totalTime, deadline);
     if (type === 'ride') assert(reward < originalReward, 'closer facility earns only its actual distance bonus');
     assert.equal(f.counts().exits, 1); assert.equal(f.counts().rewards, reward);
-    assert.equal(f.counts().potty, type === 'urgent' ? 1 : 0);
+    assert.equal(f.counts().potty, 0);
     runtime.update(0.05); assert.equal(f.counts().rewards, reward, 'matching facility pays once');
   }
   for (const kind of ['camp_village', 'mountaintop', 'main_stage', 'side_stage', 'tent_stage']) {

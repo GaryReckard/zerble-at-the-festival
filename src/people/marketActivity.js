@@ -34,6 +34,32 @@ export class MarketActivity {
   has(handle) {
     return this.records.has(handle);
   }
+  // Delivery visits use the same frontage reservation and motion owner as
+  // spontaneous browsing, but name the booth they actually walked up to.
+  tryVisit(handle, entry, time = this.time) {
+    if (this.disposed || this.starActive || this.records.has(handle) || !Number.isFinite(time) || time < .04 || time >= .735 ||
+        this.registry.entries.get(entry?.id) !== entry) return false;
+    const s = this._state(handle);
+    if (!this.people.readMarketMotion(handle, s) || s.claimed || s.grouped ||
+        s.camping || s.jamming || s.cheerTimer > 0 || s.frownTimer > 0 ||
+        !['idle', 'walking'].includes(s.state)) return false;
+    const booth = entry.vendor, market = booth?.userData.market;
+    if (!market?.open || market.customer || frontageOwners.has(market)) return false;
+    const yaw = booth.rotation.y;
+    const x = entry.position.x + Math.sin(yaw) * 3.2;
+    const z = entry.position.z + Math.cos(yaw) * 3.2;
+    if (Math.hypot(x - s.pos.x, z - s.pos.z) > 2 || this._isSpotBlocked(x, z) ||
+        (this.people.canReachPlace && !this.people.canReachPlace(handle, {x, z, y: entry.position.y}))) return false;
+    s.marketRng ||= this.rngFactory((s.behaviorSeed ^ 0x53484f50) >>> 0);
+    if (!this._acquireVisit(s, {entry, market, x, z, yaw, age: 0})) return false;
+    this.time = time;
+    s.state = 'market_walking'; s.stateTimer = 24; s.publication = false;
+    if (!this.people.commitMarketMotion(s.claim, s)) {
+      this.people.endPersonActivity(s.claim, {reason: 'rest-interrupted'});
+      return false;
+    }
+    return true;
+  }
   _state(handle) {
     let s = this.states.get(handle);
     if (!s) {

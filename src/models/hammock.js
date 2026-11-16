@@ -121,5 +121,6 @@ export function buildTreeHammock(ax, az, bx, bz, rng = Math.random, radiusA = .7
   const restY = 1.45, sagDepth = .5;
   slingWithRopes(group, anchors.cx, anchors.cz, anchors.ux, anchors.uz,
     anchors.halfSupport, restY, sagDepth, .95, color);
-  return { group, seatPos: new THREE.Vector3(anchors.cx, restY - sagDepth + .2, anchors.cz) };
+  return { group, seatPos: new THREE.Vector3(anchors.cx, restY - sagDepth + .2, anchors.cz),
+    yaw: Math.atan2(anchors.uz, anchors.ux) };
 }

@@ -1,0 +1,86 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {DestinationIntent} from '../src/people/destinationIntent.js';
+import {MarketActivity} from '../src/people/marketActivity.js';
+function fixture(kind='stage_front') {
+  const handle={}, person={x:0,y:0,z:0,state:'walking',claimed:false};
+  const entry={id:1,kind,position:{x:8,y:.8,z:0},vendor:{rotation:{y:0},userData:{market:{open:true}}}};
+  const registry={entries:new Map([[1,entry]]),byKind:new Map([[kind,[1]]]),collidersNear(){}};
+  const calls=[], claims=new Map();
+  const people={
+    readPerson(h,out){if(h!==handle)return false;Object.assign(out,person);return true;},
+    sampleActivityGround(h,x,z,out){Object.assign(out,{valid:true,traversable:true,height:x*.1});return out;},
+    claimActivity(h,options){const claim={person:h};claims.set(claim,options);person.claimed=true;return claim;},
+    writeActivityPose(claim,x,y,z,heading,bob,dt){assert(claims.has(claim));assert(Math.abs(y-x*.1)<1e-10);assert(dt<=.05);Object.assign(person,{x,y,z});calls.push(['pose',x,y,z,dt]);return true;},
+    endPersonActivity(claim){assert(claims.has(claim));claims.get(claim).release(claim);claims.delete(claim);person.claimed=false;person.state='walking';return true;},
+    invitePersonToWatch(h){assert.equal(h,handle);calls.push(['watch']);},
+    picnics:{tryClaim(h){calls.push(['picnic',h]);}},
+    markets:{tryVisit(h,e,t){calls.push(['market',h,e,t]);}},
+    camps:{setCooldown(h,t){calls.push(['cooldown',t]);},tick(dt,h,t){calls.push(['camp',t]);}},
+  };
+  const intent=new DestinationIntent(people,registry,{getTime:()=>.6});
+  const run=(n=700)=>{for(let i=0;i<n;i++)intent.update(.05);};
+  return {handle,person,entry,registry,calls,claims,people,intent,run};
+}
+for(const [kind,quest,call] of [['stage_front','main_stage','watch'],['drum_circle','drum_circle','watch'],
+ ['picnic_table','food_court','picnic'],['tent','vendor_row','market'],['campsite','camp_village','camp']]){
+ const f=fixture(kind);assert(f.intent.start(f.handle,{kind:quest,x:8,z:0}));
+ f.run(50);assert.equal(f.calls.length,0,'ride cheer precedes purposeful walking');
+ f.run();assert.equal(f.intent.records.size,0);assert.equal(f.claims.size,0);
+ assert(f.calls.some(c=>c[0]===call),quest+' hands off to its existing public owner');
+ assert(Math.abs(f.person.x-8)<.16);assert(f.calls.some(c=>c[0]==='pose'&&c[4]===0),'arrival stops walking animation');
+ if(call==='market')assert(f.calls.some(c=>c[0]==='market'&&c[2]===f.entry&&c[3]===.6));
+ if(call==='camp')assert(f.calls.some(c=>c[0]==='camp'&&c[1]===.6));
+}
+{
+ const f=fixture();f.people.sampleActivityGround=()=>null;
+ f.intent.start(f.handle,{kind:'main_stage',x:8,z:0});f.run();assert.equal(f.calls.length,0);assert.equal(f.claims.size,0);
+}
+{
+ const f=fixture();f.registry.collidersNear=(x,z,r,fn)=>fn({position:{x,y:0,z},collider:{radius:1}});
+ f.intent.start(f.handle,{kind:'main_stage',x:8,z:0});f.run();assert.equal(f.calls.length,0,'blocked paths never receive pose writes');
+}
+{
+ const f=fixture();f.intent.start(f.handle,{kind:'main_stage',x:8,z:0});f.run(60);
+ assert.equal(f.claims.size,1);f.registry.entries.delete(1);f.run();assert.equal(f.claims.size,0,'unload releases walking authority');
+}
+{
+ const f=fixture();f.intent.start(f.handle,{kind:'main_stage',x:8,z:0});f.run(60);
+ const claim=[...f.claims.keys()][0];f.people.endPersonActivity(claim);const count=f.calls.length;f.run();assert.equal(f.calls.length,count,'interruption prevents stale writes');
+}
+{
+ const f=fixture();f.intent.start(f.handle,{kind:'main_stage',x:8,z:0});f.run(60);f.intent.clear();assert.equal(f.claims.size,0);
+ assert(!f.intent.start(f.handle,{kind:'hammock',x:8,z:0}),'facility delivery stays with its exclusive owner');
+ assert(!f.intent.start(f.handle,{kind:'monk_party',x:8,z:0}));
+ assert.throws(()=>f.intent.update(.2),RangeError);
+ f.intent.dispose();assert(!f.intent.start(f.handle,{kind:'main_stage',x:8,z:0}));
+}
+{
+ const f=fixture();f.people.readPerson=(h,out)=>{Object.assign(out,f.person);return true;};
+ for(let i=0;i<3;i++)assert(f.intent.start({}, {kind:'main_stage',x:8,z:0}));
+ assert(!f.intent.start({}, {kind:'main_stage',x:8,z:0}), 'only three delivery walks can be active');
+ f.intent.clear();assert.equal(f.intent.records.size,0);
+}
+{
+ const f=fixture();f.intent.start(f.handle,{kind:'main_stage',x:8,z:0});f.run(60);
+ f.registry.collidersNear=(x,z,r,fn)=>fn({position:{x,y:0,z},collider:{radius:1}});
+ const before=f.person.x;f.run();assert.equal(f.person.x,before);assert.equal(f.claims.size,0,'new obstruction releases the claim');
+}
+{
+ const f=fixture();f.people.writeActivityPose=()=>true; // A blocked mover can fail to make progress without rejecting writes.
+ f.intent.start(f.handle,{kind:'main_stage',x:8,z:0});f.run();
+ assert.equal(f.intent.records.size,0);assert.equal(f.claims.size,0,'timeout releases a non-progressing walk');
+}
+// Exercise the real market owner's targeted entry path and reservation cleanup.
+{
+ const f=fixture('tent');f.person.x=8;f.person.z=3.2;
+ f.people.readMarketMotion=(h,out)=>{Object.assign(out,{state:'walking',claimed:false,grouped:false,behaviorSeed:17});out.pos.set(8,.8,3.2);return true;};
+ f.people.commitMarketMotion=(claim,s)=>s.state==='market_walking';
+ f.people.claimActivity=(h,options)=>{const claim={person:h};f.claims.set(claim,options);return claim;};
+ const market=new MarketActivity(f.people,f.registry);
+ assert(market.tryVisit(f.handle,f.entry,.6));assert(f.entry.vendor.userData.market.customer);
+ assert(!market.tryVisit(f.handle,f.entry,.6),'a person cannot reserve the booth twice');
+ market.dispose();assert.equal(f.entry.vendor.userData.market.customer,null);assert.equal(f.claims.size,0);
+ assert(!new MarketActivity(f.people,f.registry).tryVisit(f.handle,f.entry,.9),'night closure is respected');
+}
+console.log('PASS destination intent: venue handoffs, grounded walking, bounded delta, blockers, unload, interruptions, cleanup and real market reservation.');

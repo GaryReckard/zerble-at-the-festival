@@ -19,7 +19,7 @@ export { isGenericFacility, resolveNearbyFacility } from './facilityArrival.js';
 const STAGES = new Set(['main_stage', 'side_stage', 'tent_stage']);
 const PLAN_KINDS = new Set(['food_court', 'vendor_row', 'drum_circle', 'arch', 'healing_arts']);
 // registry kind -> quest kind
-const REGISTRY_KINDS = { beach: 'beach', hammock: 'hammock', hammock_dropoff: 'hammock', forest_drum_circle: 'drum_circle', porta_potty: 'porta_potty' };
+const REGISTRY_KINDS = { beach: 'beach', hammock: 'hammock', forest_drum_circle: 'drum_circle', porta_potty: 'porta_potty' };
 const LEGACY_REGISTRY_KINDS = { stage_front: 'side_stage', drum_circle: 'drum_circle', campsite: 'camp_village', arch: 'arch' };
 
 function fromPlan(d) {
@@ -64,7 +64,9 @@ export function gatherDestinations(origin, { registry, worldgen = true, reach = 
     const seen = new Set();
     for (const [registryKind, kind] of Object.entries(kinds)) {
       for (const id of registry.byKind.get(registryKind) || []) {
-        const p = registry.entries.get(id)?.position;
+        const entry = registry.entries.get(id);
+        if (kind === 'hammock' && (!entry?.hammock || entry.hammock.occupied)) continue;
+        const p = entry?.position;
         if (!p || !within(p.x, p.z)) continue;
         const cell = kind === 'porta_potty' ? null : `${kind}:${Math.floor(p.x / 40)},${Math.floor(p.z / 40)}`;
         if (cell) { if (seen.has(cell)) continue; seen.add(cell); }

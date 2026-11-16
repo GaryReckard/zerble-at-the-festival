@@ -1,0 +1,189 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+import { makePeopleCrowd, Vector } from './test-support/peopleCrowd.js';
+import { createSupportWorld, createSupportBinding } from '../src/landscape/support.js';
+import { HammockActivity } from '../src/people/hammockActivity.js';
+import { QuestRuntime } from '../src/quests/runtime.js';
+const source = readFileSync(new URL('../src/people/pottyActivity.js', import.meta.url), 'utf8').replace(/import[\s\S]*?from ["'][^"']+["'];?/, '').replace('export class', 'class');
+const PottyActivity = runInNewContext(source + ';PottyActivity', { POTTY_DOOR_STAND: 2.4, POTTY_SEAT_BACK: .6, POTTY_SEAT_Y: .92, STINK_DUR: 1.7 });
+function fixture(kind, destinationX = 5) {
+  const crowd = makePeopleCrowd();
+  const npc = crowd.spawn({ pos: new Vector(0, 0, 5) });
+  Object.assign(npc, { energy: 1, curiosity: .9, rideHold: true, state: 'riding', rideTimer: Infinity });
+  const slot = { occupied: false }, cart = { position: new Vector(destinationX - 5, 0, 0), heading: 0, speed: 0, seatSlots: [slot] };
+  npc._seatReservation = crowd.seatReservations.reserve({ person: npc.personHandle, vehicle: cart, slot }); npc.seatSlot = slot;
+  const entry = { id: 1, kind, footprint: 0, position: new Vector(destinationX, 0, 0),
+    hammock: kind === 'hammock' ? { occupied: false, seatPos: new Vector(destinationX, 1.3, 0), yaw: 0, approaches: [{ x: destinationX, y: 0, z: 1.2 }, { x: destinationX, y: 0, z: -1.2 }] } : undefined,
+    potty: kind === 'porta_potty' ? { occupied: false, outX: 0, outZ: 1, doorOpen: 1 } : undefined };
+  const registry = { entries: new Map([[1, entry]]), byKind: new Map([[kind, new Set([1])]]) };
+  crowd.registry = registry;
+  const obstacles = [];
+  if (entry.potty) entry.collider = { radius: 1.2 };
+  registry.collidersNear = (_x, _z, _radius, visit) => {
+    obstacles.forEach(visit);
+    for (const e of registry.entries.values()) if (e.collider) visit(e);
+  };
+  let supported = true;
+  const world = createSupportWorld({sampleTerrain: (x, z, out) => Object.assign(out, {height: 0, dx: 0, dz: 0, traversable: supported})});
+  npc.surfaceBinding = createSupportBinding(world, npc.pos);
+  cart.surfaceBinding = createSupportBinding(world, cart.position);
+  npc.pos.copy(cart.position);
+  crowd.hammocks = new HammockActivity(crowd, registry, { random: () => .5 });
+  crowd.bathrooms = new PottyActivity(crowd, registry, { random: () => .5 });
+  crowd._inlineActivities = new Set([crowd.hammocks, crowd.bathrooms]);
+  let reward = 0;
+  crowd._publishPerson = () => {};
+  const runtime = new QuestRuntime({ crowd, zerble: cart, registry, worldgen: false, smiles: { spawn() { reward++; } }, random: () => .5 }); runtime.hailing = false;
+  const quest = runtime.engine.offer(npc.personHandle, { x: -100, z: 0 }, { kind, x: 100, z: 0 }, { type: kind === 'porta_potty' ? 'urgent' : 'ride' });
+  function tick() {
+    npc.stateTimer -= .05;
+    if (Number.isFinite(npc.rideTimer)) npc.rideTimer -= .05;
+    if (npc.state === 'walking_to_hammock') crowd.hammocks.tickWalking(.05, npc.personHandle);
+    else if (npc.state === 'hammock_riding') crowd.hammocks.tickRiding(.05, npc.personHandle);
+    else if (npc.state.endsWith('_potty')) crowd.bathrooms.tick(.05, npc.personHandle);
+    runtime.update(.05);
+  }
+  return { crowd, npc, slot, cart, entry, registry, runtime, quest, tick, obstacles, resource: entry.hammock ?? entry.potty,
+    owner: kind === 'hammock' ? crowd.hammocks : crowd.bathrooms, get reward() { return reward; }, setSupported(value) { supported = value; }, setSafe(value) { cart.physicsDriven = true; cart.grounded = value; } };
+}
+// Execute the production outer dispatcher, with unrelated ambient systems
+// disabled at their boundaries, so direct owner ticks cannot hide preemption.
+const crowdSource = readFileSync(new URL('../src/crowd.js', import.meta.url), 'utf8');
+const dispatcherSource = crowdSource.slice(crowdSource.indexOf('  _updateNpc('), crowdSource.indexOf('  _writeMatrices(npc) {'));
+function outerTick(f) {
+  const dispatcher = runInNewContext(dispatcherSource.replace('_updateNpc(', 'function updateNpc(') + ';updateNpc', {
+    registry: f.registry, SMILE_RANGE: 14,
+    isPhotographerState: () => false, tickPhotographerOpportunity: () => false,
+    ORDINARY_SOCIAL_STATES: new Set(['idle', 'walking']),
+  });
+  f.crowd._tickMarket = () => false;
+  f.crowd._tickCamp = () => false;
+  f.crowd.campJams.tickPerson = () => false;
+  f.npc.dance = .5;
+  dispatcher.call(f.crowd, .05, f.npc, f.cart, [], 0, {});
+}
+for (const kind of ['hammock', 'porta_potty']) {
+  const preferred = fixture(kind);
+  preferred.resource.occupied = true;
+  const alternative = { ...preferred.entry, id: 2, position: new Vector(8, 0, 0),
+    [kind === 'hammock' ? 'hammock' : 'potty']: { ...preferred.resource, occupied: false } };
+  preferred.registry.entries.set(2, alternative); preferred.registry.byKind.get(kind).add(2);
+  preferred.runtime.update(.05);
+  assert.equal(preferred.quest.arrivalTarget.entryId, 2, 'free facilities beat closer occupied candidates');
+  assert.equal(preferred.quest.blockedTarget, null); preferred.runtime.clear();
+  const f = fixture(kind);
+  f.resource.occupied = true; f.runtime.update(.05);
+  assert.equal(f.npc.state, 'riding'); assert(f.slot.occupied); assert.equal(f.reward, 0);
+  assert.equal(f.quest.arrivalBlocked, 'occupied', 'occupied alternative is diagnosed outside the original stop radius');
+  assert.equal(f.quest.blockedTarget.entryId, 1); assert.equal(f.quest.arrivalTarget, null);
+  const occupiedDeadline = f.quest.timeLeft;
+  f.runtime.update(.05);
+  if (kind === 'porta_potty') assert(f.quest.timeLeft < occupiedDeadline, 'occupied guidance never pauses deadline');
+  f.registry.entries.delete(1); f.runtime.update(.05);
+  assert.equal(f.quest.blockedTarget, null, 'unloaded occupied facility loses its diagnostic');
+  f.registry.entries.set(1, f.entry);
+  f.resource.occupied = false;
+  const competing = f.owner.reserveArrival({}, f.entry);
+  assert(competing); assert.equal(f.owner.reserveArrival(f.npc.personHandle, f.entry), null);
+  f.runtime.update(.05); assert(f.slot.occupied); f.owner.releaseArrival(competing);
+  f.setSafe(false); f.runtime.update(.05); assert(f.slot.occupied); assert.equal(f.resource.occupied, false, 'unsafe exit releases pre-reservation');
+  f.setSafe(true); for (let frame = 0; frame < 15 && f.quest.phase !== 'handoff'; frame++) f.runtime.update(.05);
+  assert.equal(f.quest.blockedTarget, null, 'free stop clears occupied guidance');
+  assert.equal(f.quest.phase, 'handoff'); assert.equal(f.reward, 0); assert.equal(f.slot.occupied, false); assert.equal(f.npc.seatSlot, null);
+  const walkingState = f.npc.state;
+  outerTick(f);
+  assert.equal(f.npc.state, walkingState, 'actual outer dispatcher preserves curious delivered visitor beside the cart');
+  assert(f.owner.has(f.npc.personHandle)); assert(f.resource.occupied);
+  const deadline = f.quest.timeLeft;
+  f.cart.position.x = 500;
+  for (let frame = 0; frame < 1000 && f.runtime.active.length; frame++) { f.tick(); assert.equal(f.quest.timeLeft, deadline); }
+  assert.equal(f.runtime.engine.completed, 1); assert(f.reward > 0);
+  assert.equal(f.npc.state, kind === 'hammock' ? 'hammock_riding' : 'using_potty');
+  const reward = f.reward;
+  for (let frame = 0; frame < 1200; frame++) f.tick();
+  assert.equal(f.reward, reward); assert.equal(f.resource.occupied, false); assert.equal(f.owner.records.size, 0);
+  for (const reason of ['clear', 'unload', 'despawn', 'interrupt']) {
+    const g = fixture(kind); g.runtime.update(.05); assert.equal(g.quest.phase, 'handoff');
+    if (reason === 'clear') g.runtime.clear();
+    else if (reason === 'unload') g.registry.entries.delete(1);
+    else if (reason === 'despawn') g.crowd.removePerson(g.npc.personHandle);
+    else g.crowd.claimActivity(g.npc.personHandle, { owner: { activityKey: 'reaction' } });
+    g.runtime.update(.05);
+    assert.equal(g.reward, 0, reason); assert.equal(g.runtime.active.length, 0, reason);
+    assert.equal(g.resource.occupied, false, reason); assert.equal(g.slot.occupied, false, reason);
+    if (reason === 'clear') {
+      g.npc.state = 'idle'; assert(g.owner.tryClaim(g.npc.personHandle), 'cancelled resource can be reused'); g.owner.release(g.npc.personHandle);
+    }
+  }
+}
+
+
+// A whole party must not promise a single hammock/door that cannot host it.
+{
+  const f=fixture('hammock'); f.entry.position.x=100;
+  assert.equal(f.runtime.offerParty({}, {leave(){}}, 5, {force:'hammock'}),null);
+  f.runtime.clear();
+}
+
+function obstacle(x, z, radius) {
+  return { position: { x, z, y: 0 }, collider: { radius } };
+}
+
+for (const kind of ['hammock', 'porta_potty']) {
+  const f = fixture(kind, 160);
+  f.cart.position.x = 145;
+  f.cart.surfaceBinding.reset(f.cart.position);
+  f.npc.pos.copy(f.cart.position);
+  assert.equal(f.npc.surfaceBinding.propose(160, 0).reason, 'sweep-limit');
+  f.obstacles.push(obstacle(154, 0, 2));
+  if (kind === 'hammock') f.obstacles.push(obstacle(160, 1.2, .45));
+  const plan = f.crowd.planQuestRoute;
+  let plans = 0;
+  f.crowd.planQuestRoute = function (...args) { plans++; return plan.apply(this, args); };
+  f.runtime.update(.05);
+  assert.equal(f.quest.phase, 'handoff', 'a ride beyond the boarding support sweep can reach the facility');
+  const record = f.owner.records.get(f.npc.personHandle);
+  const route = record.route ?? record.motion.deliveryRoute;
+  assert(route.length >= 2, 'route skirts the intervening obstacle');
+  if (kind === 'hammock') assert.equal(route.at(-2).z, -1.2, 'blocked positive side uses the other broadside');
+  for (let frame = 0; frame < 1000 && f.runtime.active.length; frame++) {
+    f.tick();
+    for (const e of f.obstacles) assert(Math.hypot(f.npc.pos.x - e.position.x, f.npc.pos.z - e.position.z) >= e.collider.radius + .37);
+  }
+  assert.equal(plans, 1); assert.equal(f.runtime.engine.completed, 1);
+  const blocked = fixture(kind);
+  blocked.runtime.update(.05);
+  blocked.obstacles.push(obstacle(blocked.npc.pos.x, blocked.npc.pos.z, .8));
+  blocked.tick();
+  assert.equal(blocked.runtime.active.length, 0, 'new obstacle aborts before the first step');
+  assert.equal(blocked.resource.occupied, false); assert.equal(blocked.reward, 0);
+
+  const unreachable = fixture(kind);
+  unreachable.obstacles.push(obstacle(unreachable.entry.position.x, unreachable.entry.position.z, 3));
+  unreachable.runtime.update(.05);
+  assert.equal(unreachable.quest.arrivalBlocked, 'unreachable');
+  unreachable.runtime.update(.05);
+  assert.equal(unreachable.quest.arrivalBlocked, 'unreachable', 'retry interval preserves blocked guidance');
+  assert(unreachable.slot.occupied); assert.equal(unreachable.resource.occupied, false);
+  const stalled = fixture(kind);
+  stalled.runtime.update(.05);
+  for (let frame = 0; frame < 1400 && stalled.runtime.active.length; frame++) stalled.runtime.update(.05);
+  assert.equal(stalled.runtime.active.length, 0, 'watchdog releases a transfer whose activity no longer ticks');
+  assert.equal(stalled.resource.occupied, false); assert.equal(stalled.reward, 0);
+}
+
+for (const reason of ['lost-support', 'closed-door']) {
+  const f = fixture('porta_potty');
+  f.runtime.update(.05);
+  for (let frame = 0; frame < 250 && f.npc.state !== 'entering_potty'; frame++) f.tick();
+  assert.equal(f.npc.state, 'entering_potty');
+  if (reason === 'lost-support') f.setSupported(false);
+  else f.resource.doorOpen = 0;
+  for (let frame = 0; frame < 140 && f.runtime.active.length; frame++) f.tick();
+  assert.equal(f.runtime.active.length, 0, reason);
+  assert.equal(f.owner.has(f.npc.personHandle), false, reason);
+  assert.equal(f.resource.occupied, false, reason); assert.equal(f.reward, 0, reason);
+}
+console.log('Quest activities passed, including long rides on real support, routed walks, alternate hammock access, occupied races, rejected interior movement, stalled handoffs, settlement and cleanup.');
