@@ -25,6 +25,9 @@ export default defineConfig({
     ],
   },
   server: { host: '127.0.0.1', port: 8765, strictPort: true,
+    // Agent worktrees and captures are not part of the running game. A nested
+    // production build must not reload the player's main-checkout session.
+    watch: { ignored: ['**/.claude/**', '**/.codex/**', '**/.agents/**'] },
     fs: { deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**',
       '**/.claude/**', '**/.codex/**', '**/.agents/**', '**/.aws/**'] } },
   preview: { host: '127.0.0.1', port: 8765, strictPort: true },

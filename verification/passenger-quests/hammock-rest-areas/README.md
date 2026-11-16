@@ -54,3 +54,7 @@ Tree density varies by quality tier, so an unsuitable sparse camp may have no
 hammock. Same-chunk ownership avoids relying on a neighboring camp being loaded;
 the generator retains its existing registry-based scenery admission behavior.
 These checks do not establish physical-device performance or readability.
+
+## Local watcher follow-up
+
+The main Vite server log showed nested worktree builds triggering reloads. Agent directories are now excluded from the development watcher. `node bin/test-toolchain.mjs` passed, and a real Vite watcher probe confirmed that an ordinary HTML file emits an event while `.claude/worktrees/fixture/dist/index.html` does not. The temporary server and its files were closed and removed after the probe.
