@@ -69,14 +69,29 @@ export function createDebugCommands(actions, targets, targetDescriptions, worldg
   add('where','Show world coordinates and heading','where',[],()=>actions.where());
   add('seed','Show the current procedural seed','seed',[],()=>actions.seed());
   add('status','Show simulation, world and rendering status','status',[],()=>actions.status());
-  add('quest','Inspect passenger requests or exercise their live pickup/drop-off path','quest <status|give|go|hail|pickup|approach|log> [kind]',[['status','give','go','hail','pickup','approach','log'], ['main_stage','food_court','vendor_row','camp_village','porta_potty','hammock','urgent','summit']],args=>{
-    const verbs = ['status','give','go','hail','pickup','approach','log'];
-    const kinds = ['main_stage','food_court','vendor_row','camp_village','porta_potty','hammock','urgent','summit'];
-    if (!verbs.includes(args[0]) || args.length > 2 || (args.length === 2 && (!['give','hail'].includes(args[0]) || !kinds.includes(args[1])))) return use('quest');
-    return actions.quest(args[0], args[1]);
+  const questKinds = ['main_stage','side_stage','tent_stage','food_court','vendor_row','drum_circle','camp_village','arch','healing_arts','beach','porta_potty','hammock','mountaintop','urgent','summit'];
+  const partyKinds=questKinds.filter(kind=>!['hammock','porta_potty','mountaintop','urgent','summit'].includes(kind));
+  const questVerbs = ['status','give','go','hail','pickup','approach','party','log'];
+  add('quest','Inspect requests; give/hail/party accept a kind; go/pickup/approach select a passenger or hailer (1-based)',
+    'quest <status|give|go|hail|pickup|approach|party|log> [kind|number]',
+    [questVerbs, args=>args[0]==='party'?partyKinds:['give','hail'].includes(args[0])?questKinds:args[0]==='go'?['1','2','3']:['pickup','approach'].includes(args[0])?['1','2']:[]],args=>{
+    if (!questVerbs.includes(args[0]) || args.length > 2) return use('quest');
+    let value=args[1];
+    if (value!==undefined) {
+      if (['give','hail','party'].includes(args[0])) { if (!(args[0]==='party'?partyKinds:questKinds).includes(value)) return use('quest'); }
+      else if (['go','pickup','approach'].includes(args[0])) {
+        value=number(value,1,args[0]==='go'?3:2,true); if(value===null)return use('quest');
+      } else return use('quest');
+    }
+    return actions.quest(args[0], value);
   });
-  add('inspect','Inspect people controllers, nearby camps, NPC states, audio or world counts','inspect <people|camps|npcs|audio|world>',[['people','camps','npcs','audio','world']],args=>{
-    if(args.length!==1||!['people','camps','npcs','audio','world'].includes(args[0]))return use('inspect');
+  add('summon','Request a safe nearby encounter; placement and population limits still apply','summon <wagon|rider>',[['wagon','rider']],args=>{
+    if(args.length!==1||!['wagon','rider'].includes(args[0]))return use('summon');
+    return actions.summon(args[0]);
+  });
+  const inspections=['people','camps','npcs','audio','world','physics','map','upgrades'];
+  add('inspect','Inspect people, camps, NPC states, audio, world, physics, map or upgrades','inspect <people|camps|npcs|audio|world|physics|map|upgrades>',[inspections],args=>{
+    if(args.length!==1||!inspections.includes(args[0]))return use('inspect');
     return actions.inspect(args[0]);
   });
   add('camera','Switch to chase or a top-down view; optional span in metres','camera <chase|top> [20..600]',[['chase','top'],args=>args[0]==='top'?['60','120','240','480']:[]],args=>{

@@ -47,6 +47,8 @@ assert.equal(welcomeFoodCourt().clusterSeed, firstWelcomeSeed, 'changing seeds i
 console.log('PASS  welcome court selection and safe Sugar Shack fallback');
 
 
+// Retain close-court fixtures to exercise named-vendor admission independently.
+setFestivalTuning({FOOD_COURT_MIN_SPACING:0});bumpWorldgen();
 let checked=0,retained=0;
 for(const seed of [2641474229,1234,42,932033385,0]){
  setSeed(seed);

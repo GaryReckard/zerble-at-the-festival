@@ -8,17 +8,17 @@ let seed=1977;
 const position={x:0,y:3,z:0,set(x,y,z){Object.assign(this,{x,y,z});}};
 const hearts=[100,200,300].map((x,i)=>({x,z:0,cx:i,cz:0,rank:'major'}));
 const entries=new Map([1,2,3].map(id=>[id,{id,kind:'lake',position:{x:id*100,z:0},footprint:12}]));
-const hooks={zerble:{position,speed:12,heading:0},registry:{entries}};
+const hooks={zerble:{position,speed:12,heading:0},registry:{entries,collidersNear(x,z,r,visit){for(const e of entries.values())if(e.collider)visit(e);}}};
 const districts=[100,200,300].map(x=>({x,z:0,pitches:[{}],paths:[{}, {bx:x,bz:14}]}));
 const context=vm.createContext({state:{hooks},createDebugCommands,getSessionSeed:()=>seed,USE_WORLDGEN_V2:true,
- heartsInBounds:()=>hearts,festivalPlan:h=>[{kind:'main_stage',x:h.x,z:0}],
+ heartsInBounds:()=>hearts,festivalPlan:h=>[{kind:'main_stage',x:h.x,z:0},{kind:'vendor_row',x:h.x,z:20}],
  nearestMajorHeart:(x,z,r,accept)=>hearts.filter(accept).sort((a,b)=>Math.abs(a.x-x)-Math.abs(b.x-x))[0],
  computeFrontAxis:()=>({bearing:0}),FESTIVAL_TUNING:{KIND_FOOTPRINT:{}},
  woodlandCampsNear:()=>[...districts],campVillagesNear:()=>hearts.map(h=>({...h,kind:'camp_village',tents:5})),
  getForestAt:()=>null,api:()=>({teleport(x,z){position.set(x,position.y,z);hooks.zerble.speed=0;}}),
 });
 vm.runInContext(source.slice(source.indexOf('function landmarkKey('),source.indexOf('\nfunction api()'))+';this.tp=teleportLandmark;this.command=runDebugCommand;this.suggest=debugCommandSuggestions;',context);
-for(const kind of ['stage','hub','woodland_camp','camp_village','lake']){
+for(const kind of ['stage','hub','woodland_camp','camp_village','vendor_row','lake']){
  position.set(0,3,0);
  const first=context.tp(kind),second=context.tp(kind),third=context.tp(kind),wrap=context.tp(kind);
  assert(first&&second&&third&&wrap,kind);
@@ -74,3 +74,35 @@ allowed=false;seed++;position.set(0,3,0);districts.push(...saved);assert.equal(c
 delete hooks.zerble.surfaceBinding;delete hooks.zerble.relocateOnSurface;
 teleport(25,35);assert.equal(physicsResets,2);assert.equal(position.x,25);assert.equal(position.z,35);
 console.log('PASS overlay and landmark teleports retain selected-support admission, refuse before position mutation and preserve existing ordinary teleport behavior.');
+
+// Run the actual menu rendering expression against the same catalog used by /tp.
+const menuSource=source.slice(source.indexOf('  const tpOptsHtml ='),source.indexOf('  tpContent.innerHTML =',source.indexOf('  const tpOptsHtml =')));
+vm.runInContext(menuSource+';this.menuHtml=tpOptsHtml;this.targets=COMMAND_TARGETS;this.destinations=TELEPORT_DESTINATIONS;',context);
+const menuKinds=[...context.menuHtml.matchAll(/value="([^"]+)"/g)].map(m=>m[1]);
+assert.deepEqual([...new Set(Object.values(context.targets))].sort(),menuKinds.sort(),'every command destination appears exactly once in the menu');
+assert.equal(new Set(menuKinds).size,menuKinds.length);
+assert.match(context.menuHtml,/Cornhole court \(loaded\)/);
+assert.match(context.menuHtml,/Vendor row \(world search\)/);
+assert.equal(context.targets.woodland,context.targets.camp);
+assert.equal(context.targets.potty,context.targets.porta_potty);
+for(const kind of ['hammock','porta_potty','beach']){
+ seed++;position.set(0,3,0);
+ const ids=[1000,1001,1002];ids.forEach((id,i)=>entries.set(id,{id,kind,position:{x:(i+1)*20,z:10},footprint:0}));
+ const visits=[context.tp(kind),context.tp(kind),context.tp(kind)];
+ assert.equal(new Set(visits.map(d=>d.targetKey)).size,3,kind+' cycles loaded facilities');
+ const destination=visits[0],target=entries.get(ids[0]).position;
+ assert(Math.hypot(destination.x-target.x,destination.z-target.z)>=5,'arrive outside the facility');
+ assert(Math.abs(destination.heading-Math.atan2(target.x-destination.x,destination.z-target.z))<1e-9,'face the facility');
+ ids.forEach(id=>entries.delete(id));
+ assert.equal(context.tp(kind),null,'unloaded facilities disappear');
+ assert.match(context.command('/tp '+(kind==='porta_potty'?'potty':kind)),/No loaded/);
+}
+entries.set(1000,{kind:'hammock',position:{x:20,z:10},footprint:0});
+entries.set(1001,{kind:'obstacle',position:{x:20,z:10},collider:{radius:50}});
+assert.equal(context.tp('hammock'),null,'reject every approach if surrounding colliders block it');
+entries.delete(1000);entries.delete(1001);
+const legacy=vm.createContext({USE_WORLDGEN_V2:false});
+vm.runInContext(source.slice(source.indexOf('const TELEPORT_DESTINATIONS ='),source.indexOf('function commandRenderStats'))+';this.targets=COMMAND_TARGETS;this.destinations=TELEPORT_DESTINATIONS;',legacy);
+assert.equal(legacy.targets.drum,'drum_circle_forest');assert.equal(legacy.targets.camp,'campsite_forest');
+assert(!Object.hasOwn(legacy.targets,'vendors'));assert.equal(legacy.targets.cornhole,'cornhole_game');
+console.log('PASS shared menu/command catalog in both generators, aliases, scope labels, loaded facility cycling, unload and blocked approaches.');

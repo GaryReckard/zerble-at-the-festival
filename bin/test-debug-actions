@@ -15,13 +15,16 @@ const hooks={zerble:{position:{x:0,y:0,z:0},heading:0,speed:3,forwardWorld:{x:0,
  chaseCam:{dbgCamTopDown(...args){calls.push(['camera',...args]);},dbgCamUnlock(){calls.push(['chase']);}}};
 const state={hooks,pendingSteps:99,paused:false,freezeNPCs:false,god:false,showColliders:false,perfSamples:[]};
 let mute=true;
-const context=vm.createContext({state,createDebugCommands,USE_WORLDGEN_V2:true,getSessionSeed:()=>1977,
+const dbg={};
+for(const method of ['physics','festivalMap','upgrades','monkQuest','giveQuest','hail','hailGo','hailApproach','questGo'])dbg[method]=(...args)=>{calls.push([method,...args]);return {method,args};};
+dbg.summonNutWagon=()=>true;dbg.summonOneWheel=()=>false;
+const context=vm.createContext({window:{__dbg:dbg},state,createDebugCommands,USE_WORLDGEN_V2:true,getSessionSeed:()=>1977,
  Sound:{isMuted:()=>mute,isReady:()=>true,campJamStates:()=>[],setMuted:v=>mute=v},
  api:()=>({pause:on=>state.paused=on,step:n=>state.pendingSteps+=n,god:on=>state.god=on,
  showColliders:on=>state.showColliders=on,freezeNPCs:on=>state.freezeNPCs=on,
  dropSmile:n=>calls.push(['smiles',n]),recordPerf:on=>state.perfRecording=on}),
 });
-vm.runInContext(source.slice(source.indexOf('const COMMAND_TARGETS ='),source.indexOf('\nfunction openCommandPrompt()'))+';this.run=runDebugCommand;',context);
+vm.runInContext(source.slice(source.indexOf('const TELEPORT_DESTINATIONS ='),source.indexOf('\nfunction openCommandPrompt()'))+';this.run=runDebugCommand;',context);
 const run=text=>context.run(text);
 run('/step 10');assert.equal(state.paused,true);assert.equal(state.pendingSteps,10,'step replaces old pending work');
 run('/resume');assert.equal(state.paused,false);assert.equal(state.pendingSteps,0,'resume discards pending steps');
@@ -45,3 +48,42 @@ run('/mute off');assert(!mute);run('/mute on');assert(mute);
 console.log('PASS actual game command adapter: coherent pause/step queue, time/heading/juice, safe crowd states, scene-render counts, camera transforms, claims inspection and session mute.');
 
 assert.match(run('/inspect people'),/children/);
+
+for(const [command,method,args] of [
+ ['/quest go 2','questGo',[1]],['/quest pickup 2','hailGo',[1]],['/quest approach 2','hailApproach',[1]],
+ ['/quest go','questGo',[0]],['/quest give porta_potty','giveQuest',['urgent']],
+ ['/quest give mountaintop','giveQuest',['summit']],['/quest party food_court','monkQuest',['food_court']],
+ ['/inspect physics','physics',[]],['/inspect map','festivalMap',[]],['/inspect upgrades','upgrades',[]],
+]){run(command);assert.deepEqual(calls.at(-1),[method,...args],command);}
+assert.match(run('/summon wagon'),/summoned nearby/);
+assert.match(run('/summon rider'),/Could not summon/);
+console.log('PASS expanded adapters: 1-based selectors, special offer aliases, party requests, read-only diagnostics and honest summon feedback.');
+
+// Exercise the production helpers, including failed selected-surface relocation.
+const main=fs.readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+const helperSource=main.slice(main.indexOf('    hailGo(i ='),main.indexOf('    questLog(action)'))+
+ main.slice(main.indexOf('    questGo(i ='),main.indexOf('    nutWagon()'))+
+ main.slice(main.indexOf('    teleport(x ='),main.indexOf('    // Star power test surface.'));
+let allowMove=false,relocated=0,reset=0;
+const cart={heading:.4,position:{x:0,z:0},surfaceBinding:{},relocateOnSurface(x,z,options){if(!allowMove)return false;Object.assign(this.position,{x,z});this.heading=options.heading;return true;}};
+const helperContext=vm.createContext({zerble:cart,physicalWorld:{reset(){reset++;}},playerStats:{relocate(){relocated++;}},
+ quests:{hails:[{handle:10},{handle:20}],active:[{x:100,z:200,radius:25,label:'one'},{x:300,z:400,radius:25,label:'two'}]},
+ crowd:{walkerInfo(handle,w){Object.assign(w,{x:handle,z:handle+1});return true;}}});
+const helpers=vm.runInContext('({'+helperSource+'})',helperContext);
+assert.match(helpers.hailGo(1),/no safe driving support/);
+assert.match(helpers.hailApproach(1),/no safe driving support/);
+assert.match(helpers.questGo(1),/no safe driving support/);
+assert.equal(cart.heading,.4);assert.equal(relocated,0);assert.equal(reset,0);
+allowMove=true;helpers.hailApproach(1);
+assert.equal(cart.position.x,55);assert.equal(cart.position.z,21);assert.equal(cart.heading,Math.PI/2);
+helpers.hailGo(1);assert.equal(cart.position.x,25);assert.equal(cart.position.z,24);
+helpers.questGo(1);assert.equal(cart.position.x,290);assert.equal(cart.position.z,400);
+assert.equal(relocated,3);assert.equal(reset,3);
+console.log('PASS production quest helpers: selected hailer/request, heading admission, blocked teleports do not claim success or mutate relocation state.');
+
+hooks.registry.byKind=new Map();
+dbg.quests=()=>({active:[{label:'one'},{label:'two'}],hails:[{label:'first'},{label:'second'}],lastEvent:null});
+const numbered=JSON.parse(run('/quest status'));
+assert.deepEqual(numbered.active.map(q=>q.number),[1,2]);
+assert.deepEqual(numbered.hails.map(q=>q.number),[1,2]);
+console.log('PASS quest status labels current request and hailer ordering with the same one-based selectors.');

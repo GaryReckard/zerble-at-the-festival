@@ -1,0 +1,3855 @@
+{
+  "seed": 3185230054,
+  "marker": {
+    "x": -1887.63,
+    "z": -1232.91
+  },
+  "plans": [
+    {
+      "heart": {
+        "cx": -13,
+        "cz": -10,
+        "x": -2574,
+        "z": -1965,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "vendor_row",
+          "x": -2583,
+          "z": -1906,
+          "yaw": -0.7724118804772759,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2807381083
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2567,
+          "z": -1894,
+          "yaw": -2.214297435588181,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2952553897,
+          "tier": "minimal",
+          "parentSeed": 2807381083,
+          "scale": 1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -2528,
+          "z": -1956,
+          "yaw": -1.88283844835743,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 841005892
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -12,
+        "cz": -10,
+        "x": -2240,
+        "z": -1882,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -2257,
+          "z": -1883,
+          "yaw": -2.380738182798515,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 3108659302,
+          "fbin": 161,
+          "scale": 1.196220836485736
+        },
+        {
+          "kind": "vendor_row",
+          "x": -2277,
+          "z": -1831,
+          "yaw": -0.8465463260467496,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1664507050
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2247,
+          "z": -1917,
+          "yaw": -0.2860514417173182,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3051348012,
+          "tier": "plaza",
+          "parentSeed": 3108659302,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2261,
+          "z": -1818,
+          "yaw": -2.2531128816696446,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3361452428,
+          "tier": "minimal",
+          "parentSeed": 1664507050,
+          "scale": 1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -2244,
+          "z": -1916,
+          "yaw": -0.2860514417173182,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 308343741
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -11,
+        "cz": -10,
+        "x": -2099,
+        "z": -1976,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "vendor_row",
+          "x": -2116,
+          "z": -1913,
+          "yaw": -0.28177186727335246,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2943403793
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2122,
+          "z": -1884,
+          "yaw": 2.937574673997245,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2623487393,
+          "tier": "minimal",
+          "parentSeed": 2943403793,
+          "scale": 1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -2056,
+          "z": -2002,
+          "yaw": -1.169567527790048,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1666930613
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -10,
+        "cz": -10,
+        "x": -1887,
+        "z": -1894,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1890,
+          "z": -1925,
+          "yaw": -3.3133985018329852,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 293025337,
+          "fbin": 199,
+          "scale": 1.4600670841755345
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1943,
+          "z": -1919,
+          "yaw": 4.033726489636377,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3864308584
+        },
+        {
+          "kind": "food_court",
+          "x": -1905,
+          "z": -1805,
+          "yaw": 3.6355340225093755,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 90881398
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1851,
+          "z": -1941,
+          "yaw": -1.1814796049617557,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3936586832,
+          "tier": "plaza",
+          "parentSeed": 293025337,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1970,
+          "z": -1922,
+          "yaw": 1.460139105621001,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 217255224,
+          "tier": "minimal",
+          "parentSeed": 3864308584,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1913,
+          "z": -1766,
+          "yaw": 2.9392710252114895,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 33359503,
+          "tier": "standard",
+          "parentSeed": 90881398,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1850,
+          "z": -1938,
+          "yaw": -1.1814796049617557,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2791424913
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -9,
+        "cz": -10,
+        "x": -1706,
+        "z": -1833,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1675,
+          "z": -1838,
+          "yaw": -3.6079228131070282,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 234322811,
+          "fbin": 211,
+          "scale": 1.2428432788001373
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1652,
+          "z": -1808,
+          "yaw": 1.361773383988632,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1814863729
+        },
+        {
+          "kind": "food_court",
+          "x": -1691,
+          "z": -1748,
+          "yaw": 1.6041173226731438,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3211422132
+        },
+        {
+          "kind": "drum_circle",
+          "x": -1601,
+          "z": -1854,
+          "yaw": 5.143129144521477,
+          "footprint": 6,
+          "role": "district",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 963561096
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1638,
+          "z": -1841,
+          "yaw": -1.489892227639666,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2874534555,
+          "tier": "plaza",
+          "parentSeed": 234322811,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1722,
+          "z": -1722,
+          "yaw": 2.2686991493899535,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3043600704,
+          "tier": "standard",
+          "parentSeed": 3211422132,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1638,
+          "z": -1838,
+          "yaw": -1.489892227639666,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2689457842
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -8,
+        "cz": -10,
+        "x": -1505,
+        "z": -1906,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": []
+    },
+    {
+      "heart": {
+        "cx": -7,
+        "cz": -10,
+        "x": -1303,
+        "z": -1883,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1273,
+          "z": -1890,
+          "yaw": 0.662679700366597,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 3889149617,
+          "fbin": 37,
+          "scale": 1.0865190937183797
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1329,
+          "z": -1929,
+          "yaw": 4.284124827508035,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 4086813352
+        },
+        {
+          "kind": "food_court",
+          "x": -1363,
+          "z": -1843,
+          "yaw": 3.328571923508706,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 670546612
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1240,
+          "z": -1895,
+          "yaw": -1.4204248987877621,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1197625708,
+          "tier": "plaza",
+          "parentSeed": 3889149617,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1319,
+          "z": -1946,
+          "yaw": -0.5317240672588056,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 791726574,
+          "tier": "minimal",
+          "parentSeed": 4086813352,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1360,
+          "z": -1803,
+          "yaw": -3.066732805879026,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1799899785,
+          "tier": "standard",
+          "parentSeed": 670546612,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1239,
+          "z": -1892,
+          "yaw": -1.4204248987877621,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3181472491
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -13,
+        "cz": -9,
+        "x": -2464,
+        "z": -1661,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -2455,
+          "z": -1691,
+          "yaw": -2.528000338435537,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 2910498983,
+          "fbin": 167,
+          "scale": 1.3344028163701296
+        },
+        {
+          "kind": "vendor_row",
+          "x": -2408,
+          "z": -1671,
+          "yaw": 2.158798930342464,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3755451449
+        },
+        {
+          "kind": "food_court",
+          "x": -2456,
+          "z": -1583,
+          "yaw": 2.181522291184102,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1344989525
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2439,
+          "z": -1727,
+          "yaw": -0.41822432957922906,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2885756740,
+          "tier": "plaza",
+          "parentSeed": 2910498983,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2395,
+          "z": -1656,
+          "yaw": -2.427501954977635,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 543668098,
+          "tier": "minimal",
+          "parentSeed": 3755451449,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2452,
+          "z": -1543,
+          "yaw": -3.0419240010986313,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2472384881,
+          "tier": "standard",
+          "parentSeed": 1344989525,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -2436,
+          "z": -1726,
+          "yaw": -0.41822432957922906,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3613494990
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -12,
+        "cz": -9,
+        "x": -2305,
+        "z": -1707,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -2351,
+          "z": -1744,
+          "yaw": 1.2026409377023426,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 3417300020,
+          "fbin": 15,
+          "scale": 1.177890007267706
+        },
+        {
+          "kind": "vendor_row",
+          "x": -2279,
+          "z": -1752,
+          "yaw": 2.241317884775446,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3662436968
+        },
+        {
+          "kind": "food_court",
+          "x": -2362,
+          "z": -1657,
+          "yaw": 3.541833310623763,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1150293489
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2345,
+          "z": -1709,
+          "yaw": -2.971814379621455,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1395451560,
+          "tier": "plaza",
+          "parentSeed": 3417300020,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2392,
+          "z": -1631,
+          "yaw": 2.2848870254070546,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1753451475,
+          "tier": "standard",
+          "parentSeed": 1150293489,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -2348,
+          "z": -1708,
+          "yaw": -2.971814379621455,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3325698449
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -11,
+        "cz": -9,
+        "x": -2111,
+        "z": -1745,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -2089,
+          "z": -1723,
+          "yaw": 0.09817477042468115,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 1059539032,
+          "fbin": 60,
+          "scale": 1.1349845841759816
+        },
+        {
+          "kind": "vendor_row",
+          "x": -2160,
+          "z": -1743,
+          "yaw": 4.365850115950748,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 114892145
+        },
+        {
+          "kind": "food_court",
+          "x": -2042,
+          "z": -1798,
+          "yaw": 0.6857295109062862,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1297855392
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2058,
+          "z": -1709,
+          "yaw": -1.9949907346986633,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 4020388356,
+          "tier": "plaza",
+          "parentSeed": 1059539032,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2169,
+          "z": -1725,
+          "yaw": 2.677945044588987,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2903669976,
+          "tier": "minimal",
+          "parentSeed": 114892145,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2005,
+          "z": -1831,
+          "yaw": -0.8424789458037129,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1030008123,
+          "tier": "standard",
+          "parentSeed": 1297855392,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -2059,
+          "z": -1706,
+          "yaw": -1.9949907346986633,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2388445859
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -10,
+        "cz": -9,
+        "x": -1977,
+        "z": -1771,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1960,
+          "z": -1768,
+          "yaw": 0.5154175447295755,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 3085930227,
+          "fbin": 43,
+          "scale": 1.4162202943116426
+        },
+        {
+          "kind": "vendor_row",
+          "x": -2002,
+          "z": -1816,
+          "yaw": 4.408388041044545,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 353449598
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1980,
+          "z": -1732,
+          "yaw": 2.6344941491974563,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 4278458681,
+          "tier": "plaza",
+          "parentSeed": 3085930227,
+          "scale": 2.1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1983,
+          "z": -1734,
+          "yaw": 2.6344941491974563,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 754998336
+        },
+        {
+          "kind": "healing_arts",
+          "x": -2011,
+          "z": -1742,
+          "yaw": 2.2769954192228936,
+          "footprint": 14,
+          "role": "district",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 697860243
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -9,
+        "cz": -9,
+        "x": -1623,
+        "z": -1719,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1607,
+          "z": -1701,
+          "yaw": -0.294524311274043,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 2693783259,
+          "fbin": 76,
+          "scale": 1.0736048977123573
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1639,
+          "z": -1694,
+          "yaw": 1.7861540264926348,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2793175972,
+          "tier": "plaza",
+          "parentSeed": 2693783259,
+          "scale": 2.1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1640,
+          "z": -1697,
+          "yaw": 1.7861540264926348,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3537936701
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -8,
+        "cz": -9,
+        "x": -1524,
+        "z": -1753,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1506,
+          "z": -1769,
+          "yaw": 1.1780972450961724,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 2278850016,
+          "fbin": 16,
+          "scale": 1.0031325438758358
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1582,
+          "z": -1780,
+          "yaw": 4.141051500551063,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 848608049
+        },
+        {
+          "kind": "food_court",
+          "x": -1495,
+          "z": -1821,
+          "yaw": -1.5707963267948966,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1433629304
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1502,
+          "z": -1738,
+          "yaw": -3.0132694259039985,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3727224407,
+          "tier": "plaza",
+          "parentSeed": 2278850016,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1580,
+          "z": -1750,
+          "yaw": -3.0750244898139694,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 870311000,
+          "tier": "minimal",
+          "parentSeed": 848608049,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1455,
+          "z": -1826,
+          "yaw": -1.446441332248135,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2714369606,
+          "tier": "standard",
+          "parentSeed": 1433629304,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1505,
+          "z": -1738,
+          "yaw": -3.0132694259039985,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2979912268
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -7,
+        "cz": -9,
+        "x": -1293,
+        "z": -1668,
+        "rank": "major",
+        "core": 100,
+        "district": 200
+      },
+      "plan": [
+        {
+          "kind": "main_stage",
+          "x": -1317,
+          "z": -1668,
+          "yaw": -1.7426021750380882,
+          "footprint": 11,
+          "role": "core",
+          "rank": "major",
+          "anchor": true,
+          "clusterSeed": 872726934,
+          "fbin": 135,
+          "scale": 1.2196156652993522
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1317,
+          "z": -1592,
+          "yaw": 0.13863973713415811,
+          "footprint": 12,
+          "role": "core",
+          "rank": "major",
+          "anchor": false,
+          "clusterSeed": 1582382502
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1282,
+          "z": -1742,
+          "yaw": 3.7426664080875423,
+          "footprint": 12,
+          "role": "core",
+          "rank": "major",
+          "anchor": false,
+          "clusterSeed": 4102536938
+        },
+        {
+          "kind": "food_court",
+          "x": -1190,
+          "z": -1666,
+          "yaw": 3.510926311263419,
+          "footprint": 16,
+          "role": "core",
+          "rank": "major",
+          "anchor": false,
+          "clusterSeed": 3541233141
+        },
+        {
+          "kind": "drum_circle",
+          "x": -1186,
+          "z": -1602,
+          "yaw": 1.8060245540690323,
+          "footprint": 6,
+          "role": "district",
+          "rank": "major",
+          "anchor": false,
+          "clusterSeed": 3180102694
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1330,
+          "z": -1702,
+          "yaw": 0.365201449788173,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "major",
+          "anchor": false,
+          "clusterSeed": 3239962351,
+          "tier": "plaza",
+          "parentSeed": 872726934,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1340,
+          "z": -1587,
+          "yaw": 1.7848570103587182,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "major",
+          "anchor": false,
+          "clusterSeed": 2760976887,
+          "tier": "standard",
+          "parentSeed": 1582382502,
+          "scale": 1.9
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1260,
+          "z": -1751,
+          "yaw": -1.1824776086224307,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "major",
+          "anchor": false,
+          "clusterSeed": 2121407990,
+          "tier": "standard",
+          "parentSeed": 4102536938,
+          "scale": 1.9
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1149,
+          "z": -1665,
+          "yaw": -1.5951817359676153,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "major",
+          "anchor": false,
+          "clusterSeed": 3538586018,
+          "tier": "plaza",
+          "parentSeed": 3541233141,
+          "scale": 2.1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1327,
+          "z": -1703,
+          "yaw": 0.365201449788173,
+          "footprint": 3,
+          "role": "core",
+          "rank": "major",
+          "anchor": false,
+          "clusterSeed": 1692479221
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -13,
+        "cz": -8,
+        "x": -2555,
+        "z": -1537,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -2533,
+          "z": -1528,
+          "yaw": 0.22089323345553225,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 3160859337,
+          "fbin": 55,
+          "scale": 1.0781847888138145
+        },
+        {
+          "kind": "vendor_row",
+          "x": -2585,
+          "z": -1588,
+          "yaw": 3.682012153860377,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3399848844
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2501,
+          "z": -1518,
+          "yaw": -1.8736811951698682,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2619549295,
+          "tier": "plaza",
+          "parentSeed": 3160859337,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2613,
+          "z": -1611,
+          "yaw": 0.8831250707561671,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1884117040,
+          "tier": "minimal",
+          "parentSeed": 3399848844,
+          "scale": 1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -2502,
+          "z": -1515,
+          "yaw": -1.8736811951698682,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 148106251
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -12,
+        "cz": -8,
+        "x": -2361,
+        "z": -1560,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -2355,
+          "z": -1537,
+          "yaw": -0.589048622548086,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 2951540465,
+          "fbin": 88,
+          "scale": 1.1132161340210587
+        },
+        {
+          "kind": "vendor_row",
+          "x": -2309,
+          "z": -1554,
+          "yaw": 1.5385494443596426,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3416436863
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2340,
+          "z": -1507,
+          "yaw": -2.677945044588987,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3033287618,
+          "tier": "plaza",
+          "parentSeed": 2951540465,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2286,
+          "z": -1542,
+          "yaw": -2.0516836069902324,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 4185479056,
+          "tier": "minimal",
+          "parentSeed": 3416436863,
+          "scale": 1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -2343,
+          "z": -1505,
+          "yaw": -2.677945044588987,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2885839670
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -11,
+        "cz": -8,
+        "x": -2176,
+        "z": -1546,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -2182,
+          "z": -1487,
+          "yaw": -2.110757564130642,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 3347066303,
+          "fbin": 150,
+          "scale": 1.3410861128941178
+        },
+        {
+          "kind": "vendor_row",
+          "x": -2216,
+          "z": -1590,
+          "yaw": 4.359398592557779,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3319520693
+        },
+        {
+          "kind": "food_court",
+          "x": -2269,
+          "z": -1518,
+          "yaw": 2.761086276477433,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 694126784
+        },
+        {
+          "kind": "drum_circle",
+          "x": -2086,
+          "z": -1474,
+          "yaw": 5.396558420685213,
+          "footprint": 6,
+          "role": "district",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2864888886
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2182,
+          "z": -1526,
+          "yaw": 0,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3201173378,
+          "tier": "plaza",
+          "parentSeed": 3347066303,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2239,
+          "z": -1602,
+          "yaw": 1.089909046599561,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 255527386,
+          "tier": "minimal",
+          "parentSeed": 3319520693,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2307,
+          "z": -1506,
+          "yaw": 1.876675198199749,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2286333656,
+          "tier": "standard",
+          "parentSeed": 694126784,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -2179,
+          "z": -1526,
+          "yaw": 0,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3219570373
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -10,
+        "cz": -8,
+        "x": -1932,
+        "z": -1503,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1917,
+          "z": -1511,
+          "yaw": -3.853359739168731,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 1780237023,
+          "fbin": 221,
+          "scale": 1.3860054614488035
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1981,
+          "z": -1514,
+          "yaw": 4.031090755096841,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2873268266
+        },
+        {
+          "kind": "food_court",
+          "x": -1951,
+          "z": -1432,
+          "yaw": 1.6892862859530353,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 181745393
+        },
+        {
+          "kind": "drum_circle",
+          "x": -2039,
+          "z": -1490,
+          "yaw": 5.413202169872744,
+          "footprint": 6,
+          "role": "district",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3596675207
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1877,
+          "z": -1505,
+          "yaw": -1.719686274404394,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 499361759,
+          "tier": "plaza",
+          "parentSeed": 1780237023,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1995,
+          "z": -1499,
+          "yaw": 2.390663591191853,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2961926285,
+          "tier": "minimal",
+          "parentSeed": 2873268266,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1961,
+          "z": -1393,
+          "yaw": 2.8905899669467585,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1279179623,
+          "tier": "standard",
+          "parentSeed": 181745393,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1878,
+          "z": -1502,
+          "yaw": -1.719686274404394,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1764661086
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -9,
+        "cz": -8,
+        "x": -1637,
+        "z": -1421,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1657,
+          "z": -1434,
+          "yaw": -2.4543692606170255,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 2102737652,
+          "fbin": 164,
+          "scale": 1.4484696212457493
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1584,
+          "z": -1427,
+          "yaw": 1.3734007669450157,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 13096398
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1644,
+          "z": -1473,
+          "yaw": -0.3217505543966422,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 71248358,
+          "tier": "plaza",
+          "parentSeed": 2102737652,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1596,
+          "z": -1399,
+          "yaw": 2.7367008673047097,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 4275197622,
+          "tier": "minimal",
+          "parentSeed": 13096398,
+          "scale": 1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1641,
+          "z": -1472,
+          "yaw": -0.3217505543966422,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3683741400
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -8,
+        "cz": -8,
+        "x": -1446,
+        "z": -1464,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1459,
+          "z": -1484,
+          "yaw": -2.4298255680108554,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 2039967612,
+          "fbin": 163,
+          "scale": 1.4969700848450884
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1447,
+          "z": -1525,
+          "yaw": -0.2847304385227121,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3008903311,
+          "tier": "plaza",
+          "parentSeed": 2039967612,
+          "scale": 2.1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1444,
+          "z": -1524,
+          "yaw": -0.2847304385227121,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2223513674
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -7,
+        "cz": -8,
+        "x": -1366,
+        "z": -1450,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1335,
+          "z": -1447,
+          "yaw": -4.049709280018092,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 2310873213,
+          "fbin": 229,
+          "scale": 1.315833969740197
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1299,
+          "z": -1433,
+          "yaw": -1.941687615607559,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1068632812,
+          "tier": "plaza",
+          "parentSeed": 2310873213,
+          "scale": 2.1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1300,
+          "z": -1430,
+          "yaw": -1.941687615607559,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2186849150
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -13,
+        "cz": -7,
+        "x": -2555,
+        "z": -1298,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -2534,
+          "z": -1309,
+          "yaw": 1.0062913968529807,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 2765130338,
+          "fbin": 23,
+          "scale": 1.2707297460874543
+        },
+        {
+          "kind": "vendor_row",
+          "x": -2614,
+          "z": -1266,
+          "yaw": -1.073453610448074,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 690028950
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2500,
+          "z": -1326,
+          "yaw": -1.1071487177940904,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3831987587,
+          "tier": "plaza",
+          "parentSeed": 2765130338,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2612,
+          "z": -1296,
+          "yaw": -0.06656816377582381,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2856985507,
+          "tier": "minimal",
+          "parentSeed": 690028950,
+          "scale": 1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -2498,
+          "z": -1323,
+          "yaw": -1.1071487177940904,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3985619270
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -12,
+        "cz": -7,
+        "x": -2255,
+        "z": -1259,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -2272,
+          "z": -1259,
+          "yaw": -2.356194490192345,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 1661910807,
+          "fbin": 160,
+          "scale": 1.3001134262885898
+        },
+        {
+          "kind": "vendor_row",
+          "x": -2222,
+          "z": -1210,
+          "yaw": 0.07827114052127793,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2389791001
+        },
+        {
+          "kind": "drum_circle",
+          "x": -2146,
+          "z": -1235,
+          "yaw": 3.952294697418286,
+          "footprint": 6,
+          "role": "district",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1163771849
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2263,
+          "z": -1296,
+          "yaw": -0.23860932250820097,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 326289431,
+          "tier": "plaza",
+          "parentSeed": 1661910807,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2202,
+          "z": -1211,
+          "yaw": -1.5208379310729538,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1858501813,
+          "tier": "minimal",
+          "parentSeed": 2389791001,
+          "scale": 1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -2260,
+          "z": -1295,
+          "yaw": -0.23860932250820097,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1414916248
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -11,
+        "cz": -7,
+        "x": -2031,
+        "z": -1358,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1974,
+          "z": -1371,
+          "yaw": -4.614214209960009,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 1385669896,
+          "fbin": 252,
+          "scale": 1.188672033837065
+        },
+        {
+          "kind": "vendor_row",
+          "x": -2013,
+          "z": -1413,
+          "yaw": 3.235069434748383,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 119788990
+        },
+        {
+          "kind": "food_court",
+          "x": -2007,
+          "z": -1301,
+          "yaw": 1.9631364710104104,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1261234067
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1953,
+          "z": -1342,
+          "yaw": -2.5148497523787463,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1453373031,
+          "tier": "plaza",
+          "parentSeed": 1385669896,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2033,
+          "z": -1409,
+          "yaw": 1.7681918866447774,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 630139103,
+          "tier": "minimal",
+          "parentSeed": 119788990,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1991,
+          "z": -1264,
+          "yaw": -2.733443549834704,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3282428407,
+          "tier": "standard",
+          "parentSeed": 1261234067,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1956,
+          "z": -1340,
+          "yaw": -2.5148497523787463,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2248991986
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -10,
+        "cz": -7,
+        "x": -1902,
+        "z": -1253,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1882,
+          "z": -1277,
+          "yaw": -3.288854809226815,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 1331072354,
+          "fbin": 198,
+          "scale": 1.1429027736885473
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1947,
+          "z": -1281,
+          "yaw": 4.05450037520248,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 318552469
+        },
+        {
+          "kind": "drum_circle",
+          "x": -2010,
+          "z": -1267,
+          "yaw": 3.8973508912567913,
+          "footprint": 6,
+          "role": "district",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3113301152
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1850,
+          "z": -1290,
+          "yaw": -1.1849136573968229,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1790680339,
+          "tier": "plaza",
+          "parentSeed": 1331072354,
+          "scale": 2.1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1849,
+          "z": -1287,
+          "yaw": -1.1849136573968229,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3890381609
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -9,
+        "cz": -7,
+        "x": -1768,
+        "z": -1302,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1779,
+          "z": -1324,
+          "yaw": -2.7734372644972396,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 164667319,
+          "fbin": 177,
+          "scale": 1.2973820959450677
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1807,
+          "z": -1269,
+          "yaw": -1.1955255039389394,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2944545174
+        },
+        {
+          "kind": "food_court",
+          "x": -1848,
+          "z": -1312,
+          "yaw": 0.08314123188844191,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 791674536
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1756,
+          "z": -1354,
+          "yaw": -0.6540827244143603,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 4226955515,
+          "tier": "plaza",
+          "parentSeed": 164667319,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1803,
+          "z": -1249,
+          "yaw": -2.9441970937399127,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3487643520,
+          "tier": "minimal",
+          "parentSeed": 2944545174,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1888,
+          "z": -1317,
+          "yaw": 1.446441332248135,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2330324235,
+          "tier": "standard",
+          "parentSeed": 791674536,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1753,
+          "z": -1352,
+          "yaw": -0.6540827244143603,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 4023299952
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -8,
+        "cz": -7,
+        "x": -1453,
+        "z": -1378,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1459,
+          "z": -1355,
+          "yaw": -1.2762720155208536,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 1669056004,
+          "fbin": 116,
+          "scale": 1.0134405391290784
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1482,
+          "z": -1377,
+          "yaw": 0.8076167287241673,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 4070943213,
+          "tier": "plaza",
+          "parentSeed": 1669056004,
+          "scale": 2.1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1480,
+          "z": -1379,
+          "yaw": 0.8076167287241673,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1772942067
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -7,
+        "cz": -7,
+        "x": -1370,
+        "z": -1327,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1368,
+          "z": -1310,
+          "yaw": 0.4908738521234053,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 1570098443,
+          "fbin": 44,
+          "scale": 1.1041258798213676
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1384,
+          "z": -1378,
+          "yaw": 3.0172376590430314,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1660806462
+        },
+        {
+          "kind": "food_court",
+          "x": -1462,
+          "z": -1341,
+          "yaw": 2.44685437739309,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1679477038
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1386,
+          "z": -1281,
+          "yaw": 2.5860989183242493,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2939224081,
+          "tier": "plaza",
+          "parentSeed": 1570098443,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1361,
+          "z": -1388,
+          "yaw": -1.1606689862534056,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2297828368,
+          "tier": "minimal",
+          "parentSeed": 1660806462,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1502,
+          "z": -1347,
+          "yaw": 1.4219063791853994,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3865866208,
+          "tier": "standard",
+          "parentSeed": 1679477038,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1389,
+          "z": -1283,
+          "yaw": 2.5860989183242493,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1789267177
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -13,
+        "cz": -6,
+        "x": -2505,
+        "z": -1060,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "vendor_row",
+          "x": -2549,
+          "z": -1103,
+          "yaw": 3.9419150819773265,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3871446372
+        },
+        {
+          "kind": "food_court",
+          "x": -2482,
+          "z": -1132,
+          "yaw": -1.4219063791854007,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1106589246
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2539,
+          "z": -1080,
+          "yaw": -2.7314653130483024,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1625534636,
+          "tier": "minimal",
+          "parentSeed": 3871446372,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2470,
+          "z": -1170,
+          "yaw": -0.30587887140485215,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1027688277,
+          "tier": "standard",
+          "parentSeed": 1106589246,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -2497,
+          "z": -1021,
+          "yaw": 2.996282642954091,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1104053484
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -12,
+        "cz": -6,
+        "x": -2224,
+        "z": -1022,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "vendor_row",
+          "x": -2223,
+          "z": -1080,
+          "yaw": 3.5622560027228283,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2955406714
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2206,
+          "z": -1090,
+          "yaw": -1.039072259536091,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1396768708,
+          "tier": "minimal",
+          "parentSeed": 2955406714,
+          "scale": 1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -2277,
+          "z": -1028,
+          "yaw": 1.2298173732985473,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1510786745
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -11,
+        "cz": -6,
+        "x": -2108,
+        "z": -1040,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "vendor_row",
+          "x": -2136,
+          "z": -1096,
+          "yaw": 3.3556533371536146,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3357892645
+        },
+        {
+          "kind": "welfare_post",
+          "x": -2155,
+          "z": -1116,
+          "yaw": 0.7597627548757708,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2772558136,
+          "tier": "minimal",
+          "parentSeed": 3357892645,
+          "scale": 1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -2130,
+          "z": -1019,
+          "yaw": 1.9756881130799802,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 452102724
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -10,
+        "cz": -6,
+        "x": -1887,
+        "z": -1159,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1877,
+          "z": -1122,
+          "yaw": -0.9326603190344698,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 2322396929,
+          "fbin": 102,
+          "scale": 1.3863351866602898
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1831,
+          "z": -1130,
+          "yaw": 2.1885520523611293,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1165018998
+        },
+        {
+          "kind": "food_court",
+          "x": -1929,
+          "z": -1214,
+          "yaw": 1.823350602572956,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2204976600
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1874,
+          "z": -1082,
+          "yaw": -3.066732805879026,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 159285732,
+          "tier": "plaza",
+          "parentSeed": 2322396929,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1806,
+          "z": -1135,
+          "yaw": -1.373400766945016,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2924669149,
+          "tier": "minimal",
+          "parentSeed": 1165018998,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1953,
+          "z": -1246,
+          "yaw": 0.6435011087932844,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1681382872,
+          "tier": "standard",
+          "parentSeed": 2204976600,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1877,
+          "z": -1082,
+          "yaw": -3.066732805879026,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3931803999
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -9,
+        "cz": -6,
+        "x": -1713,
+        "z": -1112,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1730,
+          "z": -1086,
+          "yaw": -0.3190680038802134,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 3906804707,
+          "fbin": 77,
+          "scale": 1.4524223448242992
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1719,
+          "z": -1164,
+          "yaw": 2.796945337971767,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3811783719
+        },
+        {
+          "kind": "food_court",
+          "x": -1600,
+          "z": -1133,
+          "yaw": -0.2234766011406344,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1427731239
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1770,
+          "z": -1076,
+          "yaw": 1.8157749899217608,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1850785371,
+          "tier": "plaza",
+          "parentSeed": 3906804707,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1729,
+          "z": -1191,
+          "yaw": 0.3547056520109403,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2318967634,
+          "tier": "minimal",
+          "parentSeed": 3811783719,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1587,
+          "z": -1171,
+          "yaw": -0.3296244074207427,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 4091378408,
+          "tier": "standard",
+          "parentSeed": 1427731239,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1771,
+          "z": -1079,
+          "yaw": 1.8157749899217608,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2162240608
+        },
+        {
+          "kind": "healing_arts",
+          "x": -1681,
+          "z": -1143,
+          "yaw": -0.8012698463892384,
+          "footprint": 14,
+          "role": "district",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3386283745
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -8,
+        "cz": -6,
+        "x": -1576,
+        "z": -1087,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1571,
+          "z": -1103,
+          "yaw": -3.288854809226815,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 3858189451,
+          "fbin": 198,
+          "scale": 1.0292201081756502
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1515,
+          "z": -1085,
+          "yaw": 1.2924966677897851,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1479613324
+        },
+        {
+          "kind": "food_court",
+          "x": -1620,
+          "z": -1058,
+          "yaw": 3.7791414517284863,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 533934815
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1541,
+          "z": -1114,
+          "yaw": -1.219351532791345,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3502905757,
+          "tier": "plaza",
+          "parentSeed": 3858189451,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1618,
+          "z": -1018,
+          "yaw": -3.0916342578678506,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1243982234,
+          "tier": "standard",
+          "parentSeed": 533934815,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1540,
+          "z": -1111,
+          "yaw": -1.219351532791345,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3958775259
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -7,
+        "cz": -6,
+        "x": -1366,
+        "z": -1084,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1367,
+          "z": -1108,
+          "yaw": -3.436116964863836,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 1672464348,
+          "fbin": 204,
+          "scale": 1.3593384705018252
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1305,
+          "z": -1056,
+          "yaw": 1.1071487177940904,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 4291626927
+        },
+        {
+          "kind": "food_court",
+          "x": -1360,
+          "z": -1022,
+          "yaw": 2.471071095609247,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3358293025
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1329,
+          "z": -1118,
+          "yaw": -1.313472611823808,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3860754570,
+          "tier": "plaza",
+          "parentSeed": 1672464348,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1356,
+          "z": -982,
+          "yaw": -3.0419240010986313,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2857070107,
+          "tier": "standard",
+          "parentSeed": 3358293025,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1328,
+          "z": -1115,
+          "yaw": -1.313472611823808,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 613294822
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -10,
+        "cz": -5,
+        "x": -1898,
+        "z": -840,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1911,
+          "z": -829,
+          "yaw": -1.9144080232812803,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 2188660454,
+          "fbin": 142,
+          "scale": 1.4746976984897628
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1868,
+          "z": -794,
+          "yaw": 0.13552771398550068,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3827853202
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1920,
+          "z": -870,
+          "yaw": 0.21608497229678642,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 785143888,
+          "tier": "plaza",
+          "parentSeed": 2188660454,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1848,
+          "z": -795,
+          "yaw": -1.5208379310729538,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 4050891397,
+          "tier": "minimal",
+          "parentSeed": 3827853202,
+          "scale": 1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1917,
+          "z": -871,
+          "yaw": 0.21608497229678642,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3651221538
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -9,
+        "cz": -5,
+        "x": -1711,
+        "z": -861,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1715,
+          "z": -877,
+          "yaw": -2.7488935718910685,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 905283026,
+          "fbin": 176,
+          "scale": 1.4802299222210422
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1761,
+          "z": -825,
+          "yaw": -1.1955255039389394,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3920662314
+        },
+        {
+          "kind": "food_court",
+          "x": -1633,
+          "z": -918,
+          "yaw": -0.029403288204005174,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2358129886
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1691,
+          "z": -911,
+          "yaw": -0.6146629519221656,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1973511197,
+          "tier": "plaza",
+          "parentSeed": 905283026,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1770,
+          "z": -852,
+          "yaw": 0.3217505543966422,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2152477820,
+          "tier": "minimal",
+          "parentSeed": 3920662314,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1601,
+          "z": -942,
+          "yaw": -0.9272952180016122,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2969539629,
+          "tier": "standard",
+          "parentSeed": 2358129886,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1688,
+          "z": -909,
+          "yaw": -0.6146629519221656,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3406521704
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -8,
+        "cz": -5,
+        "x": -1534,
+        "z": -926,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1515,
+          "z": -941,
+          "yaw": -4.565126824747668,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 7753396,
+          "fbin": 250,
+          "scale": 1.033772132708691
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1532,
+          "z": -879,
+          "yaw": 0.5880026035475675,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 4239201954
+        },
+        {
+          "kind": "food_court",
+          "x": -1589,
+          "z": -994,
+          "yaw": 2.214297435588181,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2617230607
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1495,
+          "z": -915,
+          "yaw": -2.485897027348257,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1070709339,
+          "tier": "plaza",
+          "parentSeed": 7753396,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1549,
+          "z": -868,
+          "yaw": 2.1451011569695986,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 4159610292,
+          "tier": "minimal",
+          "parentSeed": 4239201954,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1614,
+          "z": -1025,
+          "yaw": 0.6786624907483126,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3942640558,
+          "tier": "standard",
+          "parentSeed": 2617230607,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1498,
+          "z": -913,
+          "yaw": -2.485897027348257,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1402487832
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -7,
+        "cz": -5,
+        "x": -1270,
+        "z": -907,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1296,
+          "z": -891,
+          "yaw": -1.3744467859455343,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 779059092,
+          "fbin": 120,
+          "scale": 1.4701567379524931
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1280,
+          "z": -846,
+          "yaw": -0.4228539261329409,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2389929260
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1325,
+          "z": -922,
+          "yaw": 0.7520771675192011,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1225703028,
+          "tier": "plaza",
+          "parentSeed": 779059092,
+          "scale": 2.1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1323,
+          "z": -924,
+          "yaw": 0.7520771675192011,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1026378948
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -10,
+        "cz": -4,
+        "x": -1837,
+        "z": -721,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1866,
+          "z": -710,
+          "yaw": -1.030835089459151,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 2713899916,
+          "fbin": 106,
+          "scale": 1.448052884079516
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1795,
+          "z": -770,
+          "yaw": 1.946067149650854,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1748500593
+        },
+        {
+          "kind": "food_court",
+          "x": -1784,
+          "z": -707,
+          "yaw": -1.051650212548374,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 789259998
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1903,
+          "z": -729,
+          "yaw": 1.0963964440029892,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1925241363,
+          "tier": "plaza",
+          "parentSeed": 2713899916,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1802,
+          "z": -789,
+          "yaw": 0.35299038782691045,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2035468965,
+          "tier": "minimal",
+          "parentSeed": 1748500593,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1745,
+          "z": -697,
+          "yaw": -1.8217990134379314,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 493303399,
+          "tier": "standard",
+          "parentSeed": 789259998,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1901,
+          "z": -732,
+          "yaw": 1.0963964440029892,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2828119525
+        },
+        {
+          "kind": "healing_arts",
+          "x": -1937,
+          "z": -723,
+          "yaw": 1.550798992821746,
+          "footprint": 14,
+          "role": "district",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2737744956
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -9,
+        "cz": -4,
+        "x": -1766,
+        "z": -638,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "tent_stage",
+          "x": -1766,
+          "z": -676,
+          "yaw": -4.196971435655114,
+          "footprint": 13,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 1507267204,
+          "fbin": 235,
+          "scale": 1.4422693097731099
+        },
+        {
+          "kind": "food_court",
+          "x": -1725,
+          "z": -607,
+          "yaw": 3.260082612747929,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1778087482
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1730,
+          "z": -656,
+          "yaw": -2.0778948311872334,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2757443061,
+          "tier": "plaza",
+          "parentSeed": 1507267204,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1693,
+          "z": -583,
+          "yaw": -2.214297435588181,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 47437013,
+          "tier": "standard",
+          "parentSeed": 1778087482,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1732,
+          "z": -653,
+          "yaw": -2.0778948311872334,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3798943222
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -8,
+        "cz": -4,
+        "x": -1542,
+        "z": -736,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1525,
+          "z": -738,
+          "yaw": 1.1044661672776617,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 1238970745,
+          "fbin": 19,
+          "scale": 1.3540257848799229
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1596,
+          "z": -716,
+          "yaw": 4.604118389524234,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 589274969
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1522,
+          "z": -699,
+          "yaw": -3.064820762320015,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 836747274,
+          "tier": "plaza",
+          "parentSeed": 1238970745,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1599,
+          "z": -696,
+          "yaw": 2.992702705980296,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1490838201,
+          "tier": "minimal",
+          "parentSeed": 589274969,
+          "scale": 1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1525,
+          "z": -699,
+          "yaw": -3.064820762320015,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 282940470
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -7,
+        "cz": -4,
+        "x": -1291,
+        "z": -662,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1275,
+          "z": -656,
+          "yaw": -4.6878452877785195,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 1111525991,
+          "fbin": 255,
+          "scale": 1.0550397897604853
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1320,
+          "z": -604,
+          "yaw": -0.30017117083011224,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3594898331
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1258,
+          "z": -628,
+          "yaw": -2.5959375990628013,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3334110788,
+          "tier": "plaza",
+          "parentSeed": 1111525991,
+          "scale": 2.1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1261,
+          "z": -626,
+          "yaw": -2.5959375990628013,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2985302701
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -10,
+        "cz": -3,
+        "x": -1824,
+        "z": -485,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1832,
+          "z": -470,
+          "yaw": -0.5154175447295755,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 2158400347,
+          "fbin": 85,
+          "scale": 1.0452976885717362
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1823,
+          "z": -535,
+          "yaw": 3.5175536074610987,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2608701779
+        },
+        {
+          "kind": "food_court",
+          "x": -1766,
+          "z": -501,
+          "yaw": 3.832039110644485,
+          "footprint": 16,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2020864379
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1864,
+          "z": -470,
+          "yaw": 1.5707963267948966,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3775859757,
+          "tier": "plaza",
+          "parentSeed": 2158400347,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1805,
+          "z": -545,
+          "yaw": -1.0636978224025597,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3130613447,
+          "tier": "minimal",
+          "parentSeed": 2608701779,
+          "scale": 1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1727,
+          "z": -512,
+          "yaw": -1.295886485314224,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 987514311,
+          "tier": "standard",
+          "parentSeed": 2020864379,
+          "scale": 1.9
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1864,
+          "z": -473,
+          "yaw": 1.5707963267948966,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 607434628
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -9,
+        "cz": -3,
+        "x": -1767,
+        "z": -544,
+        "rank": "major",
+        "core": 100,
+        "district": 200
+      },
+      "plan": [
+        {
+          "kind": "main_stage",
+          "x": -1746,
+          "z": -555,
+          "yaw": 1.1290098598838318,
+          "footprint": 11,
+          "role": "core",
+          "rank": "major",
+          "anchor": true,
+          "clusterSeed": 1082649721,
+          "fbin": 18,
+          "scale": 1.285799922980368
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1797,
+          "z": -600,
+          "yaw": 3.9473961476737793,
+          "footprint": 12,
+          "role": "core",
+          "rank": "major",
+          "anchor": false,
+          "clusterSeed": 2238127061
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1742,
+          "z": -517,
+          "yaw": -3.036715714859559,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "major",
+          "anchor": false,
+          "clusterSeed": 749120759,
+          "tier": "plaza",
+          "parentSeed": 1082649721,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1755,
+          "z": -598,
+          "yaw": -1.6183794300718801,
+          "footprint": 6.84,
+          "role": "core",
+          "rank": "major",
+          "anchor": false,
+          "clusterSeed": 2995032910,
+          "tier": "standard",
+          "parentSeed": 2238127061,
+          "scale": 1.9
+        },
+        {
+          "kind": "arch",
+          "x": -1803,
+          "z": -640,
+          "yaw": 3.86584265433794,
+          "footprint": 6,
+          "role": "core",
+          "rank": "major",
+          "anchor": true,
+          "clusterSeed": 3271822574
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1745,
+          "z": -517,
+          "yaw": -3.036715714859559,
+          "footprint": 3,
+          "role": "core",
+          "rank": "major",
+          "anchor": false,
+          "clusterSeed": 4177342181
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -8,
+        "cz": -3,
+        "x": -1428,
+        "z": -451,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1446,
+          "z": -435,
+          "yaw": -1.8898643306751097,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 2816038293,
+          "fbin": 141,
+          "scale": 1.4322191252140328
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1401,
+          "z": -404,
+          "yaw": 1.0191413442663495,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 361297679
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1478,
+          "z": -409,
+          "yaw": 2.2531128816696446,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1675290269,
+          "tier": "plaza",
+          "parentSeed": 2816038293,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1398,
+          "z": -379,
+          "yaw": -3.0221637275714546,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 4049220663,
+          "tier": "minimal",
+          "parentSeed": 361297679,
+          "scale": 1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1480,
+          "z": -412,
+          "yaw": 2.2531128816696446,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 1176442692
+        }
+      ]
+    },
+    {
+      "heart": {
+        "cx": -7,
+        "cz": -3,
+        "x": -1293,
+        "z": -545,
+        "rank": "minor",
+        "core": 90,
+        "district": 160
+      },
+      "plan": [
+        {
+          "kind": "side_stage",
+          "x": -1277,
+          "z": -539,
+          "yaw": 1.325359400733194,
+          "footprint": 8,
+          "role": "core",
+          "rank": "minor",
+          "anchor": true,
+          "clusterSeed": 4024426866,
+          "fbin": 10,
+          "scale": 1.4583469599019736
+        },
+        {
+          "kind": "vendor_row",
+          "x": -1304,
+          "z": -494,
+          "yaw": 0.20464180982977775,
+          "footprint": 12,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2584824703
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1264,
+          "z": -499,
+          "yaw": -2.827360754505455,
+          "footprint": 7.5600000000000005,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3951584577,
+          "tier": "plaza",
+          "parentSeed": 4024426866,
+          "scale": 2.1
+        },
+        {
+          "kind": "welfare_post",
+          "x": -1323,
+          "z": -488,
+          "yaw": 1.876675198199749,
+          "footprint": 3.6,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 3285356614,
+          "tier": "minimal",
+          "parentSeed": 2584824703,
+          "scale": 1
+        },
+        {
+          "kind": "bubble_vendor",
+          "x": -1267,
+          "z": -498,
+          "yaw": -2.827360754505455,
+          "footprint": 3,
+          "role": "core",
+          "rank": "minor",
+          "anchor": false,
+          "clusterSeed": 2731290754
+        }
+      ]
+    }
+  ]
+}

@@ -319,6 +319,23 @@ function locateLandmark(kind, excluded = new Set()) {
   }
 
   switch (kind) {
+    case 'hammock':
+    case 'porta_potty':
+    case 'beach': {
+      // Inspect real built facilities, without reserving them or changing occupancy.
+      const candidates=[...h.registry.entries.values()].filter(e=>e.kind===kind&&!excluded.has(landmarkKey(e.position.x,e.position.z)))
+        .sort((a,b)=>Math.hypot(a.position.x-zx,a.position.z-zz)-Math.hypot(b.position.x-zx,b.position.z-zz));
+      for(const entry of candidates){
+        const p=entry.position,base=Math.atan2(zz-p.z,zx-p.x),radius=Math.max(5,(entry.footprint||0)+4);
+        for(let i=0;i<8;i++){
+          const angle=base+i*Math.PI/4,x=p.x+Math.cos(angle)*radius,z=p.z+Math.sin(angle)*radius;
+          let blocked=false;
+          h.registry.collidersNear(x,z,3,e=>{if(Math.hypot(x-e.position.x,z-e.position.z)<e.collider.radius+3)blocked=true;});
+          if(!blocked)return {x,z,heading:Math.atan2(p.x-x,z-p.z),targetKey:landmarkKey(p.x,p.z),label:kind==='porta_potty'?'Porta-potty':kind==='hammock'?'Hammock':'Beach'};
+        }
+      }
+      return null;
+    }
     case 'cornhole_game': {
       let best=null;
       for(const id of h.registry.byKind.get('cornhole_game')??[]){
@@ -341,6 +358,10 @@ function locateLandmark(kind, excluded = new Set()) {
     case 'stage': {
       const b = nearestFestivalPOI(STAGE_KINDS);
       return b ? poiDest(b.poi, b.heart, `${b.poi.kind.replace('_', ' ')}`) : null;
+    }
+    case 'vendor_row': {
+      const b = nearestFestivalPOI(new Set(['vendor_row']));
+      return b ? poiDest(b.poi, b.heart, 'vendor row') : null;
     }
     case 'healing_arts': {
       const b = nearestFestivalPOI(new Set(['healing_arts']));
@@ -481,21 +502,44 @@ function teleportLandmark(kind) {
   return dest;
 }
 
-const COMMAND_TARGETS = {
-  cornhole:'cornhole_game',
-  camp: USE_WORLDGEN_V2?'woodland_camp':'campsite_forest', woodland:'woodland_camp',
-  village:'camp_village', stage:'stage', hub:'hub', healing:'healing_arts',
-  drum:'drum_circle', food:'food_court', arch:'arch', bubble:'bubble',
-  lake:'lake', lurleen:'lurleen', spawn:'spawn', rider:'one_wheel',
-  monks:'monks', wagon:'nut_wagon', forest:'any_forest', campsite:'campsite',
-};
-const COMMAND_DESCRIPTIONS = {
-  cornhole:'Cornhole court',camp:'Woodland campground',woodland:'Woodland campground',village:'Camp village',
-  stage:'Music stage',hub:'Major festival hub',healing:'Healing Arts tent',drum:'Drum circle',
-  food:'Food court',arch:'Entrance arch',bubble:'Bubble vendor',lake:'Lake shore',
-  lurleen:'Lurleen',spawn:'Spawn point',rider:'One-wheel rider',monks:'Monk group',
-  wagon:'Nut Wagon',forest:'Forest entrance',campsite:'Loaded campsite',
-};
+// One catalog owns command names, aliases, menu entries and search-scope feedback.
+const TELEPORT_DESTINATIONS = [
+  {name:'hub', kind:'hub', label:'Festival hub', scope:'world', version:2},
+  {name:'stage', kind:'stage', label:'Music stage', scope:'world', version:2},
+  {name:'healing', kind:'healing_arts', label:'Healing Arts tent', scope:'world', version:2},
+  {name:'drum', kind:'drum_circle', label:'Drum circle', scope:'world', version:2},
+  {name:'food', kind:'food_court', label:'Food court', scope:'world', version:2},
+  {name:'vendors', kind:'vendor_row', label:'Vendor row', scope:'world', version:2},
+  {name:'arch', kind:'arch', label:'Entrance arch', scope:'world', version:2},
+  {name:'bubble', kind:'bubble', label:'Bubble vendor (refuel)', scope:'world', version:2},
+  {name:'village', kind:'camp_village', label:'Camp village', scope:'world', version:2},
+  {name:'camp', kind:'woodland_camp', label:'Woodland campground', scope:'world', version:2, aliases:['woodland']},
+  {name:'camp', kind:'campsite_forest', label:'Campsite forest entrance', scope:'world', version:1},
+  {name:'drum', kind:'drum_circle_forest', label:'Drum-circle forest entrance', scope:'world', version:1},
+  {name:'forest', kind:'any_forest', label:'Forest entrance', scope:'world', version:1},
+  {name:'cornhole', kind:'cornhole_game', label:'Cornhole court', scope:'loaded'},
+  {name:'hammock', kind:'hammock', label:'Hammock', scope:'loaded'},
+  {name:'potty', kind:'porta_potty', label:'Porta-potty', scope:'loaded', aliases:['porta_potty']},
+  {name:'beach', kind:'beach', label:'Beach', scope:'loaded'},
+  {name:'campsite', kind:'campsite', label:'Campsite', scope:'loaded'},
+  {name:'rider', kind:'one_wheel', label:'One-wheel rider', scope:'active', version:2},
+  {name:'wagon', kind:'nut_wagon', label:'Nut Wagon', scope:'active', version:2},
+  {name:'monks', kind:'monks', label:'Monk group', scope:'active', version:2},
+  {name:'lake', kind:'lake', label:'Lake shore', scope:'loaded'},
+  {name:'lurleen', kind:'lurleen', label:'Lurleen', scope:'active'},
+  {name:'spawn', kind:'spawn', label:'Spawn', scope:'single'},
+].filter(({version})=>!version||version===(USE_WORLDGEN_V2?2:1));
+const TELEPORT_SCOPE = {world:'world search',loaded:'loaded',active:'active encounter',single:'fixed destination'};
+const COMMAND_TARGETS = Object.fromEntries(TELEPORT_DESTINATIONS.flatMap(({name,kind,aliases=[]})=>[name,...aliases].map(alias=>[alias,kind])));
+const COMMAND_DESCRIPTIONS = Object.fromEntries(TELEPORT_DESTINATIONS.flatMap(({name,label,scope,aliases=[]})=>[name,...aliases].map(alias=>[alias,`${label} (${TELEPORT_SCOPE[scope]})`])));
+function teleportMissingMessage(kind) {
+  const destination=TELEPORT_DESTINATIONS.find(d=>d.kind===kind);
+  if(!destination)return 'No matching destination found nearby.';
+  const {label,scope}=destination;
+  if(scope==='loaded')return `No loaded ${label.toLowerCase()} with a reachable arrival found. Explore nearby to load more places; teleport does not create one.`;
+  if(scope==='active')return `No reachable active ${label.toLowerCase()} found. Teleport does not summon an encounter.`;
+  return `No reachable ${label.toLowerCase()} found in the search area.`;
+}
 function commandRenderStats() {
   const renderer=state.hooks.renderer;
   return renderer.__sceneInfo || renderer.info.render;
@@ -513,6 +557,10 @@ function commandStatus() {
 function inspectCommand(kind) {
   const h=state.hooks;
   if(kind==='world')return commandStatus();
+  if(['physics','map','upgrades'].includes(kind)){
+    const dbg=window.__dbg,method={physics:'physics',map:'festivalMap',upgrades:'upgrades'}[kind];
+    return dbg?.[method]?JSON.stringify(dbg[method](),null,2):'Inspection helpers are not ready.';
+  }
   if(kind==='people')return JSON.stringify(h.people.inspect(),null,2);
   if(kind==='audio')return `session mute ${Sound.isMuted()?'on':'off'} · audio ${Sound.isReady()?'ready':'awaiting gesture'}
 `+JSON.stringify(Sound.campJamStates(),null,2);
@@ -537,7 +585,7 @@ function getCommandController() {
   commandController=createDebugCommands({
     ready:()=>!!h()?.zerble&&(h().getRunning?.()??true),
     teleport:(x,z)=>api().teleport(x,z)===false?'Teleport blocked: unsupported destination.':`Teleported to ${x}, ${z}.`,
-    locate:kind=>{const dest=teleportLandmark(kind);return dest?`→ ${dest.label} (${Math.round(dest.x)}, ${Math.round(dest.z)})`:'No matching destination found nearby.';},
+    locate:kind=>{const dest=teleportLandmark(kind);return dest?`→ ${dest.label} (${Math.round(dest.x)}, ${Math.round(dest.z)})`:teleportMissingMessage(kind);},
     time:t=>{const tod=h().getTimeOfDay?.();if(!tod)return 'Time of day is not ready.';if(t!==undefined)tod.setT(t);return `Time ${tod.t.toFixed(3)} · night ${tod.nightness.toFixed(2)}`;},
     pause:on=>{state.pendingSteps=0;api().pause(on);return on?'Simulation paused.':'Simulation resumed.';},
     step:n=>{api().pause(true);state.pendingSteps=0;api().step(n);return `Advancing ${n} frame(s), then staying paused.`;},
@@ -573,6 +621,12 @@ function getCommandController() {
     where:()=>`x ${h().zerble.position.x.toFixed(2)} · z ${h().zerble.position.z.toFixed(2)} · heading ${((h().zerble.heading*180/Math.PI%360+360)%360).toFixed(1)}°`,
     seed:()=>`Seed ${getSessionSeed()}`,
     status:commandStatus,inspect:inspectCommand,
+    summon:kind=>{
+      const dbg=window.__dbg;
+      if(!dbg)return 'Encounter helpers are not ready.';
+      const spawned=kind==='wagon'?dbg.summonNutWagon():dbg.summonOneWheel();
+      return spawned?`${kind==='wagon'?'Nut Wagon':'One-wheel rider'} summoned nearby.`:'Could not summon: encounter capacity, placement or safe-route requirements were not met.';
+    },
     quest:(verb,kind)=>{
       const dbg=window.__dbg;
       if(!dbg)return 'Passenger helpers are not ready.';
@@ -585,16 +639,22 @@ function getCommandController() {
           if(distance<=100)facilities.push({kind,x:e.position.x,z:e.position.z,distance:Math.round(distance*10)/10,occupied:!!(e.hammock??e.potty)?.occupied,approaching:!!e.hammock?.approaching});
         }
         const quests=dbg.quests(),person={};
+        quests.active=quests.active.map((quest,i)=>({...quest,number:i+1}));
+        quests.hails=quests.hails.map((hail,i)=>({...hail,number:i+1}));
         const passenger=quests.lastEvent?.riderId && h().crowd.readPerson(quests.lastEvent.riderId,person)
           ? {state:person.state,x:person.x,y:person.y,z:person.z,claimed:person.claimed,hidden:person.hidden}:null;
         return JSON.stringify({...quests,lastPassenger:passenger,cart:{x:z.position.x,z:z.position.z,speed:z.speed,grounded:z.grounded,immersion:z.engineState?.immersion??0},nearbyFacilities:facilities.sort((a,b)=>a.distance-b.distance)},null,2);
       }
       if(verb==='log')return JSON.stringify(dbg.questLog(),null,2);
+      // Special destination kinds use dedicated offer paths in the quest engine.
+      if(kind==='porta_potty')kind='urgent';
+      if(kind==='mountaintop')kind='summit';
+      if(verb==='party')return dbg.monkQuest(kind);
       if(verb==='give')return dbg.giveQuest(kind);
       if(verb==='hail')return dbg.hail(kind);
-      if(verb==='pickup')return dbg.hailGo();
-      if(verb==='approach')return dbg.hailApproach();
-      return dbg.questGo();
+      if(verb==='pickup')return dbg.hailGo((kind??1)-1);
+      if(verb==='approach')return dbg.hailApproach((kind??1)-1);
+      return dbg.questGo((kind??1)-1);
     },
     camera:(mode,span)=>{
       if(!h().chaseCam)return 'Camera controls are not ready.';
@@ -970,36 +1030,11 @@ function buildPanel() {
   // festival landmarks (hubs, stages, drum circles…) only exist under `?worldgen=1`,
   // and the v1 forest landmarks only exist in the legacy world — showing the wrong
   // set just lists dead options. Lake / Lurleen / Spawn are universal.
-  const TP_OPTIONS = USE_WORLDGEN_V2 ? [
-    ['hub',          'Festival hub (nearest major)'],
-    ['stage',        'Stage (nearest)'],
-    ['healing_arts', 'Healing Arts tent'],
-    ['drum_circle',  'Drum circle'],
-    ['food_court',   'Food court'],
-    ['arch',         'Entrance arch'],
-    ['bubble',       'Bubble vendor (refuel)'],
-    ['camp_village', 'Camp village'],
-    ['woodland_camp', 'Woodland campground'],
-    ['cornhole_game', 'Cornhole court (loaded)'],
-    ['one_wheel', 'One-wheel rider (active)'],
-    ['nut_wagon',    'Nut Wagon (active)'],
-    ['monks',        'Monks (active group)'],
-    ['lake',         'Lake'],
-    ['lurleen',      'Lurleen'],
-    ['spawn',        'Spawn'],
-  ] : [
-    ['drum_circle_forest', 'Drum circle (forest entrance)'],
-    ['campsite_forest',    'Campsite forest (entrance)'],
-    ['any_forest',         'Any forest (entrance)'],
-    ['lurleen',            'Lurleen'],
-    ['lake',               'Lake'],
-    ['campsite',           'Campsite (any)'],
-    ['spawn',              'Spawn'],
-  ];
-  const tpOptsHtml = TP_OPTIONS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  const tpOptsHtml = TELEPORT_DESTINATIONS.map(({kind,label,scope}) =>
+    `<option value="${kind}">${label} (${TELEPORT_SCOPE[scope]})</option>`).join('');
   tpContent.innerHTML = `
     <div style="display:flex;gap:4px">
-      <select id="dbg-tp-select" style="flex:1;font:inherit;background:#0e1c28;color:#dff;border:1px solid #2a4a5a;border-radius:3px;padding:2px 4px">
+      <select id="dbg-tp-select" aria-label="Teleport destination" style="flex:1;min-width:0;font:inherit;background:#0e1c28;color:#dff;border:1px solid #2a4a5a;border-radius:3px;padding:2px 4px">
         ${tpOptsHtml}
       </select>
       <button id="dbg-tp-go" style="font:inherit;padding:2px 10px;background:rgba(255,224,102,0.20);color:#ffe066;border:1px solid rgba(255,224,102,0.45);border-radius:3px;cursor:pointer">Go</button>
@@ -1018,9 +1053,7 @@ function buildPanel() {
     if (dest) {
       tpStatus.textContent = `→ ${dest.label}`;
     } else {
-      tpStatus.textContent = tpSelect.value === 'nut_wagon' ? 'No Nut Wagon has spawned yet.'
-        : tpSelect.value === 'monks' ? 'No monk group has spawned yet.'
-        : 'no nearby landmark of that type';
+      tpStatus.textContent = teleportMissingMessage(tpSelect.value);
     }
   });
 

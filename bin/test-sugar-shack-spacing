@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import {setFestivalTuning as setDensityTuning} from '../src/worldgen/tuning.js';
+// Isolate the original placement fixture; integrated density has its own regression.
+setDensityTuning({FOOD_COURT_MIN_SPACING:0});
 import {readFileSync,writeFileSync} from 'node:fs';
 import {Scene} from 'three';
 globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:720,__perfProfile:'low'};

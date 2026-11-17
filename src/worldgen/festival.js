@@ -709,18 +709,19 @@ function treedDistrictSpot(heart, rng, avoidBearing, reject) {
 }
 
 // ── Per-heart festival plan (memoized, gated on (seed, epoch)) ───────────────
-// Two layers (4B.3b): `_planCache` holds the seam-BLIND base plan; `_seamedCache` holds
-// the public plan = base + cross-hub seam suppressions. The seam pass reads the base
-// (never the seamed plan) so it's non-recursive (N1) and the base cache never goes stale
-// w.r.t. a seam (the Architect's stale-memo invariant, deliberation 002).
+// `_planCache` holds seam-blind plans, `_seamedCache` holds seam-resolved plans,
+// and `_spacedCache` holds final plans after food-court density filtering. Seam
+// and density comparisons read base plans, so neighboring final-plan queries never
+// recurse and cached base plans cannot depend on which neighbor was queried first.
 const _planCache = new Map();
 const _seamedCache = new Map();
+const _spacedCache = new Map();
 let _planGate = '';
 let _spawnHubKey = null;     // the ONE hub that gets the entrance arch (Gary 2026-06-14)
 let _welcomeCourt = undefined;
 function planGate() {
   const g = getSessionSeed() + ':' + worldgenEpoch();
-  if (g !== _planGate) { _planCache.clear(); _seamedCache.clear(); _faCache.clear(); _spawnHubKey = null; _welcomeCourt = undefined; _planGate = g; }
+  if (g !== _planGate) { _planCache.clear(); _seamedCache.clear(); _spacedCache.clear(); _faCache.clear(); _spawnHubKey = null; _welcomeCourt = undefined; _planGate = g; }
 }
 
 // There is exactly ONE entrance arch in the whole world — the festival's grand gateway
@@ -821,11 +822,10 @@ function _suppressSetForHeart(heart) {
   return set;
 }
 
-// Public plan = base plan with cross-hub seam suppressions applied (4B.3b). This is what the
-// game builds AND what the POI golden hashes — so the seam decision lands in ONE hash
-// (deliberation 002, Decision 1). Memoized separately; a pure function of (heart, seed) —
-// the suppressions derive from neighbours' seam-blind base plans, which are themselves pure.
-export function festivalPlan(heart) {
+// Resolve cross-hub seams before the final density filter. This separate memo is
+// also the welcome-court selection surface, so that selection never recurses into
+// final plans. Suppressions derive from neighboring seam-blind base plans.
+function _seamPlan(heart) {
   if (!heart) return [];
   planGate();
   const key = heart.cx + ',' + heart.cz;
@@ -846,6 +846,53 @@ export function festivalPlan(heart) {
   if (_seamedCache.size > 4000) _seamedCache.clear();
   _seamedCache.set(key, plan);
   return plan;
+}
+
+// Density is a final plan filter, so rejecting a court never consumes RNG or moves
+// its siblings. Compare neighboring base plans only: final neighbors would recurse,
+// and resolving their seams would fan out cold planning well beyond this window.
+// A court can conservatively yield to a candidate suppressed by another rule.
+export function festivalPlan(heart) {
+  if (!heart) return [];
+  planGate();
+  const key = heart.cx + ',' + heart.cz;
+  const hit = _spacedCache.get(key);
+  if (hit) return hit;
+  const plan = _seamPlan(heart), spacing = FESTIVAL_TUNING.FOOD_COURT_MIN_SPACING;
+  const courts = plan.filter(d => d.kind === 'food_court');
+  const drop = new Set();
+  if (spacing > 0 && courts.length) {
+    // The welcome selection reads pre-density plans, and wins every comparison.
+    // This keeps the entrance festival's promised food/refill stop available.
+    const welcome = welcomeFoodCourt();
+    const same = (a,b) => a?.clusterSeed === b?.clusterSeed && a?.x === b?.x && a?.z === b?.z;
+    const ownerOrder = owner => {
+      if (owner.rank !== heart.rank) return owner.rank === 'major' ? -1 : 1;
+      return getHubPriority(heart.cx,heart.cz) - getHubPriority(owner.cx,owner.cz) ||
+        owner.cx-heart.cx || owner.cz-heart.cz;
+    };
+    for (const court of courts) {
+      if (same(court,welcome)) continue;
+      if (welcome && (court.x-welcome.x)**2 + (court.z-welcome.z)**2 < spacing**2) {
+        drop.add(court.clusterSeed); continue;
+      }
+      const reach = spacing + MAX_POI_REACH;
+      outer: for (const owner of heartsInBounds(court.x-reach,court.z-reach,court.x+reach,court.z+reach)) {
+        const order = ownerOrder(owner);
+        if (order > 0 || (owner.x-court.x)**2 + (owner.z-court.z)**2 > reach**2) continue;
+        for (const other of _basePlan(owner)) {
+          if (other.kind !== 'food_court' || same(other,court) || order === 0 && other.clusterSeed >= court.clusterSeed) continue;
+          if ((court.x-other.x)**2 + (court.z-other.z)**2 < spacing**2) {
+            drop.add(court.clusterSeed); break outer;
+          }
+        }
+      }
+    }
+  }
+  const spaced = drop.size ? plan.filter(d => !drop.has(d.clusterSeed) && !drop.has(d.parentSeed)) : plan;
+  if (_spacedCache.size > 4000) _spacedCache.clear();
+  _spacedCache.set(key,spaced);
+  return spaced;
 }
 
 // One candidate hub per 3×3 macrocell, with its own stream. Existing plans and
@@ -898,7 +945,8 @@ function healingArtsSpot(heart) {
 // no court after the zone-fit and seam passes, so a spawn-heart-only guarantee
 // would silently do nothing. Search its immediate neighbours first and expand
 // only if none has a surviving court. This runs once per seed/tuning epoch and
-// leaves every POI plan, cluster seed, and non-welcome court unchanged.
+// reads pre-density seam plans so the winner can be protected by the final density
+// filter without recursion. No placement draws or candidate coordinates change.
 export function welcomeFoodCourt() {
   planGate();
   if (_welcomeCourt !== undefined) return _welcomeCourt;
@@ -911,7 +959,7 @@ export function welcomeFoodCourt() {
       for (let cx = home.cx - radius; cx <= home.cx + radius; cx++) {
         const heart = heartInCell(cx, cz);
         if (!heart) continue;
-        for (const d of festivalPlan(heart)) {
+        for (const d of _seamPlan(heart)) {
           if (d.kind !== 'food_court') continue;
           const dx = d.x - home.x, dz = d.z - home.z;
           const distSq = dx * dx + dz * dz;

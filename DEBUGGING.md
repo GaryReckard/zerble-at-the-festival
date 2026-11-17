@@ -1077,3 +1077,61 @@ For the actual hailer approach check, create a hail with `/quest hail`, then run
 ### Hammock rest-area checks
 
 `node bin/test-hammock-placement` builds real contextual campsite hammocks and checks empty woods, unsuitable camps, clear approaches, regeneration and the retained undergrowth fingerprint. `/quest status` distinguishes `approaching` from the resource's occupied reservation flag. The ride-card fixture `/menu-preview.html?screen=rides&case=approach&mute=1` previews approaching-visitor guidance. [Evidence and limits](verification/passenger-quests/hammock-rest-areas/README.md).
+
+### Quest and exploration command expansion (November 16)
+
+The backtick Teleport menu and `/tp` now share one destination catalog, including
+aliases, generator availability and search-scope labels. Repeat a destination to
+cycle available matches. **World search** scans the bounded procedural search
+area; **loaded** searches currently built objects, and **active encounter** follows
+an existing actor. A missing destination does not create an object or summon an
+encounter. Facility approaches avoid nearby colliders, and all teleports retain
+the cart's selected-surface admission check and Passport relocation semantics.
+
+| Command | Behavior |
+| --- | --- |
+| `/tp vendors` | Find a procedural vendor row |
+| `/tp hammock`, `/tp potty`, `/tp beach` | Visit a loaded facility or beach; `/tp porta_potty` aliases `potty` |
+| `/tp cornhole` | Visit a loaded court, also available in the menu |
+| `/quest status` | Inspect requests and hails with their current one-based `number`, arrival state and nearby facilities |
+| `/quest go [1..3]` | Visit the numbered active request's stored destination; defaults to 1 |
+| `/quest pickup [1..2]` | Park beside the numbered hailer without forcing boarding |
+| `/quest approach [1..2]` | Start 35 m from the numbered hailer, facing them for a real driving approach |
+| `/quest give [kind]`, `/quest hail [kind]` | Force a passenger request or hail; autocomplete includes all supported destination kinds, including side/tent stages, beach, drum circle, arch and Healing Arts |
+| `/quest party [kind]` | Ask the monks already riding Zerble to share an ordinary destination; individual facilities and urgent/summit requests are excluded |
+| `/summon wagon`, `/summon rider` | Request a nearby Nut Wagon or one-wheel encounter through production placement; capacity and safe-route checks still apply |
+| `/inspect physics`, `/inspect map`, `/inspect upgrades` | Read the existing physics, festival-map and bubble-progress snapshots without modifying them |
+
+Quest numbers follow the current status ordering and can change when a ride or
+hail ends. The command bounds follow the limits of three active requests and two hailers.
+`porta_potty` selects the urgent offer path and `mountaintop` selects the summit
+path, just like `urgent` and `summit`. A facility request still accepts a suitable
+free alternative through the normal arrival logic; teleporting to its stored
+suggestion does not bypass occupancy, walking, handoff or reward rules.
+`/quest log` continues to read the ride record without clearing progress.
+
+The console `__dbg.teleport(x, z, heading?)` returns `false` when selected-surface
+admission rejects a jump, allowing quest helpers to report a blocked arrival
+without moving the cart, changing heading or marking exploration as relocated.
+
+Focused checks: `node bin/test-debug-commands`, `node bin/test-debug-actions` and
+`node bin/test-debug-teleports`. These cover argument bounds before mutation,
+number translation, party restrictions, special offer aliases, summon failure,
+inspection adapters, catalog/menu parity, legacy-generator filtering and loaded
+facility cycling, unload and blocked approaches.
+
+### Food-court density regression
+
+`node bin/test-food-court-spacing` replays seed `3185230054` around
+`(-1887.63, -1232.91)`, where three minor-hub truck circles previously sat within
+137 m of the cart. The final festival plan enforces
+`FESTIVAL_TUNING.FOOD_COURT_MIN_SPACING` (240 m between court centres), with the
+entrance welcome court protected, then major hubs preferred, followed by stable
+hub priority and coordinate ties. Court removal also removes its dependent welfare
+post; sibling descriptors and RNG draws remain unchanged. The same final plan
+feeds chunk construction, the map, terrain and destination searches.
+
+The legacy road-clearance and named-vendor regression fixtures temporarily disable
+court density to keep exercising their original close-court cases; the new density
+test also checks road clearance and the welcome court under the production setting.
+[Evidence and limits](verification/food-court-spacing/README.md).

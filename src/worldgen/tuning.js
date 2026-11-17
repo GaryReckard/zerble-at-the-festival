@@ -206,6 +206,7 @@ export const FESTIVAL_TUNING = {
   // ── Food-court ring (builder buildFoodCourtAt, chunks.js:1303) ──
   FOOD_COURT_COUNT_BASE: 3, FOOD_COURT_COUNT_SPAN: 3,   // chunks.js:1304 — 3..5 trucks
   FOOD_COURT_RING_MULT: 14,         // chunks.js:1305 — ring = MULT × FOOD_TRUCK_SCALE
+  FOOD_COURT_MIN_SPACING: 240,       // center-to-center across hubs; keeps separate dining destinations
   FOOD_COURT_SHACK_MIN_SPACING: 150, // minimum between named vendors, independent of chunk load order
   FOOD_COURT_SHACK_PROB: 0.35,      // chunks.js:1306
   FOOD_COURT_SHACK_RING_PAD: 2.5,   // chunks.js:1315 — shack sits ring+pad out

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createDebugCommands} from '../src/debugCommands.js';
 const calls=[];let ready=true;
 const actions={ready:()=>ready};
-for(const name of ['teleport','locate','time','pause','step','god','colliders','npc','juice','smiles','star','heading','stop','where','seed','status','inspect','quest','camera','perf','mute'])actions[name]=(...args)=>{calls.push({name,args});return name+':'+args.join(',');};
+for(const name of ['teleport','locate','time','pause','step','god','colliders','npc','juice','smiles','star','heading','stop','where','seed','status','inspect','quest','summon','camera','perf','mute'])actions[name]=(...args)=>{calls.push({name,args});return name+':'+args.join(',');};
 const grammar=createDebugCommands(actions,{camp:'woodland_camp',stage:'stage',forest:'any_forest'},{camp:'Woodland campground',stage:'Music stage'});
 for(const [text,name,args] of [
  ['/tp camp','locate',['woodland_camp']],['/tp -12.5 45','teleport',[-12.5,45]],
@@ -14,6 +14,11 @@ for(const [text,name,args] of [
  ['/juice 0','juice',[0]],['/juice','juice',[undefined]],['/smiles 100','smiles',[100]],['/star','star',['find']],['/star spawn','star',['spawn']],['/star trigger','star',['trigger']],['/star end','star',['end']],
  ['/heading 360','heading',[360]],['/stop','stop',[]],['/where','where',[]],['/seed','seed',[]],['/status','status',[]],
  ['/quest status','quest',['status',undefined]],['/quest give urgent','quest',['give','urgent']],['/quest give hammock','quest',['give','hammock']],['/quest hail food_court','quest',['hail','food_court']],['/quest go','quest',['go',undefined]],['/quest approach','quest',['approach',undefined]],
+ ['/quest go 2','quest',['go',2]],['/quest pickup 2','quest',['pickup',2]],['/quest approach 2','quest',['approach',2]],
+ ['/quest party drum_circle','quest',['party','drum_circle']],['/quest party','quest',['party',undefined]],
+ ['/quest give beach','quest',['give','beach']],['/quest hail healing_arts','quest',['hail','healing_arts']],
+ ['/summon wagon','summon',['wagon']],['/summon rider','summon',['rider']],
+ ['/inspect physics','inspect',['physics']],['/inspect map','inspect',['map']],['/inspect upgrades','inspect',['upgrades']],
  ['/inspect camps','inspect',['camps']],['/inspect audio','inspect',['audio']],
  ['/camera top 240','camera',['top',240]],['/camera chase','camera',['chase']],
  ['/perf','perf',['status']],['/perf on','perf',['on']],['/mute','mute',[undefined]],['/mute on','mute',['on']],
@@ -23,6 +28,7 @@ for(const [text,name,args] of [
 for(const text of ['/pause extra','/resume extra','/stop extra','/help tp extra','/time -1','/time 2','/time noon extra',
  '/tp Infinity 2','/tp 0 0 extra','/tp __proto__','/tp constructor','/step 0','/step 1.5','/step 121','/step Infinity',
  '/god maybe','/colliders on extra','/npc spawn','/juice -1','/juice 101','/smiles 0','/smiles 1000000','/star nope','/star spawn extra','/heading 361',
+ '/quest pickup 3','/quest approach 3','/quest go 0','/quest go 4','/quest go 1.5','/quest pickup Infinity','/quest status 1','/quest log 1','/quest party hammock','/quest party urgent','/quest party summit','/summon','/summon monks','/summon wagon extra',
  '/quest unknown','/quest go urgent','/quest give __proto__','/quest give urgent extra','/camera chase 100','/camera top 0','/camera top Infinity','/inspect arbitrary','/perf upload','/mute maybe','/eval alert(1)']){
  const count=calls.length;assert.match(grammar.run(text),/Use|Unknown/,text);assert.equal(calls.length,count,'invalid commands cannot partially mutate: '+text);
 }
@@ -38,4 +44,12 @@ assert.equal(grammar.suggest('/tp caMP',6)[0].value,'/tp camp');
 assert.equal(grammar.suggest('/tp 12 ').length,0);
 assert.equal(grammar.suggest('/npc freeze ').length,0);
 const failing=createDebugCommands({...actions,status(){throw Error('not ready');}},{},{});assert.match(failing.run('/status'),/Command failed: not ready/);
-console.log('PASS 22-command grammar: real argument dispatch, bounds/arity before mutation, readiness, failure feedback, prototype rejection and contextual nested completion.');
+console.log('PASS command grammar: real argument dispatch, bounds/arity before mutation, readiness, failure feedback, prototype rejection and contextual nested completion.');
+
+assert.deepEqual(grammar.suggest('/quest go ').map(s=>s.label),['1','2','3']);
+assert.equal(grammar.suggest('/quest status ').length,0);
+assert(grammar.suggest('/quest give ').some(s=>s.label==='beach'));
+assert(!grammar.suggest('/quest party ').some(s=>s.label==='hammock'));
+assert.deepEqual(grammar.suggest('/summon ').map(s=>s.label),['wagon','rider']);
+
+assert.deepEqual(grammar.suggest('/quest pickup ').map(s=>s.label),['1','2']);

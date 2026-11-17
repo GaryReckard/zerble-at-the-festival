@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {setSeed} from '../src/worldgen/index.js';
+import {setLandscapeVersion} from '../src/worldgen/landscapeCandidates.js';
+import {heartsInBounds} from '../src/worldgen/hearts.js';
+import {festivalPlan,welcomeFoodCourt,MAX_POI_REACH} from '../src/worldgen/festival.js';
+import {FESTIVAL_TUNING as T,setFestivalTuning,MODEL_DIMS} from '../src/worldgen/tuning.js';
+import {nearestRoad} from '../src/worldgen/roads.js';
+import {CONFIG,bumpWorldgen} from '../src/worldgen/constants.js';
+const baseline=JSON.parse(readFileSync(new URL('../verification/food-court-spacing/baseline.json',import.meta.url)));
+setLandscapeVersion(2);setSeed(baseline.seed);
+const plans=baseline.plans.map(({heart})=>festivalPlan(heart));
+const {x,z}=baseline.marker,reach=150+MAX_POI_REACH;
+const near=heartsInBounds(x-reach,z-reach,x+reach,z+reach).flatMap(festivalPlan)
+ .filter(d=>d.kind==='food_court'&&Math.hypot(d.x-x,d.z-z)<150);
+assert.equal(near.length,1,'reported three-circle cluster should retain one food court within 150 m');
+for(let i=0;i<baseline.plans.length;i++){
+ const original=baseline.plans[i].plan;
+ const kept=new Set(plans[i].map(d=>d.clusterSeed));
+ const removed=new Set(original.filter(d=>d.kind==='food_court'&&!kept.has(d.clusterSeed)).map(d=>d.clusterSeed));
+ assert.deepEqual(plans[i],original.filter(d=>!removed.has(d.clusterSeed)&&!removed.has(d.parentSeed)),
+  'only suppressed courts and their dependent welfare posts change; sibling coordinates, seeds and variations stay stable');
+}
+let checked=0;
+for(const seed of [3185230054,2641474229,1234,42,9876]){
+ setSeed(seed);
+ const hearts=heartsInBounds(-700,-700,700,700);
+ const first=hearts.map(h=>festivalPlan(h));
+ const food=first.flat().filter(d=>d.kind==='food_court');
+ for(const d of food)assert(nearestRoad(d.x,d.z).dist>T.FOOD_COURT_RING_MULT*MODEL_DIMS.FOOD_TRUCK_SCALE+CONFIG.ROAD_WIDTH/2+1,'density-filtered courts still clear roads');
+ assert(food.length>=5,'food remains discoverable across a 1.4 km region');
+ for(let i=0;i<food.length;i++)for(const b of food.slice(i+1))
+  assert((food[i].x-b.x)**2+(food[i].z-b.z)**2>=T.FOOD_COURT_MIN_SPACING**2,'all surviving courts respect minimum spacing');
+ const welcome=welcomeFoodCourt();assert(welcome,'entrance retains a welcome food court');
+ const surrounding=heartsInBounds(welcome.x-480,welcome.z-480,welcome.x+480,welcome.z+480).flatMap(h=>festivalPlan(h));
+ assert(surrounding.some(d=>d.kind==='food_court'&&d.clusterSeed===welcome.clusterSeed),'welcome court survives density resolution');
+ setSeed(seed+1);setSeed(seed);
+ assert.deepEqual([...hearts].reverse().map(h=>festivalPlan(h)).reverse(),first,'reverse query order and seed roundtrip retain identical plans');
+ checked+=food.length;
+}
+const spacing=T.FOOD_COURT_MIN_SPACING;
+try{
+ setFestivalTuning({FOOD_COURT_MIN_SPACING:0});bumpWorldgen();setSeed(baseline.seed);
+ assert.deepEqual(baseline.plans.map(({heart})=>festivalPlan(heart)),baseline.plans.map(p=>p.plan),'zero spacing restores the pre-fix plans exactly');
+}finally{setFestivalTuning({FOOD_COURT_MIN_SPACING:spacing});bumpWorldgen();}
+console.log(`PASS reported food-court pileup, ${checked} spaced courts across five seeds, unchanged siblings, welcome preservation, seed/query order and tuning invalidation.`);

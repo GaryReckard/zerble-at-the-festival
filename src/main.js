@@ -2627,14 +2627,13 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     hailGo(i = 0) {
       const hail = quests.hails[i]; const w = {};
       if (!hail || !crowd.walkerInfo(hail.handle, w)) return 'no one is hailing';
-      this.teleport(w.x + 5, w.z + 3);
+      if (this.teleport(w.x + 5, w.z + 3) === false) return 'Pickup point has no safe driving support.';
       return 'parked beside them';
     },
-    hailApproach() {
-      const hail = quests.hails[0], w = {};
+    hailApproach(i = 0) {
+      const hail = quests.hails[i], w = {};
       if (!hail || !crowd.walkerInfo(hail.handle, w)) return 'no one is hailing';
-      zerble.heading = Math.PI / 2;
-      if (this.teleport(w.x + 35, w.z) === false) return 'Approach point has no safe driving support.';
+      if (this.teleport(w.x + 35, w.z, Math.PI / 2) === false) return 'Approach point has no safe driving support.';
       return '35 m from the hailer, facing them. Drive forward, brake nearby, and wait for boarding.';
     },
     questLog(action) { if (action === 'reset') quests.log.reset(); return quests.log.snapshot(); },
@@ -2648,7 +2647,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     questGo(i = 0) {
       const quest = quests.active[i];
       if (!quest) return 'no active quest';
-      this.teleport(quest.x - Math.min(10, quest.radius * 0.4), quest.z);
+      if (this.teleport(quest.x - Math.min(10, quest.radius * 0.4), quest.z) === false) return 'Quest destination has no safe driving support.';
       return `at ${quest.label}; stop to let them off`;
     },
     nutWagon() { return nutWagon.status(); },
@@ -2741,15 +2740,16 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     },
 
     // Move the cart to world (x, z), zeroing speed.
-    teleport(x = 0, z = 0) {
+    teleport(x = 0, z = 0, heading = zerble.heading) {
       if (zerble.surfaceBinding) {
-        if (!zerble.relocateOnSurface(x, z)) return 'Teleport blocked: unsupported destination';
+        if (!zerble.relocateOnSurface(x, z, { heading })) return false;
         physicalWorld?.reset('teleport');
         playerStats.relocate();
         return `teleported to (${x}, ${z})`;
       }
       physicalWorld?.reset('teleport');
       playerStats.relocate();
+      zerble.heading = heading;
       zerble.position.set(x, terrainHeight(x,z), z);
       if (zerble.surfaceSampler) zerble.groundOnSurface();
       zerble.speed = 0;

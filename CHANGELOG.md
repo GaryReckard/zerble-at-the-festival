@@ -5,6 +5,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-11-16
 
 ### Added
+- **Quest and exploration commands cover the newer festival systems.** Passenger commands can select a numbered request or hailer, force every supported destination kind, and request an ordinary monk-party ride. Added safe encounter summoning and physics/map/upgrades inspection. The Teleport menu and `/tp` share one catalog with vendor rows, loaded hammocks, porta-potties and beaches alongside cornhole, with search-scope labels and missing-destination feedback. Existing placement, occupancy, delivery and reward rules remain in charge. [Command reference](DEBUGGING.md#quest-and-exploration-command-expansion-november-16) and [verification](verification/debug-commands/2026-11-16/README.md).
 - **Cornhole pickup inspection.** The production NPC sandbox has a Show bag pickup control that pauses and frames a real reach, with round advance resuming correctly from inspection.
 
 ### Changed
@@ -28,6 +29,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **Stage equipment has a working layout.** Speaker stacks stand at the audience edge, monitor wedges point back at the band, and a lighting bridge spans the deck. The model sandbox can isolate any musician, hold a playing pose, and show the notes driving it. [Stage workshop instructions](DEBUGGING.md#stage-performance-workshop).
 
 ### Fixed
+- **Food courts keep their distance across neighbouring hubs.** The reported seed placed three separate truck circles within 137 m of the cart because each minor hub independently supplied its own court. A deterministic 240 m centre-spacing rule now retains one court in that area, favours major hubs and preserves the entrance welcome court. Suppressed courts take their attached welfare posts with them, while other layout coordinates, cluster seeds and variation draws stay unchanged. [Reproduction and verification](verification/food-court-spacing/README.md).
 
 - **Tree atlas checks survive Node compression changes.** The deployment runner’s Node 24.22.2 encoded the same PNG pixels differently from local Node 24.10.0, and the raw Buffer assertion stalled while formatting its binary diff. The verifier now compares exact decoded RGBA pixels and metadata, validates the PNG structure and reports bounded SHA-256 diagnostics. Regression fixtures allow compression-only differences and reject changed pixels; the shipped atlas is unchanged.
 
