@@ -262,22 +262,55 @@ body #title-page-main {
   padding:0
 }
 
-body #title-page-main::before {
-  content:"";
+body .title-marquee {
   position:fixed;
   left:3cqw;
   top:2cqh;
-  width:min(42cqw,720px);
-  height:20cqh;
-  background:url('assets/title-screen/title-logo.webp') left top/contain no-repeat;
+  width:min(42cqw,720px,60cqh);
+  aspect-ratio:3;
   pointer-events:none
 }
 
 /* Tablet-width headers need room for both the logo and hanging navigation. */
 @media(min-width:901px) and (max-width:1199px) {
-  body #title-page-main::before {
-    width:clamp(180px,calc(100cqw - 740px),460px)
+  body .title-marquee {
+    width:min(clamp(180px,calc(100cqw - 740px),460px),60cqh)
   }
+}
+
+/* Let the desktop marquee fill the open sky while reserving the menu row. */
+@media(min-width:1200px) and (min-height:501px) {
+  body .title-marquee {
+    top:6cqh;
+    width:min(48cqw,calc(100cqw - 880px),1400px,108cqh)
+  }
+}
+
+
+body .title-marquee .title-logo {
+  display:block;
+  width:100%;
+  height:auto
+}
+
+/* Static, soft gradients provide the bloom; only their opacity is animated. */
+body .title-logo-light {
+  position:absolute;
+  left:calc(var(--bulb-x) * 100% / 2172);
+  top:calc(var(--bulb-y) * 100% / 724);
+  width:7%;
+  aspect-ratio:1;
+  transform:translate(-50%,-50%);
+  background:radial-gradient(circle,#fffbe7 0 5%,var(--bulb-color) 12%,transparent 67%);
+  opacity:.3;
+  animation:marquee-lights 11s ease-in-out var(--bulb-delay) infinite
+}
+
+@keyframes marquee-lights {
+  0%,12%,42%,100% { opacity:.18 }
+  24% { opacity:.95 }
+  60%,84% { opacity:.4 }
+  72% { opacity:.8 }
 }
 
 body .title-tagline {
@@ -562,6 +595,7 @@ body #title-card .title-links .title-link {
   display:block;
   text-decoration:none;
   min-height:44px;
+  margin:0;
   width:auto;
   padding:6px clamp(8px,1.1cqw,14px);
   background:var(--panel);
@@ -1973,8 +2007,8 @@ body #title-bubbles {
     bottom:2vh
   }
 
-  body #title-page-main::before {
-    height:14vh
+  body .title-marquee {
+    width:min(42cqw,720px,42cqh)
   }
 
   body #title-card .title-links .title-link {
