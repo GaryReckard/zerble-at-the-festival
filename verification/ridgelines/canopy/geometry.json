@@ -1,0 +1,12 @@
+{
+  "draws": 1,
+  "triangles": 13824,
+  "vertices": 9756,
+  "geometryBytes": 707328,
+  "constructionMs": 17.260292,
+  "textureCount": 1,
+  "textureSize": 128,
+  "textureBytesBase": 65536,
+  "textureBytesWithMipmaps": 87380,
+  "noShadowCasters": true
+}

@@ -1,5 +1,10 @@
 # Blue Ridge scenery and long-notice containment
 
+This records the initial color-only ridge pass (`a48b2b1`). Gary subsequently
+identified its grassy appearance; the [forested canopy follow-up](canopy/README.md)
+supersedes the rendering budget and appearance below. The original measurements
+and captures are retained as the comparison baseline.
+
 Implemented and checked on Gary’s Mac on 2026-11-16, against the former mountain
 backdrop in `9b25750`. Gary’s Lake Eden photographs informed the wooded green
 slopes, broad rounded saddles and quiet overlapping blue ranges. The earlier AI

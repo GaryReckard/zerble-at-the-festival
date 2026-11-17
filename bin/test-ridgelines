@@ -1,21 +1,41 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import {writeFileSync,readFileSync} from 'node:fs';
-import {Scene,PerspectiveCamera,Vector3,Fog} from 'three';
-import {buildMountains,buildRidgeGeometry,ridgeViewVisibility,RIDGE_LAYERS,RIDGE_SEGMENTS,RIDGE_ROWS} from '../src/mountains.js';
+import {Scene,PerspectiveCamera,Vector3,Fog,RepeatWrapping,LinearMipmapLinearFilter,LinearFilter,NoColorSpace} from 'three';
+import {buildMountains,buildRidgeGeometry,ridgeViewVisibility,RIDGE_LAYERS,RIDGE_SEGMENTS,RIDGE_ROWS,RIDGE_VERTEX_COUNT,RIDGE_TRIANGLE_COUNT,RIDGE_CAP_SEGMENTS} from '../src/mountains.js';
+import {buildRidgeCanopy,CANOPY_SIZE} from '../src/ridgeCanopy.js';
 import {disposeSceneResources} from '../src/sceneResources.js';
 import {setSessionSeed,mulberry32} from '../src/rng.js';
-const count=RIDGE_LAYERS.length*(RIDGE_SEGMENTS+1)*RIDGE_ROWS;
+const count=RIDGE_VERTEX_COUNT;
 const start=performance.now(),g=buildRidgeGeometry(2641474229),constructionMs=performance.now()-start;
 assert.equal(g.attributes.position.count,count);
-assert.equal(g.index.count/3,10240);
+assert.equal(g.index.count/3,13824);
 assert(g.index.count/3<18720,'lighter than the measured old backdrop');
 for(const a of Object.values(g.attributes))assert([...a.array].every(Number.isFinite));
 assert(Math.max(...g.index.array)<count);
 for(let layer=0;layer<4;layer++)for(let row=0;row<RIDGE_ROWS;row++){
- const a=(layer*(RIDGE_SEGMENTS+1)*RIDGE_ROWS+row)*3,b=a+RIDGE_SEGMENTS*RIDGE_ROWS*3;
- for(const attr of Object.values(g.attributes)) assert.deepEqual(attr.array.slice(a,a+3),attr.array.slice(b,b+3),'height, color and normals close without a seam');
+ const a=layer*(RIDGE_SEGMENTS+1)*RIDGE_ROWS+row,b=a+RIDGE_SEGMENTS*RIDGE_ROWS;
+ for(const [name,attr] of Object.entries(g.attributes)){
+  const stride=attr.itemSize;
+  if(name==='uv'){
+   assert.equal(attr.getX(b)%1,attr.getX(a)%1,'UV seam closes on an integer texture repeat');
+   assert.equal(attr.getY(b),attr.getY(a));
+  }else assert.deepEqual(attr.array.slice(a*stride,(a+1)*stride),attr.array.slice(b*stride,(b+1)*stride),'height, canopy data, color and normals close without a seam');
+ }
 }
+let capStart=RIDGE_LAYERS.length*(RIDGE_SEGMENTS+1)*RIDGE_ROWS;
+for(const segments of RIDGE_CAP_SEGMENTS){
+ const p=g.attributes.position,heights=[];
+ for(let i=0;i<=segments;i++)heights.push(p.getY(capStart+i*2+1)-p.getY(capStart+i*2));
+ assert(Math.max(...heights)-Math.min(...heights)>2,'treetop silhouette varies above the smooth ridge');
+ for(let top=0;top<2;top++)for(const [name,attr] of Object.entries(g.attributes)){
+  const a=capStart+top,b=capStart+segments*2+top,stride=attr.itemSize;
+  if(name==='uv'){assert.equal(attr.getX(a)%1,attr.getX(b)%1);assert.equal(attr.getY(a),attr.getY(b));}
+  else assert.deepEqual(attr.array.slice(a*stride,(a+1)*stride),attr.array.slice(b*stride,(b+1)*stride),'treetop fringe closes exactly');
+ }
+ capStart+=(segments+1)*2;
+}
+assert.equal(capStart,count);
 for(let i=0;i<count;i++){
  const p=g.attributes.position,dist=Math.hypot(p.getX(i),p.getY(i),p.getZ(i));
  assert(dist<830,'all geometry is inside the 850 m star shell, so stars cannot shine through hills');
@@ -35,7 +55,18 @@ const scene=new Scene(),camera=new PerspectiveCamera(62,16/9,.5,1040),root=build
 assert.equal(root.children.length,1);const mesh=root.children[0],u=mesh.material.uniforms;
 assert(!mesh.castShadow&&!mesh.receiveShadow&&!mesh.material.transparent);
 assert(mesh.material.depthWrite&&mesh.material.depthTest,'real terrain and mountains occlude in depth order');
-assert(!Object.values(mesh.material.uniforms).some(x=>x.value?.isTexture),'no texture allocation');
+const textures=Object.values(mesh.material.uniforms).map(x=>x.value).filter(x=>x?.isTexture);
+assert.equal(textures.length,1,'one canopy sampler for all four layers');
+const canopy=textures[0],version=canopy.version;
+assert.equal(canopy.image.width,128);assert.equal(canopy.image.height,128);
+assert(canopy.generateMipmaps);assert.equal(canopy.anisotropy,2);
+assert.equal(canopy.wrapS,RepeatWrapping);assert.equal(canopy.wrapT,RepeatWrapping);
+assert.equal(canopy.minFilter,LinearMipmapLinearFilter);assert.equal(canopy.magFilter,LinearFilter);assert.equal(canopy.colorSpace,NoColorSpace);
+const first=buildRidgeCanopy(),second=buildRidgeCanopy();
+assert.deepEqual(first.image.data,second.image.data,'canopy bake is deterministic');
+const brightness=first.image.data.filter((_,i)=>i%4===0);
+assert(Math.max(...brightness)-Math.min(...brightness)>120,'crown light and shadow have visible contrast');
+first.dispose();second.dispose();
 const tod={nightness:0,fog:new Fog(0x94aaa0,260,520),sun:{position:new Vector3(90,130,60)}};
 const pos=new Vector3(230,120,-470),geometry=mesh.geometry,material=mesh.material;
 camera.position.set(230,126,-456);camera.lookAt(230,122,-480);
@@ -48,6 +79,8 @@ camera.position.set(230,126,-456);camera.lookAt(230,122,-480);tod.nightness=1;to
 root.userData.update(pos,camera,tod);assert(root.visible);assert.equal(u.nightness.value,1);assert.equal(u.fogColor.value.getHex(),0x232048);
 for(let i=0;i<600;i++)root.userData.update(pos,camera,tod);
 assert.equal(mesh.geometry,geometry);assert.equal(mesh.material,material,'no streaming/per-frame resource replacements');
+assert.equal(u.canopyMap.value,canopy);assert.equal(canopy.version,version,'no per-frame canopy rebake/upload');
+root.userData.setCanopyEnabled(false);assert.equal(u.canopyEnabled.value,0);root.userData.setCanopyEnabled(true);assert.equal(u.canopyEnabled.value,1);
 // Day/night jumps use the actual atmosphere owner, including the midnight stop.
 const {TimeOfDay}=await import('../src/timeOfDay.js');
 scene.fog=new Fog(0x94aaa0,120,520);
@@ -76,11 +109,11 @@ for(const elevation of [0,120])for(const mode of ['third','first','top'])for(con
   }
  }
 }
-let releases=0;geometry.addEventListener('dispose',()=>releases++);material.addEventListener('dispose',()=>releases++);disposeSceneResources(root);assert.equal(releases,2,'instance-owned geometry and material release together');
+let releases=0;geometry.addEventListener('dispose',()=>releases++);material.addEventListener('dispose',()=>releases++);canopy.addEventListener('dispose',()=>releases++);disposeSceneResources(root);assert.equal(releases,3,'instance-owned geometry, material and canopy texture release together');
 setSessionSeed(0);g.dispose();
 const bytes=Object.values(g.attributes).reduce((n,a)=>n+a.array.byteLength,0)+g.index.array.byteLength;
-assert(bytes<=360000,'geometry buffers remain within the fixed 360 KB budget');
-if(process.argv.includes('--record'))writeFileSync('verification/ridgelines/geometry.json',JSON.stringify({draws:1,triangles:g.index.count/3,vertices:count,geometryBytes:bytes,constructionMs,noTextures:true,noShadowCasters:true},null,2)+'\n');
+assert(bytes<=715000,'forested geometry remains within the fixed 715 KB buffer budget');
+if(process.argv.includes('--record'))writeFileSync('verification/ridgelines/canopy/geometry.json',JSON.stringify({draws:1,triangles:g.index.count/3,vertices:count,geometryBytes:bytes,constructionMs,textureCount:1,textureSize:CANOPY_SIZE,textureBytesBase:CANOPY_SIZE**2*4,textureBytesWithMipmaps:87380,noShadowCasters:true},null,2)+'\n');
 const world=readFileSync('src/world.js','utf8'),main=readFileSync('src/main.js','utf8');
 assert(world.includes('mountainsGroup.userData.update(playerPos,backdropCamera,timeOfDay)'));
 assert(main.includes('landscape:landscapeRuntime,camera}'),'actual gameplay camera feeds the view gate');

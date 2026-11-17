@@ -61,7 +61,9 @@ Open `/menu-preview.html?screen=settings&mute=1` on the local Vite development o
 Open `/sandbox.html?entity=mountain_backdrop&perf=low&mute=1` (also check Mid).
 The production ridge mesh appears above a large reference ground disc with the
 same fog colors; Noon/Midnight expose the palette, and the orbit controls expose
-camera transitions. Looking down hides the backdrop; switching to another model
+camera transitions. **Canopy texture** compares the material detail while keeping
+the fringe geometry, and **Rebuild ridges** exercises resource release, including
+when Midnight is held. Looking down hides the backdrop; switching to another model
 releases its geometry/material and restores the sandbox fog and camera far plane.
 The real game remains the terrain-blend check: start through a ready mode plank,
 use `V` for chase/first-person/top-down, and check the zoom extremes with the

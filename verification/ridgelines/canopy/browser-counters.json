@@ -1,0 +1,22 @@
+[
+  {
+    "phase": "on",
+    "stats": "scene: 3 draws · 13,872 tris · 4 geo · 4 tex"
+  },
+  {
+    "phase": "off",
+    "stats": "scene: 3 draws · 13,872 tris · 4 geo · 4 tex"
+  },
+  {
+    "phase": "midnight-rebuild-1",
+    "stats": "scene: 3 draws · 13,872 tris · 4 geo · 4 tex"
+  },
+  {
+    "phase": "midnight-rebuild-2",
+    "stats": "scene: 3 draws · 13,872 tris · 4 geo · 4 tex"
+  },
+  {
+    "phase": "midnight-rebuild-3",
+    "stats": "scene: 3 draws · 13,872 tris · 4 geo · 4 tex"
+  }
+]

@@ -227,16 +227,20 @@ mesh uses 140 segments per side, down from 220 before the texture was added.
 
 ### Distant ridgelines (`mountains.js`)
 
-Four continuous radial slopes share one opaque indexed mesh (10,240 triangles,
-6,168 vertices, 357,504 geometry bytes). A dedicated seeded stream controls the
+Four continuous radial slopes and two narrow treetop fringes share one opaque
+indexed mesh (13,824 triangles, 9,756 vertices, 707,328 geometry bytes). A dedicated seeded stream controls the
 silhouette and baked woodland colors without consuming world-generation draws.
 The group follows player X/Z at the world’s vertical datum; its buried skirts
 and fog-colored feet meet the real ground, which depth-tests in front of it.
 This is scenery, while playable hills remain owned by terrain/landscape systems.
 
 The unlit shader blends baked day/night colors using the existing `nightness`,
-borrows the actual fog color and sun direction, and needs no textures, real lights,
-shadow passes or terrain queries. Daylight fog and the lower sky use muted cool
+borrows the actual fog color and sun direction, and needs no real lights,
+shadow passes or terrain queries. `ridgeCanopy.js` bakes one 128×128 data texture
+of irregular overlapping crowns and leaf shadows. Integer UV repeats close the
+angular seam; mipmaps and progressively lower detail weights quiet the distance,
+and the furthest range skips the lookup. The two nearer fringes use a leaf-edge
+cutout in the same opaque draw. No individual tree objects are constructed. Daylight fog and the lower sky use muted cool
 colors; sunset and night stops retain their existing colors. All ridge vertices
 sit inside the star shell and the existing camera far plane. The sky draws first,
 then ridges, then the normal depth-tested world.
@@ -246,7 +250,8 @@ vector points down, silhouettes lower toward their buried feet; at a downward
 component of 0.78 the group is hidden, avoiding both the draw and a circular wall
 in top-down views. The geometry/material belong to the world-lifetime group,
 carry no shared-resource tag and are released by ordinary owned-subtree disposal
-in the sandbox. [Checks, captures and limitations](verification/ridgelines/README.md).
+in the sandbox. The material’s disposal event also releases its owned canopy
+texture, with a guard against duplicate texture disposal. [Checks, captures and limitations](verification/ridgelines/README.md).
 
 ### Shared tree and bird rendering
 

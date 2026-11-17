@@ -142,6 +142,16 @@ Complete the [current fidelity and phone checks](#performance) before adding
 blur or new proxy types. The [performance record](docs/backlog/performance.md#august-far-field-ideas-historical)
 preserves the earlier depth-of-field, handoff and drum-circle proxy ideas.
 
+Discussion from November 16, not yet an implementation commitment: evaluate
+view-dependent tree impostors made from the actual tree models, including
+angled/overhead views and a stable placement handoff, rather than the current
+coarse forest domes. [Technique reference](https://dev.epicgames.com/documentation/en-us/unreal-engine/impostor-baker-plugin-in-unreal-engine).
+Also review whether decorative far-stage diamond beacons still belong in the
+visual style. For the distant ridge scenery, consider only a few tiny warm
+homestead light points around the horizon, with staggered shutoff around 11 p.m.
+of the game day; Gary specifically wants distant points, not distinguishable
+windows. These are separate from the implemented mountain-canopy correction.
+
 ### Festival realism research
 
 The [research backlog](docs/backlog/festival-research.md) retains validation

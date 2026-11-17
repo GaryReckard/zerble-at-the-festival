@@ -1156,8 +1156,15 @@ import {buildShrub} from './src/models/shrub.js';
             case 'mountain_backdrop': {
                 scene.fog=new THREE.Fog(0x94aaa0,260,520);
                 scene.background=scene.fog.color;tod.fog=scene.fog;
+                tod.setT(tod.t); // rebuilds must also retain a held midnight palette
                 const ridges=buildMountains(scene);
-                ridges.userData.cleanup=()=>{scene.fog=null;tod.fog=null;scene.background=new THREE.Color(0x1a1430);};
+                const controls=document.createElement('div');
+                controls.style.cssText='display:block;margin:6px 0';
+                controls.innerHTML='<label><input type="checkbox" checked> Canopy texture</label> <button type="button">Rebuild ridges</button>';
+                controls.querySelector('button').onclick=()=>loadEntity('mountain_backdrop');
+                controls.querySelector('input').onchange=e=>ridges.userData.setCanopyEnabled(e.target.checked);
+                info.after(controls);
+                ridges.userData.cleanup=()=>{controls.remove();scene.fog=null;tod.fog=null;scene.background=new THREE.Color(0x1a1430);};
                 entityRoot=ridges; currentEntity=ridges;
                 camera.far=1040;camera.updateProjectionMatrix();
                 cam.target.set(0,2,0);cam.dist=10;cam.pitch=.12;applyCam();
