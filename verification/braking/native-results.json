@@ -1,0 +1,384 @@
+{
+  "date": "2026-11-17",
+  "command": "node bin/test-vehicle-braking",
+  "cases": [
+    {
+      "surface": "grass",
+      "hz": 30,
+      "grade": -0.3,
+      "crossSlope": false,
+      "drift": 1.4612258467994113e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 30,
+      "grade": -0.3,
+      "crossSlope": true,
+      "drift": 3.6090661630825307e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 30,
+      "grade": 0,
+      "crossSlope": false,
+      "drift": 1.1176358015110447e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 30,
+      "grade": 0,
+      "crossSlope": true,
+      "drift": 1.132566272582533e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 30,
+      "grade": 0.3,
+      "crossSlope": false,
+      "drift": 5.089221050109298e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 30,
+      "grade": 0.3,
+      "crossSlope": true,
+      "drift": 3.583225814149174e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 60,
+      "grade": -0.3,
+      "crossSlope": false,
+      "drift": 1.1178419301316467e-11
+    },
+    {
+      "surface": "grass",
+      "hz": 60,
+      "grade": -0.3,
+      "crossSlope": true,
+      "drift": 1.916639231540385e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 60,
+      "grade": 0,
+      "crossSlope": false,
+      "drift": 1.4305114784504303e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 60,
+      "grade": 0,
+      "crossSlope": true,
+      "drift": 1.4305178082192207e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 60,
+      "grade": 0.3,
+      "crossSlope": false,
+      "drift": 3.4695074754502777e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 60,
+      "grade": 0.3,
+      "crossSlope": true,
+      "drift": 1.911999575179272e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 120,
+      "grade": -0.3,
+      "crossSlope": false,
+      "drift": 2.809092958244719e-10
+    },
+    {
+      "surface": "grass",
+      "hz": 120,
+      "grade": -0.3,
+      "crossSlope": true,
+      "drift": 1.1920928955078125e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 120,
+      "grade": 0,
+      "crossSlope": false,
+      "drift": 1.1324886176241304e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 120,
+      "grade": 0,
+      "crossSlope": true,
+      "drift": 1.1920929739894732e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 120,
+      "grade": 0.3,
+      "crossSlope": false,
+      "drift": 2.544392365045462e-06
+    },
+    {
+      "surface": "grass",
+      "hz": 120,
+      "grade": 0.3,
+      "crossSlope": true,
+      "drift": 1.1920928955078125e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 30,
+      "grade": -0.3,
+      "crossSlope": false,
+      "drift": 1.5781168114064323e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 30,
+      "grade": -0.3,
+      "crossSlope": true,
+      "drift": 3.526762054559473e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 30,
+      "grade": 0,
+      "crossSlope": false,
+      "drift": 1.028180955701612e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 30,
+      "grade": 0,
+      "crossSlope": true,
+      "drift": 1.072898802624121e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 30,
+      "grade": 0.3,
+      "crossSlope": false,
+      "drift": 4.8735910538425435e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 30,
+      "grade": 0.3,
+      "crossSlope": true,
+      "drift": 3.453470691888565e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 60,
+      "grade": -0.3,
+      "crossSlope": false,
+      "drift": 5.805717018247947e-12
+    },
+    {
+      "surface": "asphalt",
+      "hz": 60,
+      "grade": -0.3,
+      "crossSlope": true,
+      "drift": 1.8659205248950158e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 60,
+      "grade": 0,
+      "crossSlope": false,
+      "drift": 1.3709068298351e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 60,
+      "grade": 0,
+      "crossSlope": true,
+      "drift": 1.3709083147414623e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 60,
+      "grade": 0.3,
+      "crossSlope": false,
+      "drift": 3.339489524222689e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 60,
+      "grade": 0.3,
+      "crossSlope": true,
+      "drift": 1.911999575179272e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 120,
+      "grade": -0.3,
+      "crossSlope": false,
+      "drift": 1.5628831562253254e-10
+    },
+    {
+      "surface": "asphalt",
+      "hz": 120,
+      "grade": -0.3,
+      "crossSlope": true,
+      "drift": 1.1920928955078125e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 120,
+      "grade": 0,
+      "crossSlope": false,
+      "drift": 1.1324882507330241e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 120,
+      "grade": 0,
+      "crossSlope": true,
+      "drift": 1.1920934924592592e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 120,
+      "grade": 0.3,
+      "crossSlope": false,
+      "drift": 2.5210721500077705e-06
+    },
+    {
+      "surface": "asphalt",
+      "hz": 120,
+      "grade": 0.3,
+      "crossSlope": true,
+      "drift": 1.1935820814669602e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 30,
+      "grade": -0.3,
+      "crossSlope": false,
+      "drift": 1.6858742583780023e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 30,
+      "grade": -0.3,
+      "crossSlope": true,
+      "drift": 4.06692519924582e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 30,
+      "grade": 0,
+      "crossSlope": false,
+      "drift": 1.192092895515393e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 30,
+      "grade": 0,
+      "crossSlope": true,
+      "drift": 1.1921161600744802e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 30,
+      "grade": 0.3,
+      "crossSlope": false,
+      "drift": 5.667144930282639e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 30,
+      "grade": 0.3,
+      "crossSlope": true,
+      "drift": 4.088896009002327e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 60,
+      "grade": -0.3,
+      "crossSlope": false,
+      "drift": 1.2417666894748436e-10
+    },
+    {
+      "surface": "riverbed",
+      "hz": 60,
+      "grade": -0.3,
+      "crossSlope": true,
+      "drift": 2.072493869151319e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 60,
+      "grade": 0,
+      "crossSlope": false,
+      "drift": 1.4305114747389823e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 60,
+      "grade": 0,
+      "crossSlope": true,
+      "drift": 1.4901184110337747e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 60,
+      "grade": 0.3,
+      "crossSlope": false,
+      "drift": 3.5886748372142944e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 60,
+      "grade": 0.3,
+      "crossSlope": true,
+      "drift": 2.1565023082644394e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 120,
+      "grade": -0.3,
+      "crossSlope": false,
+      "drift": 1.2439632657290645e-10
+    },
+    {
+      "surface": "riverbed",
+      "hz": 120,
+      "grade": -0.3,
+      "crossSlope": true,
+      "drift": 1.2573613589840524e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 120,
+      "grade": 0,
+      "crossSlope": false,
+      "drift": 1.1980385328675386e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 120,
+      "grade": 0,
+      "crossSlope": true,
+      "drift": 1.2516977207534902e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 120,
+      "grade": 0.3,
+      "crossSlope": false,
+      "drift": 2.713525594727082e-06
+    },
+    {
+      "surface": "riverbed",
+      "hz": 120,
+      "grade": 0.3,
+      "crossSlope": true,
+      "drift": 1.195069411740507e-06
+    }
+  ]
+}

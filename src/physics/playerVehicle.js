@@ -38,6 +38,7 @@ export function createPlayerVehicle({adapter,cart,id='live-cart',sampleSurface=(
   let enabled=true,disposed=false,contacts=0,steering=0,surface='grass',airTime=0,recoveryTime=0,recoveries=0,resetCount=0,lastReset='restart';
   let landingAirTime=0,landingEpisode=0,impactSpeed=0,landingSpeed=0,impactNormal={x:0,y:0,z:0},expectedVelocity={x:0,y:0,z:0},previousVelocity={x:0,y:0,z:0};
   let lastInput={throttle:0,boost:false},water={wet:false,depth:0,surfaceY:0},immersion=0;
+  let brakeHold=null;
   const forward={},up={},sample={},wetSample={},normal={},wheelControls=WHEELS.map(()=>({engineForce:0,brake:0,steering:0,frictionSlip:2.5,sideFrictionStiffness:1}));
   const engine={throttle:0,load:0,revs:0,wet:0,submersion:0,running:true,grounded:false,boost:false};
   cart.velocity=cart.velocity||{x:0,y:0,z:0};cart.engineState=engine;cart.grounded=false;
@@ -56,7 +57,7 @@ export function createPlayerVehicle({adapter,cart,id='live-cart',sampleSurface=(
     solved=adapter.readBody(id);if(!solved)return;
     wheelState=adapter.readVehicle(token);
     rotated({x:0,y:0,z:-1},solved.pose.rotation,forward);rotated({x:0,y:1,z:0},solved.pose.rotation,up);
-    const velocity=solved.linearVelocity,speed=dot(velocity,forward),throttle=clamp(input.throttle||0,-1,1),steer=clamp(input.steer||0,-1,1);
+    const velocity=solved.linearVelocity,speed=dot(velocity,forward),throttle=input.brake?0:clamp(input.throttle||0,-1,1),steer=clamp(input.steer||0,-1,1);
     readWater(solved.pose.position);
     contacts=wheelState.wheels.filter(w=>w.contact).length;
     steering+=(steer*(.52/(1+Math.abs(speed)*.015))-steering)*(1-Math.exp(-9*dt));
@@ -85,14 +86,33 @@ export function createPlayerVehicle({adapter,cart,id='live-cart',sampleSurface=(
       const max=throttle<0?7*(cart.sputtering?.35:1):cap;
       const braking=!!input.brake||(throttle&&throttle*along<-.3);
       const accel=18*(input.slow?.45:1)*(lastInput.boost?1.55:1)*traction;
-      let longitudinal=0;
-      if(braking)longitudinal=clamp(-along/dt,-28*traction,28*traction);
+      let longitudinal=0,brakeLateral=0;
+      if(braking){
+        // Cancel next-step tangential gravity as well as existing motion. A
+        // single finite contact budget covers both directions, so a cross-slope
+        // hold cannot become an anchor on a bank or after a large impact.
+        const wetGrip=1/(1+immersion*3);
+        // Ray-suspension integration can creep despite zero tangential velocity.
+        // A compliant stop target corrects that drift through the SAME bounded
+        // force budget, never by writing a pose or locking a body axis.
+        if(Math.hypot(along,lateral)>.5)brakeHold=null;
+        if(!brakeHold&&Math.hypot(along,lateral)<.5)brakeHold={...solved.pose.position};
+        const error=brakeHold?{x:brakeHold.x-solved.pose.position.x,y:brakeHold.y-solved.pose.position.y,z:brakeHold.z-solved.pose.position.z}:null;
+        const targetAlong=error?clamp(dot(error,tangent)*4,-.5,.5):0;
+        const targetSide=error?clamp(dot(error,side)*4,-.5,.5):0;
+        longitudinal=(targetAlong-along)/dt+9.81*tangent.y;
+        brakeLateral=(targetSide-lateral)/dt+9.81*side.y;
+        const demand=Math.hypot(longitudinal,brakeLateral),limit=28*traction*wetGrip;
+        const scale=demand>limit?limit/demand:1;
+        longitudinal*=scale;brakeLateral*=scale;
+      }
       else if(powered&&throttle){
         // Grade feed-forward holds a legible powered target on ordinary hills,
         // within the same finite force budget. It cannot hold a steep bank.
         const demand=(max-Math.abs(along))/.15+9.81*tangent.y*Math.sign(throttle);
         longitudinal=throttle*clamp(demand,0,accel);
       }
+      if(!braking)brakeHold=null;
       const resistance=1-Math.exp(-(throttle&&powered&&!braking?drag*.3:Math.max(1,drag))*dt);
       const vn=dot(velocity,normal);
       adapter.applyImpulse(id,{x:(tangent.x*longitudinal*dt-(velocity.x-normal.x*vn)*resistance)*mass,y:(tangent.y*longitudinal*dt-(velocity.y-normal.y*vn)*resistance)*mass,z:(tangent.z*longitudinal*dt-(velocity.z-normal.z*vn)*resistance)*mass});
@@ -102,7 +122,7 @@ export function createPlayerVehicle({adapter,cart,id='live-cart',sampleSurface=(
       // so a second wheel-angle controller cannot fight the yaw target.
       const wetGrip=1/(1+immersion*3),authority=traction*wetGrip;
       const targetYaw=steer*2.1*clamp(Math.abs(along)/6,0,1)*Math.sign(along);
-      const lateralAccel=clamp(-lateral*10,-grip*9.81*3,grip*9.81*3)*authority;
+      const lateralAccel=braking?brakeLateral:clamp(-lateral*10,-grip*9.81*3,grip*9.81*3)*authority;
       adapter.applyImpulse(id,{x:side.x*lateralAccel*mass*dt,y:side.y*lateralAccel*mass*dt,z:side.z*lateralAccel*mass*dt});
       const yawAccel=clamp((targetYaw-dot(solved.angularVelocity,normal))*12,-12,12)*authority;
       // Equal/opposite impulses around the COM create only torque. 750 kg m²
@@ -111,6 +131,7 @@ export function createPlayerVehicle({adapter,cart,id='live-cart',sampleSurface=(
       adapter.applyImpulse(id,{x:-side.x*impulse,y:-side.y*impulse,z:-side.z*impulse},{x:com.x+tangent.x,y:com.y+tangent.y,z:com.z+tangent.z});
       adapter.applyImpulse(id,{x:side.x*impulse,y:side.y*impulse,z:side.z*impulse},{x:com.x-tangent.x,y:com.y-tangent.y,z:com.z-tangent.z});
     }
+    if(!contacts||!enabled)brakeHold=null;
     if(immersion>0){
       const resistance=1-Math.exp(-Math.min(10,2.8*immersion*immersion)*dt);
       adapter.applyImpulse(id,{x:-velocity.x*mass*resistance,y:0,z:-velocity.z*mass*resistance});
@@ -169,10 +190,11 @@ export function createPlayerVehicle({adapter,cart,id='live-cart',sampleSurface=(
   function reset(reason='teleport'){
     if(typeof reason!=='string'||!reason)throw new TypeError('A reset reason is required');
     if(disposed||!adapter.readBody(id))return false;
+    cart.drivingResetEpoch=(cart.drivingResetEpoch||0)+1;
     const next=poseOf(cart),speed=Number.isFinite(cart.speed)?cart.speed:0;
     adapter.setPose(id,next);rotated({x:0,y:0,z:-1},next.rotation,forward);
     adapter.setVelocity(id,{linear:{x:forward.x*speed,y:forward.y*speed,z:forward.z*speed}});
-    contacts=0;airTime=landingAirTime=landingEpisode=0;impactSpeed=landingSpeed=0;steering=0;resetCount++;lastReset=reason;
+    contacts=0;airTime=landingAirTime=landingEpisode=0;impactSpeed=landingSpeed=0;steering=0;brakeHold=null;resetCount++;lastReset=reason;
     for(const w of wheelControls)Object.assign(w,{engineForce:0,brake:0,steering:0});
     adapter.setVehicleControls(token,{wheels:wheelControls,enabled});solved=adapter.readBody(id);previousPose=solved.pose;wheelState=adapter.readVehicle(token);readWater(next.position);publish();return true;
   }

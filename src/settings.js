@@ -79,6 +79,7 @@ export const Settings = {
     if (sh === 'on' || sh === 'off') AdaptiveQuality.setOverride('shadows', sh === 'on');
   },
 
+  isOpen() { return !!$overlay && !$overlay.classList.contains('hidden'); },
   open() { if ($overlay) { this._sync(); $overlay.classList.remove('hidden'); dialog.open(); } },
   close() { if ($overlay) { $overlay.classList.add('hidden'); dialog.close(); this._cancelMapReset(); } },
 

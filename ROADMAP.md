@@ -16,18 +16,13 @@ reproduction lead, not proof that the current build still has the problem.
 
 ## Physical driving acceptance
 
-- **Dedicated brake and parking behavior.** Add an unambiguous way to stop for
-  passengers without requesting reverse. The service brake should decelerate in
-  either direction and hold ordinary hills through finite tire/contact forces,
-  while allowing sliding when grip is insufficient and preserving airborne
-  motion. Gary approved Space to brake, E to honk, Shift to boost, R to toggle
-  parking and Ctrl for precision driving; replace touch Slow with Brake and offer
-  a separate Park toggle. Parking releases on fresh forward/reverse throttle,
-  requiring neutral first if throttle was held when parking engaged. Parking
-  engages only near a supported stop, retains physical grip limits and permits
-  explicit release. Implementation and hill/boarding/device verification remain.
-  Gary approved implementation November 17, 2026; see
-  [the braking design and source evidence](docs/backlog/ordinary-visit.md#stopping-zerble).
+- **Brake and parking device acceptance.** Dedicated controls, finite slope
+  holding, neutral-qualified fresh-throttle parking release and the revised
+  touch layout are implemented. Check real-phone thumb reach, precision using
+  the stick without Slow, hill starts/stops and passenger boarding/drop-off feel.
+  Native physics and desktop/browser evidence are recorded in
+  [braking verification](verification/braking/README.md); they do not establish
+  physical-phone acceptance. See [the design record](docs/backlog/ordinary-visit.md#stopping-zerble).
 
 - **Cornhole device feel and play balance.** Desktop native and sandbox checks cover one-tire board contact, full NPC games, retrieval and vacancies. Check incidental board feel and naturally observed busy/idle balance on a physical device; the seeded example and scheduling intent do not establish actual occupancy. [Evidence](verification/cornhole/README.md).
 
@@ -226,6 +221,14 @@ harness history, tier contract and acceptance criteria.
 ---
 
 ## Touch / UX
+
+- **Focused touch controls: phone acceptance.** The focused Brake/Honk/Boost
+  layout, compact paused menu, forgiving floating stick and touch-only chase
+  return are implemented. Verify physical-phone thumb reach, steering precision,
+  holding a hill while interacting, camera-return comfort, map/menu access and
+  readability/scrolling of the compact passenger sidebar above the joystick.
+  Keep parked/stopped/reversing inspection and mouse/arrow manual orbit intact.
+  [Review, behavior and remaining limits](verification/touch-controls/README.md).
 
 - **First-drive touch guidance.** After a real Start tap, consider a brief thumbstick hint for new touch players. The Lantern Night title no longer uses a backdrop filter; the existing `game-started` gate still owns touch-control visibility.
 

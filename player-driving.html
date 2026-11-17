@@ -12,9 +12,9 @@
 <canvas id="course" aria-label="Physical driving verification course"></canvas>
 <section class="panel"><h1>Leave the ground</h1><p>Drive the real Zerble chassis through a bounded course. Compare surfaces, take the ridge at speed, ford a creek, or test deep-water entry.</p>
 <label for="fixture">Course</label><select id="fixture"><option value="surfaces">Asphalt · dirt · grass</option><option value="ridge">Ridge and cliff</option><option value="creek">Shallow creek</option><option value="lake">Deep lake</option><option value="obstacle">Solid tree impact</option></select>
-<div class="row"><button id="reset">Reset</button><button id="replay">Drive replay</button><button id="pause">Pause</button></div>
+<div class="row"><button id="reset">Reset</button><button id="park">Park</button><button id="replay">Drive replay</button><button id="pause">Pause</button></div>
 <div class="row"><button id="noon">Noon</button><button id="midnight">Midnight</button><button id="audio">Enable sound</button></div>
-<p>WASD to drive, Shift to boost, Space to brake. Drag to orbit when paused.</p><div id="status" role="status">Preparing physics…</div></section>
+<p>WASD to drive, Shift to boost, Space to brake, R to park. Drag to orbit when paused.</p><div id="status" role="status">Preparing physics…</div></section>
 <output id="readout" aria-label="Vehicle diagnostics"></output>
 <footer id="budget"></footer>
 <div id="touch" aria-label="Driving controls"><div><button data-drive="left" aria-label="Steer left">←</button><button data-drive="right" aria-label="Steer right">→</button></div><div><button data-drive="reverse">Reverse</button><button data-drive="brake">Brake</button><button data-drive="forward">Drive</button><button data-drive="boost">Boost</button></div></div>

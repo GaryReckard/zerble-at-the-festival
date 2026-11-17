@@ -430,6 +430,7 @@ body {
 
 /* Ride cards stay in the center corridor, leaving the driving controls free.
    ResizeObserver publishes the actual panel bottom for the toast below it. */
+#passenger-sidebar { display: contents; }
 #quest-strip {
   position: absolute;
   top: calc(80px + env(safe-area-inset-top, 0));
@@ -1403,8 +1404,8 @@ body.is-touch .controls-touch {
 
 #stick-base {
   position: absolute;
-  left: calc(28px + env(safe-area-inset-left, 0));
-  bottom: calc(28px + env(safe-area-inset-bottom, 0));
+  left: calc(12px + env(safe-area-inset-left, 0));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0));
   width: 140px;
   height: 140px;
   border-radius: 50%;
@@ -1452,7 +1453,8 @@ body.is-touch .controls-touch {
 }
 
 #btn-honk {
-  bottom: calc(28px + env(safe-area-inset-bottom, 0));
+  bottom: calc(132px + env(safe-area-inset-bottom, 0));
+  right: calc(128px + env(safe-area-inset-right, 0));
   background: rgba(255, 111, 156, 0.55);
   border-color: rgba(255, 111, 156, 0.6);
 }
@@ -1464,16 +1466,36 @@ body.is-touch .controls-touch {
   color: #1c1330;
 }
 
-#btn-slow {
-  bottom: calc(132px + env(safe-area-inset-bottom, 0));
-  right: calc(128px + env(safe-area-inset-right, 0));
+#btn-brake {
+  bottom: calc(28px + env(safe-area-inset-bottom, 0));
   background: rgba(120, 200, 255, 0.45);
   border-color: rgba(120, 200, 255, 0.65);
   color: #0c1a30;
 }
 
+#btn-park {
+  bottom: calc(28px + env(safe-area-inset-bottom, 0));
+  right: calc(128px + env(safe-area-inset-right, 0));
+  font-size: 12px;
+}
+#btn-park[aria-pressed="true"] { background: #77521f; border-color: #ffd28a; }
+#btn-park[hidden], #parking-status[hidden] { display: none; }
+#parking-status {
+  position: absolute;
+  bottom: calc(28px + env(safe-area-inset-bottom, 0));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border: 1px solid #ffd28a;
+  border-radius: 16px;
+  background: #2d221f;
+  color: #ffe8bc;
+  font-size: 13px;
+}
+
 #btn-cam {
-  bottom: calc(236px + env(safe-area-inset-bottom, 0));
+  bottom: calc(132px + env(safe-area-inset-bottom, 0));
+  right: calc(228px + env(safe-area-inset-right, 0));
   background: rgba(120, 200, 255, 0.45);
   border-color: rgba(120, 200, 255, 0.65);
   color: #0c1a30;
@@ -1481,7 +1503,8 @@ body.is-touch .controls-touch {
 }
 
 #btn-music {
-  bottom: calc(340px + env(safe-area-inset-bottom, 0));
+  bottom: calc(28px + env(safe-area-inset-bottom, 0));
+  right: calc(228px + env(safe-area-inset-right, 0));
   background: rgba(192, 128, 255, 0.45);
   border-color: rgba(192, 128, 255, 0.65);
   color: #1a0c30;
@@ -1493,6 +1516,112 @@ body.is-touch .controls-touch {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
   filter: brightness(1.2);
 }
+
+/* One owner for the live two-thumb layout, including when map CSS is loaded. */
+body.is-touch #status-rail {
+  top: env(safe-area-inset-top, 0px);
+  left: env(safe-area-inset-left, 0px);
+  border-radius: 0 0 12px 0;
+  max-width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+}
+/* One bounded passenger column leaves the center view and resting joystick
+   clear. Extra destinations and long messages scroll within their own areas. */
+body.is-touch #passenger-sidebar {
+  display: flex; flex-direction: column; gap: 6px;
+  position: absolute;
+  top: var(--passenger-top, calc(58px + env(safe-area-inset-top, 0px)));
+  bottom: calc(164px + env(safe-area-inset-bottom, 0px));
+  left: env(safe-area-inset-left, 0px);
+  width: clamp(164px, 28vw, 232px);
+  max-width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  pointer-events: none;
+}
+body.is-touch #quest-strip {
+  position: static; transform: none; width: 100%;
+  display: flex; flex-direction: column; flex: 0 1 auto;
+  min-height: 44px; max-height: 100%; text-align: left;
+}
+body.is-touch #quest-strip.hidden { display: none; }
+body.is-touch :is(.quest-heading, .quest-help, .quest-icon, .quest-rule) { display: none; }
+body.is-touch .quest-cards {
+  display: flex; flex-direction: column; flex-wrap: nowrap; justify-content: flex-start;
+  gap: 4px; padding: 0 2px 2px 0;
+  min-height: 0; max-height: none; overflow-y: auto;
+  pointer-events: auto; touch-action: pan-y; scrollbar-width: thin;
+}
+body.is-touch .quest-chip {
+  flex: 0 0 auto; width: 100%; max-width: none;
+  grid-template-columns: minmax(0, 1fr); gap: 2px;
+  padding: 5px 8px; border-radius: 0 10px 10px 0;
+}
+body.is-touch .quest-copy { grid-column: 1; text-align: left; }
+body.is-touch .quest-name { font-size: 12px; }
+body.is-touch .quest-navigation { justify-content: flex-start; gap: 4px; font-size: 12px; }
+body.is-touch .quest-arrow { width: 16px; height: 20px; }
+body.is-touch #toast {
+  position: static; transform: none; flex: 0 1 auto;
+  width: 100%; max-width: 100%; min-height: 0; max-height: 50%;
+  overflow-y: auto; pointer-events: auto; touch-action: pan-y;
+  padding: 7px 9px; border-radius: 0 10px 10px 0;
+  font-size: 12px; line-height: 1.35; letter-spacing: 0;
+  text-align: left; scrollbar-width: thin;
+}
+body.is-touch #toast:not(.show) { display: none; }
+/* Keep a small touch margin beyond the hardware/system safe area. Park keeps
+   the same position when its label changes, above the Boost/Brake column. */
+body.is-touch #btn-brake {
+  width: 96px; height: 96px;
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  background: rgba(180, 218, 236, .8);
+}
+body.is-touch #btn-honk {
+  width: 76px; height: 76px;
+  right: calc(124px + env(safe-area-inset-right, 0px));
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+body.is-touch #btn-boost {
+  width: 64px; height: 56px; border-radius: 24px; font-size: 11px;
+  right: calc(28px + env(safe-area-inset-right, 0px));
+  bottom: calc(124px + env(safe-area-inset-bottom, 0px));
+  background: rgba(57, 44, 62, .72); color: var(--paper);
+}
+body.is-touch #btn-park {
+  width: 64px; height: 48px; border-radius: 18px; font-size: 11px;
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  bottom: calc(192px + env(safe-area-inset-bottom, 0px));
+}
+body.is-touch.has-touch-menu :is(#settings-gear, #upgrades-btn, #passport-btn) { display: none; }
+#touch-menu-btn {
+  display: none; position: fixed; z-index: 16;
+  top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right));
+  width: 60px; height: 52px; padding: 3px; border-radius: 12px;
+  border: 2px solid var(--cream, #fff2d6); background: var(--panel, #241b35);
+  color: var(--cream, #fff2d6); font: inherit; cursor: pointer;
+}
+body.is-touch.game-started #touch-menu-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+#touch-menu-btn > span:first-child { font-size: 23px; line-height: 24px; }
+.touch-menu-new { position: absolute; right: -8px; top: -10px; background: #ffd28a; color: #241b35; border-radius: 8px; padding: 3px; font: 700 9px system-ui; }
+#touch-menu-btn:focus-visible, #touch-menu-overlay button:focus-visible { outline: 3px solid var(--gold, #ffd28a); outline-offset: 3px; }
+#touch-menu-overlay { position: fixed; inset: 0; z-index: 32; display: flex; align-items: center; justify-content: center; padding: 12px; }
+#touch-menu-overlay[hidden] { display: none; }
+.touch-menu-backdrop { position: absolute; inset: 0; background: rgba(12, 5, 32, .65); }
+.touch-menu-panel {
+  position: relative; width: min(420px, 100%); max-height: calc(100dvh - 24px); overflow: auto;
+  box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 8px;
+  border: 2px solid var(--cream, #fff2d6); border-radius: 18px;
+  background: var(--panel, #241b35); color: var(--cream, #fff2d6); box-shadow: 0 5px 0 var(--ledge, #100c19);
+}
+.touch-menu-panel h2 { margin: 0; font-size: 20px; }
+.touch-menu-panel p { margin: 4px 0; font-size: 13px; }
+.touch-menu-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.touch-menu-panel button {
+  min-height: 44px; padding: 8px; font: inherit; font-size: 13px; cursor: pointer;
+  border: 1px solid rgba(255, 242, 214, .4); border-radius: 10px; background: rgba(255, 242, 214, .07); color: inherit;
+}
+.touch-menu-panel button:disabled { opacity: .5; cursor: wait; }
+.touch-menu-panel .touch-menu-resume { background: var(--cream, #fff2d6); color: var(--night, #241b35); font-weight: 700; }
+.touch-menu-bubble-new { color: var(--gold, #ffd28a); font-size: 10px; }
 
 /* ---------- Settings panel ---------- */
 

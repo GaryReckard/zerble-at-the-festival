@@ -27,12 +27,10 @@
 @media(max-width:600px){.is-expanded .map-footer{bottom:180px;left:20%;right:20%}}
 @media(max-height:500px){.is-expanded .map-footer{bottom:12px;left:30%;right:30%}.is-expanded .map-status{font-size:10px;padding:3px}}
 
-/* Reserve the bottom-right corner for the map; driving fingers keep their
-   controls above it, with the stick retaining its original ownership. */
-body.is-touch .festival-map:not(.is-expanded){width:min(100px,30vw,24vh);height:min(100px,30vw,24vh)}
-body.is-touch .touch-btn{width:56px;height:56px;font-size:11px}
-body.is-touch #btn-honk{right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(128px + env(safe-area-inset-bottom,0px))}
-body.is-touch #btn-boost{right:calc(78px + env(safe-area-inset-right,0px));bottom:calc(128px + env(safe-area-inset-bottom,0px))}
-body.is-touch #btn-slow{right:calc(142px + env(safe-area-inset-right,0px));bottom:calc(196px + env(safe-area-inset-bottom,0px))}
-body.is-touch #btn-cam{right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(196px + env(safe-area-inset-bottom,0px))}
-body.is-touch #btn-music{right:calc(78px + env(safe-area-inset-right,0px));bottom:calc(196px + env(safe-area-inset-bottom,0px));font-size:22px}
+/* Touch layout is owned by styles.css. The compact map sits beside the menu,
+   leaving the right thumb free for driving; expanded map gestures stay intact. */
+body.is-touch .festival-map{top:max(14px,env(safe-area-inset-top));bottom:auto;transition:width .28s ease,height .28s ease,top .28s ease,right .28s ease,border-radius .28s ease}
+body.is-touch .festival-map:not(.is-expanded){width:min(80px,30vw,24vh);height:min(80px,30vw,24vh);right:calc(max(14px,env(safe-area-inset-right)) + 66px)}
+body.is-touch .festival-map.is-expanded{top:0}
+body.reduced-motion.is-touch .festival-map{transition:none}
+@media(prefers-reduced-motion:reduce){body.is-touch .festival-map{transition:none}}

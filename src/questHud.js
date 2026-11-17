@@ -18,13 +18,18 @@ export class QuestCompass {
     this.cards = document.createElement('div');
     this.cards.className = 'quest-cards';
     root.append(heading, help, this.cards);
+    const statusRail = document.getElementById?.('status-rail');
     // Content and viewport changes schedule measurement outside the game loop.
     this._measure = () => {
       const bottom = this.visible && this.chips.size ? root.getBoundingClientRect().bottom + 8 : 0;
       root.parentElement?.style.setProperty('--quest-toast-top', `${bottom}px`);
+      // A wrapped status rail needs more vertical room, even on a wide phone.
+      // Observe layout changes instead of reading geometry in the frame loop.
+      if (statusRail) root.parentElement?.style.setProperty('--passenger-top', `${statusRail.getBoundingClientRect().bottom + 8}px`);
     };
     this._resize = typeof ResizeObserver === 'function' ? new ResizeObserver(this._measure) : null;
     this._resize?.observe(root);
+    if (statusRail) this._resize?.observe(statusRail);
     globalThis.addEventListener?.('resize', this._measure);
 
     if (onPick) {
@@ -117,5 +122,6 @@ export class QuestCompass {
     this.chips.clear();
     this.root.classList.add('hidden');
     this.root.parentElement?.style.setProperty('--quest-toast-top', '0px');
+    this.root.parentElement?.style.removeProperty?.('--passenger-top');
   }
 }

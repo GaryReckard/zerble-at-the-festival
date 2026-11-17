@@ -27,7 +27,10 @@ import { Pass } from 'three/addons/postprocessing/Pass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 
 import { Input } from './input.js';
+import { createDrivingControls } from './drivingControls.js';
+const drivingControls = createDrivingControls();
 import { Touch } from './touch.js';
+import { createTouchMenu } from './touchMenu.js';
 import { HUD } from './hud.js';
 import { Leaderboard } from './leaderboard.js';
 import { RunMode, VIBE, setJugKeepFraction } from './runMode.js';
@@ -835,17 +838,21 @@ const chaseCam = new ChaseCamera(camera, zerble);
 // re-poses and orbits to chase; a skip tap settles straight to chase.
 chaseCam.poseIntroMatch();
 
-// Touch + mouse cam toggle button — same as pressing V. Cycles through
-// chase → first-person → top-down → chase.
-const btnCam = document.getElementById('btn-cam');
-if (btnCam) {
-  const toggle = (e) => {
-    e.preventDefault();
-    chaseCam.toggleMode();
-    HUD.toast(chaseCam.modeLabel, 1500);
-  };
-  btnCam.addEventListener('click', toggle);
-  btnCam.addEventListener('touchstart', toggle, { passive: false });
+function toggleCameraView() {
+  chaseCam.toggleMode();
+  HUD.toast(chaseCam.modeLabel, 1500);
+  Analytics.viewToggle(chaseCam.mode);
+}
+let musicToggleBusy = false;
+function toggleMusic() {
+  if (musicToggleBusy) return;
+  musicToggleBusy = true;
+  // Invoke immediately in the native click/key gesture; clear happens before
+  // this shared callback, never between that gesture and the existing toggle.
+  const pending = midi.toggle(HUD);
+  Analytics.featureUsed('music_toggle');
+  Promise.resolve(pending).catch(() => HUD.toast('Music could not start.', 1800))
+    .finally(() => { musicToggleBusy = false; });
 }
 
 // ---------- Honk ring ----------
@@ -987,7 +994,7 @@ const INTRO_HOLD_MS = 450;
 const INTRO_ORBIT_SEC = 2.0;
 
 // Touch overlay (no-op on desktop; reveals thumbstick/buttons on touch devices).
-Touch.install();
+Touch.install({ force: ['localhost', '127.0.0.1'].includes(location.hostname) && new URLSearchParams(location.search).has('touchLayout') });
 
 // Adaptive quality monitor — drops bloom / shadows / pixel ratio when the
 // frame budget slips, ramps back up if it recovers. Hooks installed once;
@@ -1045,6 +1052,12 @@ PassportMenu.init(playerStats, {
   beforeOpen: () => { UpgradesMenu.close(); Settings.close(); },
   onToggle: () => { Input.clear(); Sound.setEngineSpeed(0, 0); },
   onOpen: () => Analytics.featureUsed('festival_passport'),
+});
+const touchMenu = createTouchMenu({
+  settings: Settings, upgrades: UpgradesMenu, passport: PassportMenu,
+  camera: { label: () => chaseCam.modeLabel, toggle: toggleCameraView },
+  music: { playing: () => midi.isPlaying, busy: () => musicToggleBusy, toggle: toggleMusic },
+  onToggle: () => { Input.clear(); Sound.setEngineSpeed(0, 0); festivalMap.setExpanded(false); },
 });
 let nextUpgradeToastAt = 0;
 bubbleProgress.onUnlock(({ id, mode }) => {
@@ -1214,7 +1227,7 @@ function finishIntroReveal() {
 // exit (the run rollup keeps accumulating across the gap).
 function passportCanCollect() {
   return running && !vehicleGameOver && !document.hidden && !controlsLocked && !captureDriveLocked
-    && !PassportMenu.isOpen() && !(RunMode.isFestival() && RunState.over);
+    && !PassportMenu.isOpen() && !touchMenu.isOpen() && !(RunMode.isFestival() && RunState.over);
 }
 function startPassport() {
   playerStats.start({ entrance: passportEntrance, position: zerble.position,
@@ -1320,7 +1333,8 @@ function tick() {
 
 function tickBody(dt) {
   // Keep the scene visible while all gameplay clocks and input consumers are paused.
-  if (PassportMenu.isOpen()) {
+  touchMenu.update();
+  if (PassportMenu.isOpen() || touchMenu.isOpen()) {
     if (!LAYOUT_CAPTURE_MODE) composer.render();
     return;
   }
@@ -1365,7 +1379,13 @@ function tickBody(dt) {
     if (captureDriveLocked) { if(physicalWorld)physicalWorld.setSpeed(0);else zerble.speed=0; }
     const passportActive = passportCanCollect();
     const beforeDriveX = zerble.position.x, beforeDriveZ = zerble.position.z;
-    const driveInput=controlsLocked||captureDriveLocked?NEUTRAL_INPUT:Input;
+    const rawDriveInput=controlsLocked||captureDriveLocked?NEUTRAL_INPUT:Input;
+    const parkToggle=Input.consumePressed('R');
+    const driveState=drivingControls.update(rawDriveInput,zerble,!controlsLocked&&!captureDriveLocked&&parkToggle);
+    const driveInput=driveState.input;
+    Touch.updateParking(driveState);
+    HUD.setParking(driveState.parked);
+    if(driveState.rejected)HUD.toast('Stop to park.',1600);
     StarPower.update(dt,zerble,nightness,performance.now()*.001);
     const physicalFrameHit=physicalWorld?.advance(dt,{input:driveInput,ghost:StarPower.isActive(),eligible:zerble.invulnLeft<=0&&!isGod(),consequences:!isGod()});
     zerble.update(physicalRequested&&!physicalWorld&&!physicalLoadError?0:dt,driveInput,nightness);
@@ -1398,12 +1418,12 @@ function tickBody(dt) {
     // by day (the shader's nightness² gate short-circuits).
     setLakeNightness(nightness, performance.now() * 0.001);
 
-    // SPACE = random honk (bell or clown). B = always bell. H = always clown.
+    // E = random honk (bell or clown). B = always bell. H = always clown.
     // All three share the honk ring + crowd reaction + cooldown.
-    const spaceHonk = Input.consumePressed('SPACE');
+    const primaryHonk = Input.consumePressed('E');
     const bellHonk  = Input.consumePressed('B');
     const hornHonk  = Input.consumePressed('H');
-    if (!controlsLocked && (spaceHonk || bellHonk || hornHonk) && zerble.canHonk()) {
+    if (!controlsLocked && (primaryHonk || bellHonk || hornHonk) && zerble.canHonk()) {
       zerble.honk();
       peopleFrameTrace?.mark('honk');
       honkAge = 0;
@@ -1420,16 +1440,14 @@ function tickBody(dt) {
       }
       if (bellHonk)      { Sound.playBicycleBell(); Analytics.featureUsed('honk_bell'); }
       else if (hornHonk) { Sound.playClownHorn();   Analytics.featureUsed('honk_clown'); }
-      else               Sound.playHonk();   // SPACE → random
+      else               Sound.playHonk();   // E → random
       Analytics.firstHonk();
       _honkCount++;
     }
 
     // V cycles camera modes: chase → first-person → top-down → chase.
     if (Input.consumePressed('V')) {
-      chaseCam.toggleMode();
-      HUD.toast(chaseCam.modeLabel + ' (V to cycle)', 1500);
-      Analytics.viewToggle(chaseCam.mode);
+      toggleCameraView();
     }
     if (Input.consumePressed('U')) {
       if (UpgradesMenu.isOpen()) UpgradesMenu.close();
@@ -1450,8 +1468,7 @@ function tickBody(dt) {
     // itself counts as the user gesture browsers require.
     if (Input.consumePressed('M') && !PassportMenu.isOpen() && !UpgradesMenu.isOpen()) festivalMap.toggle();
     if (Input.consumePressed('J')) {
-      midi.toggle(HUD);
-      Analytics.featureUsed('music_toggle');
+      toggleMusic();
     }
     // Feed both the trip's envelope (fade-in/out gate) AND its progress
     // (0..1 position across the full trip) into the MIDI player each frame.

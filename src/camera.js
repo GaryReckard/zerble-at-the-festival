@@ -2,9 +2,9 @@ import { terrainHeight, terrainEnabled } from './worldgen/terrain.js';
 // Chase camera with arrow-key orbit/tilt.
 //
 // Default behavior: sits behind Zerble at a fixed offset, smoothly following.
-// Arrow keys add user-driven yaw/pitch offsets that PERSIST when released —
-// they don't auto-snap-back. Press the opposite arrow to undo, or hold the
-// HOME chord (configurable below) to recenter.
+// Mouse/arrow orbit stays where the player leaves it. Touch chase inspection
+// gently returns during forward driving after a grace, while stops, parking,
+// reverse and active camera gestures retain the chosen angle.
 
 import * as THREE from 'three';
 import { Analytics } from './analytics.js';
@@ -95,6 +95,7 @@ export class ChaseCamera {
     this.topYawOffset = 0;
     this.pitchOffset = 0.05;
     this.mode = 'third';
+    this._touchReturn = { armed: false, revision: -1, reset: -1, moving: false, wait: 1.25, mode: 'third' };
     // Top-down state: persistent across mode switches so the view comes back
     // exactly as the user left it last time they were in top-down.
     this.topHeight = TOP_DEFAULT_HEIGHT;
@@ -215,11 +216,43 @@ export class ChaseCamera {
   }
 
   snap() {
+    this._touchReturn.moving = false;
+    this._touchReturn.wait = 1.25;
     this._computeTargets();
     this.camera.position.copy(this._desiredPos);
     this._currentLook.copy(this._desiredLook);
     clearTerrainSightline(this.camera.position, this._currentLook, this.mode === 'first');
     this.camera.lookAt(this._currentLook);
+  }
+
+  _applyTouchReturn(dt, input) {
+    const state = this._touchReturn, gesture = input.cameraGesture;
+    if (!gesture) { state.moving = false; state.wait = 1.25; return; }
+    if (gesture.revision !== state.revision) {
+      state.revision = gesture.revision;
+      state.armed = gesture.source === 'touch';
+      state.wait = 1.25;
+    }
+    if (gesture.reset !== state.reset || this.mode !== state.mode) {
+      state.reset = gesture.reset; state.mode = this.mode;
+      state.moving = false; state.wait = 1.25;
+    }
+    // Mouse and arrow orbit remain persistent, including on hybrid devices.
+    if (input.camYaw || input.camPitch) state.armed = false;
+    const forward = this.zerble.speed || 0;
+    const moving = state.armed && this.mode === 'third' && !this.zerble.parkingBrake
+      && forward > (state.moving ? .6 : 1.2);
+    if (!moving || gesture.active) {
+      state.moving = false; state.wait = 1.25; return;
+    }
+    if (!state.moving) { state.moving = true; state.wait = 1.25; }
+    const elapsed = Math.max(0, Math.min(dt, state.wait));
+    state.wait -= elapsed;
+    const easingTime = Math.max(0, dt - elapsed);
+    if (!easingTime) return;
+    const decay = Math.exp(-1.1 * easingTime);
+    this.yawOffset = Math.atan2(Math.sin(this.yawOffset), Math.cos(this.yawOffset)) * decay;
+    this.pitchOffset = .05 + (this.pitchOffset - .05) * decay;
   }
 
   // ---- Opening intro ----------------------------------------------------
@@ -412,6 +445,7 @@ export class ChaseCamera {
       }
     }
 
+    this._applyTouchReturn(dt, input);
     this._computeTargets();
 
     if (this.mode === 'first') {

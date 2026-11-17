@@ -44,7 +44,7 @@ export function checkMapInput(map){
   close.dispatchEvent(new KeyboardEvent('keyup',{key:'d',bubbles:true}));
   check(!Input.isDown('W')&&!Input.isDown('D'),'Driving keys release normally');
   map.host.querySelector('.map-expand').dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true,cancelable:true}));
-  check(!Input.consumePressed('SPACE'),'Map button activation does not honk');
+  check(!Input.consumePressed('E'),'Map button activation does not honk');
   map.setExpanded(false);
   return 'PASS: real touch stick held across expansion/zoom/close, release, new keyboard throttle/steering through map controls, non-modal semantics, music action separation, Space isolation.';
 }

@@ -107,14 +107,17 @@ applies drive together. If throttle was already held when parking engaged, requi
 neutral before a new command can release it. Reject moving/airborne parking
 requests without queuing them. Retain explicit release for intentional rolling;
 do not make ordinary coasting automatically engage parking. These are accepted
-implementation requirements, not claims of shipped behavior.
+implementation requirements. The [braking change](../../openspec/changes/brake-and-parking/README.md)
+and [verification](../../verification/braking/README.md) track delivery and
+physical-device acceptance.
 
-Current evidence: [Input.brake](../../src/input.js) returns a diagnostic value or
-false, so normal player controls do not expose it. The physical vehicle's
+Pre-implementation evidence: [Input.brake](../../src/input.js) returned a diagnostic value or
+false, so normal player controls did not expose it. The physical vehicle's
 [beforeStep](../../src/physics/playerVehicle.js) accepts explicit brake input and
 opposing throttle, then applies bounded longitudinal deceleration based on
-contact and traction. Its brake demand depends on velocity and does not explicitly
-counter downhill gravity at rest. The
+contact and traction. Its old brake demand depended on velocity and did not explicitly
+counter downhill gravity at rest. These observations motivated the implementation;
+they are not descriptions of the updated controller. The
 [physical driving sandbox](../../src/playerDrivingSandbox.js) already exposes a
 brake, but this is not a hill-hold acceptance result.
 

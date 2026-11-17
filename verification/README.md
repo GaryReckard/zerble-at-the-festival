@@ -19,6 +19,10 @@ not physical-device acceptance.
 
 ## Interface
 
+- [Focused touch controls, November 17](touch-controls/README.md): bounded Astra plan review, floating-stick ownership, paused menu navigation, camera-return contracts, combined map layout, compact passenger sidebar and physical-phone limits.
+
+- [Braking and parking, November 17](braking/README.md): keyboard/touch controls, finite hill holding, fresh-throttle parking release, native slope/impact cases and physical-phone acceptance limits.
+
 - [Lantern Night, November 14](lantern-night/README.md): title/menu implementation, production DOM fixtures, desktop/compact layouts, Low Noon/Midnight smoke test, map transitions, keyboard ownership, Passport pause and remaining physical-device limits. The [November 15 title extension](lantern-night/title-extension/README.md) adds generated scenery margins, retained original subjects, wider/taller framing and the restored bubble plume.
 
 - [Landing forgiveness, November 15](physics/2026-11-15-landing.md): harmless short drops, normal-relative touchdown, retained airborne obstacle damage, native presentation-cadence regressions and browser limits.

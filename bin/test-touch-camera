@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { PerspectiveCamera, Vector3 } from 'three';
+globalThis.window = { addEventListener() {} };
+const { setTerrainEnabled } = await import('../src/worldgen/terrain.js');
+setTerrainEnabled(false);
+const { ChaseCamera } = await import('../src/camera.js');
+function fixture(hz=60) {
+  const cart={position:new Vector3(),heading:0,speed:6,parkingBrake:false};
+  const camera=new ChaseCamera(new PerspectiveCamera(55,1,.1,1000),cart);
+  const gesture={source:'touch',revision:1,active:true,reset:0};
+  const input={camYaw:0,camPitch:0,cameraGesture:gesture,consumeCamDeltas:()=>({yaw:0,pitch:0}),consumeZoom:()=>1};
+  const frames=(seconds)=>{for(let i=0;i<Math.round(seconds*hz);i++)camera.update(1/hz,input);};
+  camera.yawOffset=1;camera.pitchOffset=.3;camera.chaseZoom=1.4;
+  return {cart,camera,gesture,input,frames};
+}
+const results=[];
+for(const hz of [30,60,120]){
+  const f=fixture(hz);f.frames(4);assert.equal(f.camera.yawOffset,1,'stationary held finger owns camera');
+  f.gesture.active=false;f.frames(1);assert.equal(f.camera.yawOffset,1,'release grace');
+  f.frames(3);assert(f.camera.yawOffset<.12,'forward touch orbit returns gently');
+  assert.equal(f.camera.chaseZoom,1.4,'return preserves zoom');results.push(f.camera.yawOffset);
+  for(const [speed,parked]of [[0,false],[-5,false],[5,true]]){
+    f.cart.speed=speed;f.cart.parkingBrake=parked;f.camera.yawOffset=1;f.frames(4);
+    assert.equal(f.camera.yawOffset,1,'stopped, reverse and parking veto return');
+  }
+  f.cart.speed=6;f.cart.parkingBrake=false;f.frames(1);assert.equal(f.camera.yawOffset,1,'motion resumes with grace');
+  f.frames(3);assert(f.camera.yawOffset<.12);
+  f.gesture.source='mouse';f.gesture.revision++;f.camera.yawOffset=1;f.frames(5);
+  assert.equal(f.camera.yawOffset,1,'hybrid mouse orbit persists');
+  f.gesture.source='touch';f.gesture.revision++;f.frames(4);assert(f.camera.yawOffset<.12);
+  f.input.camYaw=1;f.frames(.1);f.input.camYaw=0;const manual=f.camera.yawOffset;f.frames(4);
+  assert.equal(f.camera.yawOffset,manual,'arrows reclaim persistent manual orbit');
+  f.gesture.revision++;f.camera.yawOffset=1;f.frames(.3);f.gesture.reset++;f.frames(1);
+  assert.equal(f.camera.yawOffset,1,'modal/reset restarts grace');
+}
+assert(Math.max(...results)-Math.min(...results)<.01,'cadence-independent exponential ease');
+{
+  const f=fixture();f.gesture.active=false;f.camera.yawOffset=2*Math.PI-.1;f.frames(4);
+  assert(Math.abs(Math.sin(f.camera.yawOffset))<.02,'shortest arc across yaw wrap');
+  for(const mode of ['first','top']){
+    f.camera.mode=mode;f.camera.yawOffset=1;f.camera.topYawOffset=.8;f.frames(4);
+    assert.equal(f.camera.yawOffset,1);assert.equal(f.camera.topYawOffset,.8);
+  }
+  f.camera.mode='third';f.frames(1);assert.equal(f.camera.yawOffset,1,'returning to chase has grace');
+}
+console.log('PASS touch camera: gesture ownership, 30/60/120 Hz, grace, stop/park/reverse, hybrid overrides, yaw wrap and other views.');

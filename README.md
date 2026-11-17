@@ -45,7 +45,9 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 | `← ↑ → ↓` | Orbit / tilt camera |
 | `Shift` | Boost |
 | `Ctrl` (hold) | Slow mode: lower top speed and gentler acceleration |
-| `Space` | Honk! (random — bell or clown horn) |
+| `Space` (hold) | Brake, including holding a stop on ordinary hills |
+| `E` | Honk! (random bell or clown horn) |
+| `R` | Set or release the parking brake when stopped |
 | `B` / `H` | Specific honk — bicycle bell / clown horn |
 | `V` | Cycle camera — chase / first-person / top-down |
 | `↑` / `↓` (top-down) | Zoom in / out (or mouse wheel) |
@@ -58,17 +60,24 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 
 ### Touch
 
-- Left thumbstick — drive
+- Drag in the lower-left area to drive; the thumbstick settles under your thumb
 - Drag anywhere else — orbit / tilt camera
-- Slow / Boost / Honk / Cam buttons — bottom right
-- Heart button — open Bubble Upgrades
-- Book button — open the Festival Passport
+- Brake and Honk sit at the lower right, with a smaller Boost above them
+- Park appears near a stop; tap it to set or release parking
+- The top-right Menu contains Passport, Bubble Upgrades, Settings, camera view and music
+- The menu pauses play; closing a panel returns to the menu, and Resume driving continues your visit
 
 The Passenger rides panel sits at the top center and shows an arrow and plain directions relative to Zerble’s nose, then asks you to slow down or stop as you arrive. Look for hammocks at wooded camping spots. Hammock and porta-potty rides accept any nearby free, reachable matching facility; wait for the passenger to settle into the hammock or enter the potty to finish the ride. Other requests name a specific destination, and solo passengers walk toward its nearby activity when a clear route is available.
 
+After a touch look-around, the chase camera gently returns behind Zerble once you drive forward. It leaves your view alone while stopped, parked or reversing, and while your finger is controlling the camera.
+
+Passenger destinations and dialogue sit along the left edge above the joystick. Tap a destination to track it on the map, and scroll the cards when several passengers have requests.
+
+Hold Brake to stop without reversing. Parking keeps the brake applied after you let go, and a fresh forward or reverse command releases it. If you were already holding the throttle when you parked, center the stick or release the drive key first. Brakes rely on ground contact and grip, so steep or slippery slopes can still let Zerble slide.
+
 ## Finding your way
 
-The bottom-right map reveals the festival as you explore. Click or tap it, or press **M**, to open a larger translucent map while you keep driving. Zoom with the mouse wheel or a pinch, and click or tap a pin to track it; select it again to clear it. An off-map pin points toward your destination and grows as you approach, leaving you to choose the roads. Press M or Escape, or tap empty map space, to return to the small map.
+The small map reveals the festival as you explore. On touch it sits beside Menu; on desktop it sits at the bottom right. Click or tap it, or press **M**, to open a larger translucent map while you keep driving. Zoom with the mouse wheel or a pinch, and click or tap a pin to track it; select it again to clear it. An off-map pin points toward your destination and grows as you approach, leaving you to choose the roads. Press M or Escape, or tap empty map space, to return to the small map.
 
 Settings → Accessibility lets you hide the minimap or reset this festival’s explored map. Exploration is saved in this browser for the same festival; a fresh random festival has its own map. Nearby friends and available supplies appear only while close enough.
 

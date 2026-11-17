@@ -1912,10 +1912,7 @@ body .festival-map .map-pin-options button {
   font-family:Outfit,system-ui,sans-serif
 }
 
-body.is-touch .festival-map:not(.is-expanded):not(.is-morphing) {
-  top:78px;
-  bottom:auto
-}
+/* Compact-map positioning belongs to festival-map.css. */
 
 /* Portrait has an explicit, calm orientation state. */
 @media(orientation:portrait) and (max-width:900px) {

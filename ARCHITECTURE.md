@@ -46,11 +46,13 @@ src/
   quests/                   Passenger quests: engine, runtime glue, destination sources, presentation
     catalog.js  pick.js  engine.js  worldSource.js  summitSource.js
     runtime.js  presentation.js  compassMath.js  questLog.js
-  questHud.js               Passenger-quest compass strip (DOM)
+  questHud.js               Passenger compass and measured mobile sidebar (DOM)
   people/                   Registered populations, stable lifetimes, activity claims and queries
   camera.js                 Chase / first-person / top-down camera
   input.js                  Keyboard + touch input blend
-  touch.js                  Virtual thumbstick + camera drag
+  touch.js                  Floating thumbstick + camera gesture ownership
+  touchMenu.js              Paused touch navigation beneath existing sheets
+  drivingControls.js        Brake priority + neutral-qualified parking latch
   hud.js                    DOM HUD bindings (score, toast, hit flash)
   sound.js                  Web Audio synthesis — engine, SFX, music
   trip.js                   Custom post-process shader pass
@@ -602,6 +604,13 @@ DEBUGGING.md "Festival Run drills."
 
 ## Passenger quests (`src/quests/`)
 
+On touch, `#passenger-sidebar` groups the compass and shared toast slot into a
+bounded left column above the resting joystick. The compass observes the status
+rail as well as its own size, so wrapped status chips move the column down
+without frame-loop layout reads. Destination cards and long messages scroll
+independently within that column. On desktop the wrapper uses `display: contents`
+and preserves the existing centered presentation and measured toast offset.
+
 Some riders who board Zerble ask to be driven somewhere. The feature is built in three layers so the rules can be tested without a browser. `engine.js` (`PassengerQuests`) is a pure state machine: it knows riders only as opaque ids and the cart only as `{ x, z, speed }`, and it returns events (`offered`, `hint`, `near`, `missed`, `via`, `arrived`, `gaveUp`, `failed`, `cancelled`) instead of touching NPCs, three.js or the DOM. `runtime.js` (`QuestRuntime`) is the glue that `main.js` constructs. It turns a boarding into an offer, turns events into toasts, sound, analytics, smile bursts and crowd calls, and notifies subscribers. `presentation.js` (`QuestPresentation`) is one such subscriber and owns what the player sees beyond toasts: the pooled thought-bubble sprites in `models/questBubble.js`, the top-center compass strip in `questHud.js` (shaft arrows, plain cart-relative direction words and arrival/wait states from `compassMath.js`) and the festival-map pins through `setObjectives`. Each layer can be absent without breaking the one beneath it. Tuning and all copy live in `catalog.js`, and `pick.js` chooses a destination from a distance band, weighting nearer places higher.
 
 Destinations come from the worldgen plan, not from the registry, because the registry only holds streamed chunks and a destination 300 m away is usually not loaded yet. `worldSource.js` reads `festivalPlan` and `campVillagesNear` when planning a hail or boarding offer, aims stage requests at the dance floor in front of the deck, and rejects any candidate that `lakeAt` reports as water. The live registry adds what the plan does not describe (beaches, hammocks, forest drum circles) and the exact porta-potties for the urgent run. `summitSource.js` reads only Mountain Top districts the landscape planner has already admitted, asks it with `{ request: false }` so a quest never triggers planner work, and uses the point on the district's main road nearest its commons as the drop-off.
@@ -664,7 +673,9 @@ iOS specifics: `Sound.init()` must run **synchronously inside the tap handler** 
 ## Input (`input.js`, `touch.js`)
 
 - `input.js` tracks held keys + edge events. Exposes `Input.throttle`, `.steer`, `.boost`, `.held(key)`, `.consumePressed(key)`.
-- `touch.js` installs a virtual thumbstick (left), Boost/Honk/Cam buttons (right), and drag-anywhere-else for camera orbit. It pushes axes + edge events back into `Input` so the rest of the game is input-source-agnostic.
+- `touch.js` owns the floating stick, Brake/Honk/Boost and contextual Park, plus independently identified camera/pinch gestures. World-canvas starts in the lower-left region can claim the stick; the visible base remains available over the expanded map. Batched changed touches update each owner independently. `Input` exposes axes, actions and a camera-gesture record whose source, active hold, revision and reset generation distinguish touch from mouse on hybrid devices.
+- `touchMenu.js` keeps one paused touch menu beneath existing Passport/Bubbles/Settings sheets; closing a child restores its menu action, and Resume clears input before gameplay resumes. Main uses the menu-or-Passport pause predicate both before gameplay and for progress eligibility. Camera/music menu actions call shared keyboard callbacks directly after close; the music callback serializes overlapping lazy-load toggles. Desktop launchers retain their existing behavior.
+- Touch-orbited chase offsets ease toward the default only after 1.25 seconds of eligible forward driving, using speed hysteresis, shortest-arc yaw and exponential decay. Stopped/parked/reverse motion, active camera gestures, other views and intro/debug ownership inhibit return. Mouse/arrow orbit remains persistent, zoom is retained and input reset restarts grace. `styles.css` owns touch target sizing; `festival-map.css` owns the compact touch map position beside Menu.
 - `Input.steeringDirection(speed)` selects the steering response for the active steering axis. Keyboard retains throttle-intent steering; nonzero touch steering follows signed travel speed, fading through zero below 1.5 m/s. Zerble uses the legacy response for scripted inputs without that method. Touch axes have independent 0.12 deadzones after radial clamping, so a sideways thumb wobble cannot apply throttle.
 - Body class `.is-touch` on detection reveals the touch overlay.
 - iOS pinch + double-tap zooming are killed at the document level.

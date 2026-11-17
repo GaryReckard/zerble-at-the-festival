@@ -1,0 +1,29 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { createDrivingControls } from '../src/drivingControls.js';
+const control = createDrivingControls();
+const cart = { physicsDriven: true, grounded: true, vehicleUp: { y: 1 }, speed: 0,
+  position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 } };
+const drive = (input = {}, toggle = false) => control.update(input, cart, toggle);
+assert(drive({ throttle: 1, brake: true, steer: .8, boost: true }, true).parked);
+assert.equal(drive({ throttle: 1 }).input.throttle, 0, 'held throttle cannot unpark');
+drive({});
+let state = drive({ throttle: -1 });
+assert(!state.parked); assert.equal(state.input.throttle, -1, 'fresh reverse releases and drives');
+assert(drive({}, true).parked);
+assert(drive({}).parked, 'ordinary input reset/neutral does not release parking');
+assert(!drive({}, true).parked, 'explicit release permits rolling');
+cart.velocity.y = -2;
+assert(drive({}, true).rejected, 'vertical motion is not a supported stop');
+cart.velocity.y = 0; cart.grounded = false;
+assert(drive({}, true).rejected, 'no parking in air');
+cart.grounded = true;
+assert(!drive({}).parked, 'rejection is not queued');
+state = drive({ throttle: 1, steer: .6, boost: true, brake: true });
+assert.equal(state.input.throttle, 0); assert.equal(state.input.boost, false);
+assert.equal(state.input.steer, .6, 'brake preserves steering');
+drive({}, true); cart.position.x = 100;
+assert(!drive({}).parked, 'relocation clears the latch');
+drive({}, true); cart.drivingResetEpoch = 1; assert(!drive({}).parked, 'same-position physical reset clears parking');
+drive({}, true); control.reset(); assert(!drive({}).parked);
+console.log('PASS parking latch: fresh forward/reverse, held input, explicit release, total motion, air, interruption, brake priority and reset.');

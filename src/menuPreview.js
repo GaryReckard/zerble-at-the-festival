@@ -33,6 +33,44 @@ toolbar.querySelector('#fixture-new').onclick = () => UpgradesMenu.markUnread();
 toolbar.querySelector('#fixture-return').onclick = () => location.reload();
 if (flags.has('new')) UpgradesMenu.markUnread();
 const screen = flags.get('screen');
+if (screen === 'brakes' || screen === 'touch' || screen === 'rides') {
+  // Real input/parking/HUD without a second WebGL world. Native slope behavior
+  // is covered by the physical driving course and test-vehicle-braking.
+  document.body.append(source.getElementById('touch-controls'));
+  document.body.classList.add('game-started');
+  if (flags.has('touch')) document.body.classList.add('is-touch');
+  document.getElementById('touch-controls').setAttribute('aria-hidden', 'false');
+  document.getElementById('title-card').classList.add('hidden');
+  const canvas = document.createElement('canvas'); canvas.id = 'game'; document.body.append(canvas);
+  const [{Input},{Touch},{createDrivingControls},{createTouchMenu},{FestivalMap},{CONFIG}] = await Promise.all([
+    import('./input.js'), import('./touch.js'), import('./drivingControls.js'), import('./touchMenu.js'),
+    import('./festivalMap/view.js'), import('./worldgen/constants.js'),
+  ]);
+  Touch.install({ force: flags.has('touch') });
+  const map = new FestivalMap({seed:1977,config:CONFIG,preview:true,namespace:'touch-comfort-preview'});
+  map.compact = true; map.host.hidden = false; map.measure();
+  let cameraView = 'Chase view', musicPlaying = false;
+  const menu = createTouchMenu({
+    settings:Settings,upgrades:UpgradesMenu,passport,
+    camera:{label:()=>cameraView,toggle:()=>{cameraView=cameraView==='Chase view'?'First-person view':'Chase view';}},
+    music:{playing:()=>musicPlaying,busy:()=>false,toggle:()=>{musicPlaying=!musicPlaying;}},
+    onToggle:()=>Input.clear(),
+  });
+  const controls = createDrivingControls(), cart = { speed: 0, position: { x: 0, z: 0 } };
+  const readout = document.createElement('output'); readout.id = 'brake-readout'; toolbar.append(readout);
+  toolbar.style.bottom = 'auto'; toolbar.style.top = '90px';
+  function frame() {
+    menu.update();
+    if (menu.isOpen() || passport.isOpen()) { requestAnimationFrame(frame); return; }
+    const state = controls.update(Input, cart, Input.consumePressed('R'));
+    Touch.updateParking(state); HUD.setParking(state.parked);
+    cart.speed = state.input.throttle * 4;
+    map.tick({player:cart.position,heading:0,live:[],dt:1/60});
+    readout.textContent = ` · ${state.parked ? 'Parked' : state.input.brake ? 'Braking' : cart.speed ? 'Driving' : 'Coasting'}${Input.consumePressed('E') ? ' · Honk' : ''}`;
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
 if (screen === 'results') results();
 if (screen === 'settings') Settings.open();
 if (screen === 'passport') passport.open();
@@ -48,9 +86,8 @@ if (screen === 'loading' || screen === 'failed') {
 }
 
 if (screen === 'rides') {
-  if (flags.has('touch')) { document.body.classList.add('is-touch'); document.body.append(source.getElementById('touch-controls')); }
-  document.body.classList.add('game-started');
-  document.getElementById('title-card').classList.add('hidden');
+  // Combined production controls, map, sidebar and toast, including short
+  // landscape, long destination names and all three simultaneous requests.
   const [{QuestCompass},{iconDataURL}] = await Promise.all([import('./questHud.js'), import('./models/questBubble.js')]);
   const compass = new QuestCompass(document.getElementById('quest-strip'), {iconURL:iconDataURL, onPick:id=>HUD.toast(`Selected sample passenger ${id}`,1600)});
   const rides = [
@@ -67,8 +104,10 @@ if (screen === 'rides') {
     rides[0].blockedTarget={x:0,z:0,radius:25,approaching:true};
     rides[0].arrivalBlocked='occupied';
   }
-  compass.sync(rides, {x:0,z:0,heading:0,speed:0});
-  HUD.toast('Festival message: keep the driving controls clear.', 600000);
+  if (flags.has('long')) rides[2].short = 'Our friends at the far end of Mountain Top camping';
+  compass.sync(flags.has('single') ? rides.slice(0,1) : rides, {x:0,z:0,heading:0,speed:0});
+  HUD.toast(flags.has('long') ? 'Someone is flagging you down. Pull up beside them and stop to give them a lift!' : '💭 “Whenever you are ready, driver.”', 600000);
+  toolbar.style.top = 'auto'; toolbar.style.bottom = '4px';
 }
 
 // Production HUD and reminder policy without waiting through a whole tank.

@@ -50,9 +50,14 @@ in [ROADMAP.md](ROADMAP.md).
 
 ## Physical driving course
 
-Open `http://127.0.0.1:8765/player-driving.html?mute=1` for the real dynamic chassis on repeatable surface, ridge, creek, lake and tree fixtures. Use the course selector, drive or replay, and inspect wheel contact, depth, damage and solver timing in the readout. The course supports Noon/Midnight, pause and reset; it owns and disposes its physics world. `node bin/test-player-vehicle`, `node bin/test-player-handling`, `node bin/test-driving-surface`, `node bin/test-vehicle-condition` and `node bin/test-player-driving-live` cover deterministic behavior and live ownership. In the real game, `?physics=1&mute=1` exposes the player and reservation diagnostics alongside prop staging. A course pass is not a substitute for the normal title-plank/game smoke test.
+Open `http://127.0.0.1:8765/player-driving.html?mute=1` for the real dynamic chassis on repeatable surface, ridge, creek, lake and tree fixtures. Space holds the service brake and R toggles parking; the Park button provides the same latch, with fresh throttle releasing it. Use the course selector, drive or replay, and inspect wheel contact, depth, damage and solver timing in the readout. The course supports Noon/Midnight, pause and reset; it owns and disposes its physics world. `node bin/test-player-vehicle`, `node bin/test-player-handling`, `node bin/test-driving-surface`, `node bin/test-vehicle-condition` and `node bin/test-player-driving-live` cover deterministic behavior and live ownership. In the real game, `?physics=1&mute=1` exposes the player and reservation diagnostics alongside prop staging. A course pass is not a substitute for the normal title-plank/game smoke test.
 
 ## Menu design preview
+
+Open `/menu-preview.html?screen=touch&touch=1&mute=1` for production input,
+parking, compact menu, map and HUD controls without WebGL. `screen=brakes` remains an alias. Inspect Park/Unpark, Space, E and fresh
+throttle at landscape phone sizes. The music/camera menu callbacks are fixture states. `?touchLayout=1&mute=1` on the real game forces the touch layout on localhost only, for combined layout and menu verification; it does not emulate fingers. This fixture has no physical motion; use the
+driving course and `node bin/test-vehicle-braking` for slope/impact evidence.
 
 Open `/menu-preview.html?screen=settings&mute=1` on the local Vite development or preview server for the production menu components without the 3D world. Other `screen` values are `passport`, `upgrades`, `results`, `loading`, `failed` and `toast` (the long hailing instruction); `locked=1`, `empty=1`, `blocked=1` and `new=1` exercise state variants. Passport and upgrades use memory-only progress, while Settings uses real preferences, so restore changes made during inspection. This page is outside the guided LAN allowlist. [Usage, evidence and limits](verification/lantern-night/README.md).
 

@@ -1,8 +1,8 @@
 // Touch controls: left-side virtual thumbstick (throttle + steer), right-side
-// Honk, Boost, and Slow buttons, and drag-anywhere-else for camera orbit/tilt.
+// Brake, Honk, Boost and contextual Park, with other actions in the touch menu.
 //
 // Wires directly into the Input module (input.js) — it exposes the same
-// throttle/steer/boost getters and consumePressed('SPACE') edge so the rest of
+// throttle/steer/boost getters and consumePressed('E') edge so the rest of
 // the game keeps working unchanged. Camera drag is consumed via
 // Input.consumeCamDeltas() which ChaseCamera now reads each frame.
 
@@ -11,14 +11,16 @@ const STICK_DEADZONE = 0.12;        // ignore tiny wobbles
 const DRAG_YAW_SCALE = 0.0055;      // rad per px of horizontal drag
 const DRAG_PITCH_SCALE = 0.0040;    // rad per px of vertical drag
 
+const cameraGesture = { source: null, revision: 0, reset: 0, active: false };
 const state = {
   // axes are -1..1; the Input module blends these with the keyboard.
   throttle: 0,
   steer: 0,
   boost: false,
-  slow: false,
-  // one-shot honk press, consumed by Input.consumePressed('SPACE').
+  brake: false,
+  // one-shot honk press, consumed by Input.consumePressed('E').
   honkLatched: false,
+  parkLatched: false,
   // one-shot music-toggle press, consumed by Input.consumePressed('J').
   musicLatched: false,
   // accumulated camera drag, consumed per frame.
@@ -54,7 +56,7 @@ let pinchLastDist = 0;
 
 let honkTouchId = null;
 let boostTouchId = null;
-let slowTouchId = null;
+let brakeTouchId = null;
 let musicTouchId = null;
 
 let installed = false;
@@ -62,21 +64,29 @@ let $stickBase = null;
 let $stickKnob = null;
 let $btnHonk = null;
 let $btnBoost = null;
-let $btnSlow = null;
+let $btnBrake = null;
+let $btnPark = null;
+let parkingView = null;
 let $btnMusic = null;
 
 export const Touch = {
   state,
+  get cameraGesture() {
+    cameraGesture.active = dragTouchId !== null || pinchIdA !== null || mouseDragging;
+    return cameraGesture;
+  },
 
   // A modal must release active gestures, not merely ignore their current axes.
   reset() {
+    cameraGesture.reset++;
     stickTouchId = dragTouchId = pinchIdA = pinchIdB = null;
-    honkTouchId = boostTouchId = slowTouchId = musicTouchId = null;
+    honkTouchId = boostTouchId = brakeTouchId = musicTouchId = null;
     mouseDragging = false;
-    Object.assign(state, { throttle: 0, steer: 0, boost: false, slow: false,
-      honkLatched: false, musicLatched: false, camYawDelta: 0, camPitchDelta: 0, zoomMul: 1 });
-    if ($stickKnob) $stickKnob.style.transform = 'translate(0px, 0px)';
-    for (const button of [$btnHonk, $btnBoost, $btnSlow, $btnMusic]) button?.classList.remove('pressed');
+    Object.assign(state, { throttle: 0, steer: 0, boost: false, brake: false,
+      honkLatched: false, parkLatched: false, musicLatched: false, camYawDelta: 0, camPitchDelta: 0, zoomMul: 1 });
+    if ($stickKnob) $stickKnob.style.transform = 'translate(-50%, -50%)';
+    resetStickBase();
+    for (const button of [$btnHonk, $btnBoost, $btnBrake, $btnMusic]) button?.classList.remove('pressed');
   },
 
   // "Show the touch UI" sniff. `(pointer: coarse)` is true on phones/tablets
@@ -90,7 +100,7 @@ export const Touch = {
     return ('ontouchstart' in window) && (navigator.maxTouchPoints || 0) > 0;
   },
 
-  install() {
+  install({ force = false } = {}) {
     if (installed) return;
     installed = true;
 
@@ -98,13 +108,15 @@ export const Touch = {
     $stickKnob = document.getElementById('stick-knob');
     $btnHonk = document.getElementById('btn-honk');
     $btnBoost = document.getElementById('btn-boost');
-    $btnSlow = document.getElementById('btn-slow');
+    $btnBrake = document.getElementById('btn-brake');
+    $btnPark = document.getElementById('btn-park');
     $btnMusic = document.getElementById('btn-music');
 
-    if (!$stickBase || !$stickKnob || !$btnHonk || !$btnBoost || !$btnSlow) return;
+    if (!$stickBase || !$stickKnob || !$btnHonk || !$btnBoost || !$btnBrake) return;
 
-    if (Touch.isTouchDevice()) {
+    if (force || Touch.isTouchDevice()) {
       document.body.classList.add('is-touch');
+      document.getElementById('touch-controls')?.setAttribute?.('aria-hidden', 'false');
     }
 
     // ----- Thumbstick -----
@@ -116,6 +128,8 @@ export const Touch = {
     $stickBase.addEventListener('touchend', onStickEnd, { passive: false });
     $stickBase.addEventListener('touchcancel', onStickEnd, { passive: false });
 
+    $btnPark?.addEventListener('click', (e) => { e.preventDefault(); state.parkLatched = true; });
+
     // ----- Honk + Boost buttons -----
     $btnHonk.addEventListener('touchstart', onHonkStart, { passive: false });
     $btnHonk.addEventListener('touchend', onHonkEnd, { passive: false });
@@ -125,9 +139,9 @@ export const Touch = {
     $btnBoost.addEventListener('touchend', onBoostEnd, { passive: false });
     $btnBoost.addEventListener('touchcancel', onBoostEnd, { passive: false });
 
-    $btnSlow.addEventListener('touchstart', onSlowStart, { passive: false });
-    $btnSlow.addEventListener('touchend', onSlowEnd, { passive: false });
-    $btnSlow.addEventListener('touchcancel', onSlowEnd, { passive: false });
+    $btnBrake.addEventListener('touchstart', onBrakeStart, { passive: false });
+    $btnBrake.addEventListener('touchend', onBrakeEnd, { passive: false });
+    $btnBrake.addEventListener('touchcancel', onBrakeEnd, { passive: false });
 
     if ($btnMusic) {
       $btnMusic.addEventListener('touchstart', onMusicStart, { passive: false });
@@ -153,7 +167,20 @@ export const Touch = {
     canvas.style.cursor = 'grab';
   },
 
-  // Consumed each frame by Input.consumePressed('SPACE').
+  _consumePark() { const value = state.parkLatched; state.parkLatched = false; return value; },
+
+  updateParking({ parked, canPark }) {
+    if (!$btnPark) return;
+    const view = `${parked}:${canPark}`;
+    if (view === parkingView) return;
+    parkingView = view;
+    $btnPark.hidden = !parked && !canPark;
+    $btnPark.textContent = parked ? 'UNPARK' : 'PARK';
+    $btnPark.setAttribute('aria-label', parked ? 'Release parking brake' : 'Set parking brake');
+    $btnPark.setAttribute('aria-pressed', String(parked));
+  },
+
+  // Consumed each frame by Input.consumePressed('E').
   _consumeHonk() {
     const v = state.honkLatched;
     state.honkLatched = false;
@@ -191,7 +218,8 @@ function isControlTarget(target) {
     target.closest('#stick-base') ||
     target.closest('#btn-honk') ||
     target.closest('#btn-boost') ||
-    target.closest('#btn-slow') ||
+    target.closest('#btn-brake') ||
+    target.closest('#btn-park') ||
     target.closest('#btn-cam') ||
     target.closest('#btn-music')
   ));
@@ -206,16 +234,30 @@ function pinchDist() {
 function onStickStart(e) {
   e.preventDefault();
   if (stickTouchId !== null) return;
-  const t = e.changedTouches[0];
+  beginStick(e.changedTouches[0]);
+}
+
+function beginStick(t) {
   stickTouchId = t.identifier;
   // Cache base center for the knob's CSS transform.
   const r = $stickBase.getBoundingClientRect();
-  stickBaseCenter.x = r.left + r.width / 2;
-  stickBaseCenter.y = r.top + r.height / 2;
+  const rx = r.width / 2, ry = r.height / 2;
+  const width = typeof innerWidth === 'number' ? innerWidth : r.left + r.width;
+  const height = typeof innerHeight === 'number' ? innerHeight : r.top + r.height;
+  stickBaseCenter.x = Math.max(rx + 12, Math.min(width - rx - 12, t.clientX));
+  stickBaseCenter.y = Math.max(ry + 12, Math.min(height - ry - 12, t.clientY));
+  $stickBase.style.left = `${stickBaseCenter.x - rx}px`;
+  $stickBase.style.top = `${stickBaseCenter.y - ry}px`;
+  $stickBase.style.bottom = 'auto';
   // Anchor the math at the finger's landing point so initial reading is 0.
   stickStart.x = t.clientX;
   stickStart.y = t.clientY;
   updateStick(t.clientX, t.clientY); // produces (0, 0); knob moves to finger
+}
+
+function resetStickBase() {
+  if (!$stickBase) return;
+  $stickBase.style.left = ''; $stickBase.style.top = ''; $stickBase.style.bottom = '';
 }
 
 function onStickMove(e) {
@@ -236,6 +278,7 @@ function onStickEnd(e) {
       state.throttle = 0;
       state.steer = 0;
       $stickKnob.style.transform = 'translate(-50%, -50%)';
+      resetStickBase();
       return;
     }
   }
@@ -306,21 +349,21 @@ function onBoostEnd(e) {
   }
 }
 
-function onSlowStart(e) {
+function onBrakeStart(e) {
   e.preventDefault();
-  if (slowTouchId !== null) return;
-  slowTouchId = e.changedTouches[0].identifier;
-  state.slow = true;
-  $btnSlow.classList.add('pressed');
+  if (brakeTouchId !== null) return;
+  brakeTouchId = e.changedTouches[0].identifier;
+  state.brake = true;
+  $btnBrake.classList.add('pressed');
 }
 
-function onSlowEnd(e) {
+function onBrakeEnd(e) {
   e.preventDefault();
   for (const t of e.changedTouches) {
-    if (t.identifier === slowTouchId) {
-      slowTouchId = null;
-      state.slow = false;
-      $btnSlow.classList.remove('pressed');
+    if (t.identifier === brakeTouchId) {
+      brakeTouchId = null;
+      state.brake = false;
+      $btnBrake.classList.remove('pressed');
       return;
     }
   }
@@ -354,6 +397,12 @@ function onCanvasStart(e) {
   // we still guard against touches that land on a control element.
   for (const t of e.changedTouches) {
     if (isControlTarget(t.target)) continue;
+    // Only world-canvas starts can use the forgiving region. Map and HUD
+    // pixels keep their own gestures, while the visible base stays usable.
+    if (stickTouchId === null && t.clientX < innerWidth * .42 && t.clientY > innerHeight * .42) {
+      e.preventDefault(); beginStick(t); continue;
+    }
+    cameraGesture.source = 'touch'; cameraGesture.revision++;
     if (dragTouchId === null) {
       e.preventDefault();
       dragTouchId = t.identifier;
@@ -372,6 +421,8 @@ function onCanvasStart(e) {
 }
 
 function onCanvasMove(e) {
+  // Steering and pinch can arrive in the same changed-touch batch.
+  onStickMove(e);
   // Pinch takes priority: update both finger positions, feed the zoom ratio,
   // and skip orbit so the camera doesn't spin while pinching.
   if (pinchIdA !== null) {
@@ -405,6 +456,7 @@ function onCanvasMove(e) {
 }
 
 function onCanvasEnd(e) {
+  onStickEnd(e);
   for (const t of e.changedTouches) {
     // Lifting either pinch finger drops out of pinch. The surviving finger (if
     // still down) becomes the orbit-drag finger so orbit resumes without a jump.
@@ -434,6 +486,7 @@ function onMouseDown(e) {
   if (e.pointerType !== 'mouse') return;
   // Right-click and middle-click are reserved.
   if (e.button !== 0) return;
+  cameraGesture.source = 'mouse'; cameraGesture.revision++;
   const canvas = e.currentTarget;
   mouseDragging = true;
   mouseLastX = e.clientX;

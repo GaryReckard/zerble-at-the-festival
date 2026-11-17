@@ -68,7 +68,7 @@ for (const fps of [30, 60, 120]) {
       for (const slow of [false, true]) {
         const c = cart(initial);
         touch('touchmove', 60 + side * 40, 60 + Math.sign(initial) * 40);
-        Touch.state.slow = slow;
+        key(slow ? 'keydown' : 'keyup', 'Control');
         let flips = 0, prevSign = Math.sign(initial), crossed = false;
         for (let frame = 0; frame < fps * 6; frame++) {
           const before = c.heading;
@@ -86,7 +86,7 @@ for (const fps of [30, 60, 120]) {
     }
   }
 }
-Touch.state.slow = false;
+key('keyup', 'Control');
 touch('touchcancel');
 assert.equal(Input.throttle, 0);
 assert.equal(Input.steer, 0);

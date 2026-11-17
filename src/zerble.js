@@ -1304,7 +1304,9 @@ export class Zerble {
     if (this.surfaceSampler) {
       stepTerrainDrive(this, input, dt, this.surfaceSampler);
     } else {
-      if (slow && this.speed > maxFwd) {
+      if (input.brake) {
+        this.speed = Math.sign(this.speed) * Math.max(0, Math.abs(this.speed) - BRAKE * dt);
+      } else if (slow && this.speed > maxFwd) {
         // Engaging slow mode should ease down to its cap instead of snapping
         // velocity immediately, while preventing throttle from pushing faster.
         const decel = throttle < 0 ? BRAKE : ACCEL;

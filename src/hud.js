@@ -4,6 +4,7 @@ import { createMenuDialog, initHelpControls } from './menuUi.js';
 import { Leaderboard, FALLBACK_NAME } from './leaderboard.js';
 import { RunMode, MODE_CRUISIN, MODE_FESTIVAL } from './runMode.js';
 
+const $parking = document.getElementById('parking-status');
 const $smiles = document.getElementById('smiles');
 const $best = document.getElementById('best');
 const $bestScore = $best?.closest('.best-score');
@@ -266,6 +267,7 @@ function clearToastTap() {
 
 let toastUntil = 0, toastLow = false;   // when the current toast expires, and whether it is chatter
 export const HUD = {
+  setParking(parked) { if ($parking && $parking.hidden === parked) $parking.hidden = !parked; },
   setDamage(fraction,submersion=0) {
     if(!$damageMeter)return;
     const percent=Math.round(Math.max(0,Math.min(1,fraction))*100);

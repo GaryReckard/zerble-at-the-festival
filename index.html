@@ -139,10 +139,12 @@
       </div>
     </div>
 
-    <div id="quest-strip" class="hidden" aria-label="Passenger destinations"></div>
+    <div id="passenger-sidebar">
+      <div id="quest-strip" class="hidden" aria-label="Passenger destinations"></div>
+      <div id="toast" class="hidden"></div>
+    </div>
 
-    <div id="toast" class="hidden"></div>
-
+    <div id="parking-status" role="status" hidden>Parking brake set</div>
     <div id="hit-flash"></div>
     <div id="star-vignette"></div>
   </div>
@@ -153,10 +155,9 @@
       <div id="stick-knob"></div>
     </div>
     <button id="btn-boost" class="touch-btn" aria-label="Boost">BOOST</button>
-    <button id="btn-slow" class="touch-btn" aria-label="Slow mode">SLOW</button>
+    <button id="btn-brake" class="touch-btn" aria-label="Brake">BRAKE</button>
+    <button id="btn-park" class="touch-btn" aria-label="Set parking brake" aria-pressed="false" hidden>PARK</button>
     <button id="btn-honk" class="touch-btn" aria-label="Honk">HONK</button>
-    <button id="btn-cam" class="touch-btn" aria-label="Toggle camera view">CAM</button>
-    <button id="btn-music" class="touch-btn" aria-label="Toggle music">♪</button>
   </div>
 
   <div id="title-card">
@@ -252,16 +253,17 @@
         <div class="controls controls-kbd">
           <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> drive · <kbd>Shift</kbd> boost · <kbd>Ctrl</kbd> slow</div>
           <div><kbd>Arrow keys</kbd> move camera · <kbd>V</kbd> change view · mouse wheel zoom</div>
-          <div><kbd>Space</kbd> honk · <kbd>B</kbd> bell · <kbd>H</kbd> clown horn</div>
+          <div><kbd>Space</kbd> brake · <kbd>R</kbd> park · <kbd>E</kbd> honk · <kbd>B</kbd> bell · <kbd>H</kbd> clown horn</div>
           <div><kbd>G</kbd> bubble blast · <kbd>I</kbd>/<kbd>O</kbd> eye glow</div>
           <div><kbd>M</kbd> festival map · <kbd>J</kbd> music · <kbd>U</kbd> bubble upgrades · <kbd>P</kbd> passport</div>
         </div>
 
         <div class="controls controls-touch">
-          <div><span class="tag-key">Thumbstick</span> drive · <span class="tag-key">Drag</span> move camera</div>
-          <div><span class="tag-key">Boost</span> faster · <span class="tag-key">Slow</span> careful driving</div>
-          <div><span class="tag-key">Honk</span> bell or horn · <span class="tag-key">Cam</span> change view</div>
-          <div><span class="tag-key">Pinch</span> zoom · <span class="tag-key">Heart</span> bubble upgrades · <span class="tag-key">Music</span> music on or off</div>
+          <div><span class="tag-key">Lower-left drag</span> drive · <span class="tag-key">Drag</span> move camera</div>
+          <div><span class="tag-key">Boost</span> faster · <span class="tag-key">Brake</span> stop and hold</div>
+          <div><span class="tag-key">Park</span> stay stopped · fresh throttle releases</div>
+          <div><span class="tag-key">Honk</span> bell or horn · <span class="tag-key">Menu</span> camera, music and your festival books</div>
+          <div><span class="tag-key">Pinch</span> zoom · the menu pauses play while you browse</div>
         </div>
 
         <p class="hint"><strong>Make smiles.</strong> Drive near festival-goers and send bubbles their way. Chain smiles for a bigger score, and avoid crashing into people and props.</p>

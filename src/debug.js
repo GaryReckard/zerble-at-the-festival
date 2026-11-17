@@ -990,7 +990,7 @@ function buildPanel() {
   helpContent.style.fontSize = '11px';
   helpContent.style.lineHeight = '1.5';
   helpContent.innerHTML = `
-    <div><b>W A S D</b> drive · <b>Shift</b> boost · <b>Space</b> honk (random)</div>
+    <div><b>W A S D</b> drive · <b>Shift</b> boost · <b>Space</b> brake · <b>E</b> honk · <b>R</b> park</div>
     <div><b>B</b> bicycle bell · <b>H</b> clown horn (specific)</div>
     <div><b>← ↑ ↓ →</b> orbit/tilt camera</div>
     <div><b>V</b> first-person / chase view</div>

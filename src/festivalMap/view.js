@@ -70,7 +70,7 @@ export class FestivalMap {
   measure(){
     if(this.closed)return;
     const touch=document.body.classList.contains('is-touch');this.touchLayout=touch;
-    this.compactDiameter=touch?Math.min(100,innerWidth*.30,innerHeight*.24):Math.min(190,innerWidth*.36,innerHeight*.28);
+    this.compactDiameter=touch?Math.min(80,innerWidth*.30,innerHeight*.24):Math.min(190,innerWidth*.36,innerHeight*.28);
     const w=this.expanded||this.transitioning?innerWidth:this.compactDiameter;
     const h=this.expanded||this.transitioning?innerHeight:this.compactDiameter;
     const cap=this.tier==='low'?.8:this.tier==='high'?1.5:1;

@@ -1,0 +1,34 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+const listeners={},elements=new Map();
+globalThis.innerWidth=844;globalThis.innerHeight=390;
+globalThis.window={addEventListener(name,fn){listeners[name]=fn;},matchMedia:()=>({matches:true})};
+globalThis.document={body:{classList:{add(){}}},getElementById(id){
+  if(!elements.has(id))elements.set(id,{style:{},classList:{add(){},remove(){}},listeners:{},
+    addEventListener(name,fn){this.listeners[name]=fn;},setAttribute(){},closest(selector){return selector===`#${id}`?this:null;},
+    getBoundingClientRect:()=>({left:28,top:222,width:140,height:140})});
+  return elements.get(id);
+}};
+const {Touch}=await import('../src/touch.js');const {Input}=await import('../src/input.js');Touch.install();
+const canvas=elements.get('game'),stick=elements.get('stick-base');
+const t=(identifier,x,y,target=canvas)=>({identifier,clientX:x,clientY:y,target});
+const event=(target,type,touches)=>target.listeners[type]({changedTouches:touches,preventDefault(){}});
+// Starts outside the old visible base. Both changed identifiers must be owned.
+event(canvas,'touchstart',[t(1,210,280),t(2,500,130)]);
+event(canvas,'touchmove',[t(1,240,235),t(2,530,125)]);
+assert(Input.throttle>.5&&Math.abs(Input.steer)>.3,'canvas lower-left starts driving');
+assert(Input.cameraGesture.active);assert.equal(Input.cameraGesture.source,'touch');
+event(canvas,'touchstart',[t(3,650,130)]);
+event(canvas,'touchmove',[t(1,210,220),t(2,490,120),t(3,680,130)]);
+assert(Input.throttle>.8,'pinch batch still updates stick');assert.notEqual(Input.consumeZoom(),1);
+event(canvas,'touchend',[t(2,490,120)]);assert(Input.cameraGesture.active,'pinch survivor retains ownership');
+event(canvas,'touchend',[t(3,680,130),t(1,210,220)]);
+assert.equal(Input.throttle,0);assert.equal(Input.cameraGesture.active,false);
+// Visible stick stays available even when the map owns other canvas gestures.
+event(stick,'touchstart',[t(4,65,290,stick)]);event(stick,'touchmove',[t(4,65,240,stick)]);assert(Input.throttle>.5);
+Input.clear();assert.equal(Input.throttle,0);assert.equal(Input.cameraGesture.active,false);
+assert.equal(stick.style.left,'');assert.equal(elements.get('stick-knob').style.transform,'translate(-50%, -50%)');
+event(stick,'touchmove',[t(4,65,230,stick)]);assert.equal(Input.throttle,0,'cleared identifier cannot resume');
+event(canvas,'touchstart',[t(5,12,220)]);event(canvas,'touchmove',[t(5,12,170)]);assert(Input.throttle>.5,'edge landing remains usable');
+event(canvas,'touchcancel',[t(5,12,170)]);assert.equal(Input.throttle,0);
+console.log('PASS forgiving stick and camera ownership: batched starts/moves, simultaneous pinch, survivor, map stick, edges and clear.');

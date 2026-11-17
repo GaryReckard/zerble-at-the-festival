@@ -37,14 +37,16 @@ const saved=[...districts];districts.splice(1);position.set(0,3,0);seed++;
 assert(context.tp('woodland_camp'));assert(context.tp('woodland_camp'),'singleton destinations remain usable');
 districts.splice(0);position.set(0,3,0);seed++;assert.equal(context.tp('woodland_camp'),null);
 console.log('PASS debug teleports: per-category cycling, wrap, singleton/missing destinations, drive-away and seed reset, arrival transforms and safe command parsing.');
-const inputSource=fs.readFileSync(new URL('../src/input.js',import.meta.url),'utf8');
-const listeners=new Map(),inputContext=vm.createContext({window:{addEventListener:(name,fn)=>listeners.set(name,fn)}});
-vm.runInContext(inputSource.slice(inputSource.indexOf('const held ='),inputSource.indexOf('// Combine a keyboard'))+';this.snapshot=()=>({held:[...held],edges:[...edges]});',inputContext);
+// Exercise the complete input facade, including its real clear/gesture path.
+const listeners=new Map();
+globalThis.window={addEventListener:(name,fn)=>listeners.set(name,fn)};
+const {Input}=await import('../src/input.js');
 const plain={matches:()=>false},field={matches:()=>true};
 listeners.get('keydown')({key:'w',target:plain,preventDefault(){}});
-assert.equal(inputContext.snapshot().held.length,1);
-listeners.get('focusin')({target:field});assert.equal(inputContext.snapshot().held.length,0);assert.equal(inputContext.snapshot().edges.length,0);
-listeners.get('keydown')({key:'w',target:field});assert.equal(inputContext.snapshot().held.length,0,'typing cannot steer');
+assert.equal(Input.throttle,1);
+listeners.get('focusin')({target:field});
+assert.equal(Input.throttle,0);assert.equal(Input.consumePressed('W'),false);
+listeners.get('keydown')({key:'w',target:field});assert.equal(Input.throttle,0,'typing cannot steer');
 console.log('PASS command input isolation: editable focus clears existing held/edge controls and subsequent text never enters gameplay input.');
 
 assert(context.suggest('/').length>=20);

@@ -132,8 +132,11 @@ export const UpgradesMenu = {
     render();
   },
 
-  open() {
+  open({ paused = false } = {}) {
     if (!overlay || !overlay.classList.contains('hidden')) return;
+    overlay.querySelector('.upgrades-live-note').textContent = paused
+      ? 'The festival is paused while you browse.'
+      : 'The festival keeps moving while this is open.';
     render();
     this.clearUnread();
     overlay.classList.remove('hidden');

@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Zerble } from './zerble.js';
 import { Input } from './input.js';
+import { createDrivingControls } from './drivingControls.js';
+const drivingControls = createDrivingControls();
+let parkRequested = false;
 import { Sound } from './sound.js';
 import { PERF } from './perf.js';
 import { FixedStepClock } from './physics/fixedStep.js';
@@ -51,6 +54,7 @@ function groundStrip(z0,z1,id){
   course.add(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,flatShading:true})));addSupport(id,new Float32Array(vertices),new Uint32Array(indices));
 }
 function reset(){
+  drivingControls.reset(); parkRequested = false;
   Input.clear();held.clear();clock.reset();condition=new VehicleCondition();replaying=false;last=0;paused=false;orbit.enabled=false;$('pause').textContent='Pause';
   cart.position.set(0,heightAt(0,20)+.12,20);cart.root.quaternion.identity();cart.heading=0;cart.speed=0;vehicle.reset('restart');$('replay').textContent='Drive replay';$('status').textContent='WASD to drive · Space to brake';
   currentLook.set(cart.position.x,cart.position.y+1.5,cart.position.z);
@@ -80,7 +84,10 @@ function step(dt){
   controls.steer=replaying?0:(held.has('left')?1:0)-(held.has('right')?1:0)||Input.steer;
   controls.boost=held.has('boost')||Input.boost;controls.slow=Input.slow;controls.brake=held.has('brake')||Input.isDown('SPACE')||replaying&&clock.time>=8;
   const before=adapter.readBody('live-cart'),started=performance.now();
-  vehicle.beforeStep(dt,controls);adapter.step(dt);const solved=vehicle.afterStep(dt);cart.update(dt,controls,night?1:0);
+  const driving=drivingControls.update(controls,cart,Input.consumePressed('R')||parkRequested); parkRequested=false;
+  $('park').textContent=driving.parked?'Release park':'Park';
+  $('park').disabled=!driving.parked&&!driving.canPark;
+  vehicle.beforeStep(dt,driving.input);adapter.step(dt);const solved=vehicle.afterStep(dt);cart.update(dt,driving.input,night?1:0);
   stepMs=performance.now()-started;maxStepMs=Math.max(maxStepMs,stepMs);totalStepMs+=stepMs;stepCount++;
   const drained=adapter.drainEvents();
   const impact=selectVehicleImpact({state:solved,before,events:drained.events,step:dt,isSupport:id=>supportIds.has(id)});
@@ -99,9 +106,10 @@ function frame(time){
   if(!paused){const yaw=cart.heading;desired.set(cart.position.x+Math.sin(yaw)*13,cart.position.y+8,cart.position.z+Math.cos(yaw)*13);look.set(cart.position.x,cart.position.y+1.5,cart.position.z);const ease=1-Math.exp(-5*dt);camera.position.lerp(desired,ease);currentLook.lerp(look,ease);camera.lookAt(currentLook);orbit.target.copy(currentLook);}else{orbit.update();currentLook.copy(orbit.target);}
   renderer.render(scene,camera);
   vehicle?.endRender();
-  if(time-readoutAt>120&&vehicle){readoutAt=time;const s=vehicle.state();$('readout').textContent=`${(Math.abs(s.speed)*3.6).toFixed(1)} km/h\n${s.surface} · ${s.contacts}/4 wheels\nHeight ${cart.position.y.toFixed(2)} m\nVertical speed ${s.velocity.y.toFixed(2)} m/s\nWater depth ${s.water.depth.toFixed(2)} m\nImmersion ${s.immersion.toFixed(2)} m\nEngine ${(s.engine.revs*100).toFixed(0)}% · load ${(s.engine.load*100).toFixed(0)}%\nImpact Δv ${s.impactSpeed.toFixed(2)} m/s\nDamage ${condition.damage.toFixed(0)}% · ${condition.cause??'drivable'}\nRecovery ${s.recoveries} · ${paused?'paused':'running'}`;$('budget').textContent=`${renderer.info.render.calls} draws · ${renderer.info.render.triangles.toLocaleString()} triangles · ${PERF.name} · ${adapter.counts().vehicles} vehicle · fixed 60 Hz · physics ${(totalStepMs/(stepCount||1)).toFixed(2)} ms mean / ${maxStepMs.toFixed(2)} max`;}
+  if(time-readoutAt>120&&vehicle){readoutAt=time;const s=vehicle.state();$('readout').textContent=`${(Math.abs(s.speed)*3.6).toFixed(1)} km/h\n${s.surface} · ${s.contacts}/4 wheels · ${cart.parkingBrake?'PARKED':'driving'}\nHeight ${cart.position.y.toFixed(2)} m\nVertical speed ${s.velocity.y.toFixed(2)} m/s\nWater depth ${s.water.depth.toFixed(2)} m\nImmersion ${s.immersion.toFixed(2)} m\nEngine ${(s.engine.revs*100).toFixed(0)}% · load ${(s.engine.load*100).toFixed(0)}%\nImpact Δv ${s.impactSpeed.toFixed(2)} m/s\nDamage ${condition.damage.toFixed(0)}% · ${condition.cause??'drivable'}\nRecovery ${s.recoveries} · ${paused?'paused':'running'}`;$('budget').textContent=`${renderer.info.render.calls} draws · ${renderer.info.render.triangles.toLocaleString()} triangles · ${PERF.name} · ${adapter.counts().vehicles} vehicle · fixed 60 Hz · physics ${(totalStepMs/(stepCount||1)).toFixed(2)} ms mean / ${maxStepMs.toFixed(2)} max`;}
 }
 function dispose(){if(disposed)return;disposed=true;cancelAnimationFrame(frameHandle);listeners.abort();Sound.setMuted(true);clearCourse();adapter?.dispose();orbit.dispose();track(cart.root);for(const group of Object.values(resources))for(const resource of group)resource.dispose();renderer.dispose();}
+listen($('park'),'click',()=>{parkRequested=true;});
 listen($('fixture'),'change',e=>setFixture(e.target.value));listen($('reset'),'click',reset);
 listen($('replay'),'click',()=>{reset();replaying=true;paused=false;orbit.enabled=false;$('pause').textContent='Pause';$('replay').textContent='Replaying';});
 listen($('pause'),'click',()=>{if(condition.cause)return;paused=!paused;orbit.enabled=paused;last=0;$('pause').textContent=paused?'Resume':'Pause';});

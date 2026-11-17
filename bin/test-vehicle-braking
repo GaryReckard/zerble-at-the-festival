@@ -1,0 +1,76 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { Vector3, Quaternion } from 'three';
+import { createRapierAdapter } from '../src/physics/rapierAdapter.js';
+import { createPlayerVehicle } from '../src/physics/playerVehicle.js';
+import { createDrivingControls } from '../src/drivingControls.js';
+async function fixture({ grade = 0, yaw = 0, surface = 'grass', hz = 60, air = false } = {}) {
+  const adapter = await createRapierAdapter({ capacities: { bodies: 4, colliders: 8, vehicles: 1 } });
+  const angle = Math.atan(grade), ground = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), angle);
+  adapter.addBody({ id: 'floor', type: 'fixed', pose: { position: { x: 0, y: -.5, z: 0 }, rotation: ground },
+    colliders: [{ shape: 'cuboid', halfExtents: { x: 1000, y: .5, z: 1000 } }] });
+  const position = new Vector3(0, air ? 20 : .12, 0);
+  const cart = { position, root: { quaternion: ground.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), yaw)), updateMatrixWorld() {} },
+    heading: yaw, speed: 0, _tireR: .62, physicsDriven: true };
+  const vehicle = createPlayerVehicle({ adapter, cart, sampleSurface: (x, z, out) => Object.assign(out, { surfaceClass: surface, height: -grade * z }) });
+  const controls = createDrivingControls(), dt = 1 / hz;
+  const step = (raw = {}, toggle = false) => {
+    const state = controls.update(raw, cart, toggle);
+    vehicle.beforeStep(dt, state.input); adapter.step(dt); vehicle.afterStep(dt); return state;
+  };
+  return { adapter, cart, vehicle, controls, step, frames(n, raw) { for (let i = 0; i < n; i++) step(raw); },
+    close() { vehicle.dispose(); adapter.dispose(); } };
+}
+const reports = [];
+for (const surface of ['grass', 'asphalt', 'riverbed']) for (const hz of [30, 60, 120]) for (const grade of [-.3, 0, .3]) for (const yaw of [0, Math.PI / 2]) {
+  const f = await fixture({ grade, yaw, hz, surface });
+  try {
+    f.frames(hz * 2, { brake: true });
+    const start = f.cart.position.clone();
+    f.frames(hz * 5, { brake: true });
+    const drift = f.cart.position.distanceTo(start);
+    assert(drift < .12, `brake hill hold: hz=${hz}, grade=${grade}, yaw=${yaw}, drift=${drift}`);
+    assert(f.step({}, true).parked, 'resting cart can park');
+    const parked = f.cart.position.clone(); f.frames(hz * 3, {});
+    assert(f.cart.position.distanceTo(parked) < .12, 'latched park holds without input');
+    assert(!f.step({ throttle: 1 }).parked, 'fresh throttle releases');
+    f.frames(hz, { throttle: 1 });
+    assert(Math.abs(f.cart.speed) > 5, 'release applies propulsion');
+    f.frames(hz, { brake: true, throttle: 1 });
+    assert(Math.abs(f.cart.speed) < .15, 'brake overrides forward throttle');
+    f.frames(hz * 2, { throttle: -1 }); assert(f.cart.speed < -3, 'reverse remains available');
+    f.frames(hz, { brake: true }); assert(Math.abs(f.cart.speed) < .15, 'brake stops reverse');
+    const release = f.cart.position.clone(); f.frames(hz * 2, {});
+    if (grade) assert(f.cart.position.distanceTo(release) > .4, 'service release permits downhill rolling');
+    reports.push({ surface, hz, grade, crossSlope: !!yaw, drift });
+  } finally { f.close(); }
+}
+{
+  const f = await fixture({ grade: 1.4 });
+  try { f.frames(300, { brake: true }); assert(f.cart.position.z > 1, 'finite grip cannot anchor a steep bank'); }
+  finally { f.close(); }
+}
+{
+  const f = await fixture();
+  try {
+    f.frames(120, { brake: true }); f.step({}, true);
+    const start = f.cart.position.clone();
+    f.adapter.applyImpulse(f.vehicle.id, { x: 3200, y: 0, z: 0 });
+    f.frames(60, {});
+    assert(f.controls.parked, 'impact does not clear the parking latch');
+    assert(f.cart.position.distanceTo(start) > .5, 'parked body yields to an external impact');
+    const displaced = f.cart.position.clone(); f.frames(120, {});
+    assert(f.cart.position.distanceTo(displaced) < .12, 'parking holds the new stop instead of returning to the old pose');
+  } finally { f.close(); }
+}
+{
+  const f = await fixture({ air: true });
+  try {
+    const before = f.adapter.readBody(f.vehicle.id).linearVelocity;
+    f.vehicle.beforeStep(1 / 60, { brake: true, throttle: 1 });
+    assert.deepEqual(f.adapter.readBody(f.vehicle.id).linearVelocity, before, 'air brake adds no impulse');
+    assert(f.step({}, true).rejected, 'air parking rejected');
+    f.frames(15, { brake: true }); assert(f.cart.velocity.y < -2, 'gravity continues while braking in air');
+  } finally { f.close(); }
+}
+console.log('PASS native brake/parking physics', JSON.stringify(reports));

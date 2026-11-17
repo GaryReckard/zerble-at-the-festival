@@ -26,7 +26,7 @@ function normalize(e) {
   return e.key.toUpperCase();
 }
 
-const BLOCK_DEFAULT = new Set(['W', 'A', 'S', 'D', 'SPACE', 'SHIFT', 'UP', 'DOWN', 'LEFT', 'RIGHT']);
+const BLOCK_DEFAULT = new Set(['E', 'R', 'W', 'A', 'S', 'D', 'SPACE', 'SHIFT', 'UP', 'DOWN', 'LEFT', 'RIGHT']);
 
 window.addEventListener('keydown', (e) => {
   if(diagnostic){untilRelease.add(normalize(e));e.preventDefault();if(e.key==='Escape')diagnostic.abort();return;}
@@ -35,7 +35,7 @@ window.addEventListener('keydown', (e) => {
   // actions — the camera flips while you type. Editable target = not gameplay.
   if (e.target && e.target.matches && e.target.matches('input, textarea, select, [contenteditable]')) return;
   const k = normalize(e);
-  if ((k === 'M' || k === 'J') && (e.metaKey || e.ctrlKey || e.altKey)) return;
+  if (e.metaKey || e.altKey || (e.ctrlKey && !['W', 'A', 'S', 'D', 'SPACE', 'CONTROL', 'SHIFT'].includes(k))) return;
   if (untilRelease.has(k)) {
     if (e.repeat) return;
     untilRelease.delete(k);
@@ -52,12 +52,13 @@ window.addEventListener('keyup', (e) => {
 });
 
 window.addEventListener('blur', () => {
-  held.clear();
-  edges.clear();
+  Input.clear();
 });
 
+globalThis.document?.addEventListener?.('visibilitychange', () => { if (document.hidden) Input.clear(); });
+
 window.addEventListener('focusin', e => {
-  if(e.target?.matches?.('input, textarea, select, [contenteditable]')){held.clear();edges.clear();}
+  if(e.target?.matches?.('input, textarea, select, [contenteditable]'))Input.clear();
 });
 
 // Combine a keyboard {-1,0,1} digital axis with a touch [-1..1] analog axis.
@@ -73,7 +74,8 @@ export const Input = {
     this.clear();const owner={source,abort};diagnostic=owner;
     return ()=>{if(diagnostic===owner){diagnostic=null;this.clear();}};
   },
-  get brake() { return diagnostic ? !!diagnostic.source.brake : false; },
+  get brake() { return diagnostic ? !!diagnostic.source.brake : held.has('SPACE') || Touch.state.brake; },
+  get cameraGesture() { return diagnostic ? null : Touch.cameraGesture; },
   clear() {
     for (const key of held) untilRelease.add(key);
     held.clear();
@@ -86,12 +88,13 @@ export const Input = {
   },
 
   // Edge press: keyboard keydown OR a per-key touch latch this frame. SPACE
-  // is honk; J is music-toggle. Other keys are keyboard-only.
+  // is the brake; E is honk; J is music-toggle. Other keys are keyboard-only.
   consumePressed(k) {
     if(diagnostic)return false;
     const kbdEdge = edges.has(k);
     if (kbdEdge) edges.delete(k);
-    if (k === 'SPACE') {
+    if (k === 'R') { const touchEdge = Touch._consumePark(); return kbdEdge || touchEdge; }
+    if (k === 'E') {
       const touchEdge = Touch._consumeHonk();
       return kbdEdge || touchEdge;
     }
@@ -125,7 +128,7 @@ export const Input = {
   },
   get slow() {
     if(diagnostic)return !!diagnostic.source.slow;
-    return held.has('CONTROL') || Touch.state.slow;
+    return held.has('CONTROL');
   },
 
   // ----- Camera (arrow keys — rate-based, persistent) -----

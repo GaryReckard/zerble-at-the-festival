@@ -1,0 +1,37 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+const listeners = {}, elements = new Map();
+globalThis.window = { addEventListener(name, fn) { listeners[name] = fn; }, matchMedia: () => ({ matches: true }) };
+globalThis.document = { body: { classList: { add() {} } }, getElementById(id) {
+  if (!elements.has(id)) elements.set(id, { style: {}, classList: { add() {}, remove() {} }, listeners: {}, attrs: {},
+    addEventListener(name, fn) { this.listeners[name] = fn; }, setAttribute(name, value) { this.attrs[name] = value; },
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 120, height: 120 }) });
+  return elements.get(id);
+} };
+const { Touch } = await import('../src/touch.js');
+const { Input } = await import('../src/input.js');
+Touch.install();
+const key = (type, key, options = {}) => listeners[type]({ key, preventDefault() {}, ...options });
+const gesture = (id, type) => elements.get(id).listeners[type]({ preventDefault() {}, changedTouches: [{ identifier: 21 }] });
+key('keydown', ' '); assert(Input.brake); assert(!Input.consumePressed('E'));
+key('keyup', ' '); assert(!Input.brake);
+key('keydown', 'e'); assert(Input.consumePressed('E')); assert(!Input.consumePressed('E')); key('keyup', 'e');
+key('keydown', 'r'); assert(Input.consumePressed('R')); assert(!Input.consumePressed('R')); key('keyup', 'r');
+key('keydown', 'r', { ctrlKey: true }); assert(!Input.consumePressed('R'), 'browser reload shortcut is not parking');
+key('keydown', 'e', { target: { matches: () => true } }); assert(!Input.consumePressed('E'), 'typing never honks');
+gesture('btn-brake', 'touchstart'); assert(Input.brake);
+gesture('btn-brake', 'touchcancel'); assert(!Input.brake, 'cancel releases touch brake');
+gesture('btn-brake', 'touchstart'); listeners.blur(); assert(!Input.brake, 'blur releases touch brake');
+gesture('btn-honk', 'touchstart'); assert(Input.consumePressed('E')); assert(!Input.consumePressed('SPACE'));
+gesture('btn-honk', 'touchend');
+elements.get('btn-park').listeners.click({ preventDefault() {} }); assert(Input.consumePressed('R')); assert(!Input.consumePressed('R'));
+// Simultaneous sources coalesce, rather than leaving an edge for the next frame.
+key('keydown', 'r'); elements.get('btn-park').listeners.click({ preventDefault() {} });
+assert(Input.consumePressed('R')); assert(!Input.consumePressed('R')); key('keyup', 'r');
+gesture('btn-brake', 'touchstart'); elements.get('btn-park').listeners.click({ preventDefault() {} });
+Input.clear(); assert(!Input.brake); assert(!Input.consumePressed('R'));
+Touch.updateParking({ parked: true, canPark: false });
+assert(!elements.get('btn-park').hidden); assert.equal(elements.get('btn-park').attrs['aria-pressed'], 'true');
+Touch.updateParking({ parked: false, canPark: false }); assert(elements.get('btn-park').hidden);
+key('keydown', 'Control'); assert(Input.slow); key('keyup', 'Control');
+console.log('PASS real brake/honk/park input handlers, simultaneous sources, typing, shortcuts, cancellation, blur and modal reset.');
