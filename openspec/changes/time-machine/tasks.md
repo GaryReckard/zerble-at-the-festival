@@ -15,5 +15,5 @@
 
 - [x] 3.1 Run repository checks, builds, archive browser checks and cleanup.
 - [x] 3.2 Document DNS, publishing, compatibility and acceptance limits; update changelog.
-- [ ] 3.3 Publish archive repository and configure both Pages hostnames.
-- [ ] 3.4 Complete public DNS/HTTPS checks after Gary adds the records.
+- [x] 3.3 Publish archive repository and configure both Pages hostnames.
+- [x] 3.4 Complete public DNS/HTTPS checks after Gary adds the records.

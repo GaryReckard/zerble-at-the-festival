@@ -22,7 +22,7 @@ The first collection contains twelve selected chapters from May 23 through Novem
 
 ## Publish any old commit
 
-Open the archive repository's **Actions → Publish Time Machine → Run workflow**, enter a commit hash, branch or tag as `source_ref`, and run it. A successful run records its permanent URL under `Ready:` in the build log and in the archive's `snapshots.json`. Untagged, uncurated commits get a direct link without being added to the main timeline.
+Open the archive repository's [Publish Time Machine workflow](https://github.com/GaryReckard/zerble-game-archive/actions/workflows/publish.yml), select **Run workflow**, enter a commit hash, branch or tag as `source_ref`, and run it. A successful run records its permanent URL under `Ready:` in the build log and in the archive's `snapshots.json`. Untagged, uncurated commits get a direct link without being added to the main timeline. The June 2 commit `4cabb2a` was published this way during production acceptance, alongside the twelve curated chapters.
 
 The workflow serializes all archive writers, preserves the existing site branch, commits complete packages, and deploys only after a successful build. It runs independently of the live game and needs no personal access token. Its normal archive-repository token is supplied only to the final publishing step; historical scripts/configuration are never run.
 

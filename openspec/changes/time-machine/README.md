@@ -1,6 +1,6 @@
 # Zerble Time Machine
 
-> **Status:** <!--STATUS:LINE-->in progress · 9/11 tasks (81%)<!--/STATUS:LINE-->
+> **Status:** <!--STATUS:LINE-->complete · 11/11 tasks (100%)<!--/STATUS:LINE-->
 
 ## TL;DR
 
@@ -17,15 +17,15 @@ A trusted builder prepares old public game files, adds memory-only storage befor
 ## Progress
 
 <!--STATUS:AUTO-->
-**in progress** — 9/11 tasks complete (81%) · current: 3.3
+**complete** — 11/11 tasks complete (100%)
 
-_Last updated: 2026-11-16_
+_Last updated: 2026-11-17_
 
 | Group | Progress |
 |---|---|
 | 1. Archive compatibility and verification surface | 3/3 ✅ |
 | 2. Timeline and publishing | 4/4 ✅ |
-| 3. Release and operations | 2/4 |
+| 3. Release and operations | 4/4 ✅ |
 <!--/STATUS:AUTO-->
 
 ## Key Decisions

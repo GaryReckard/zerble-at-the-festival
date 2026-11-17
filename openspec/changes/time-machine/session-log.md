@@ -1,11 +1,11 @@
 ---
 change: time-machine
-status: in_progress
-current_task: 3.3
+status: complete
+current_task: null
 blocked_by: null
 open_questions: 0
 started: 2026-11-16
-last_updated: 2026-11-16
+last_updated: 2026-11-17
 ref: 380cf22
 ---
 
@@ -28,8 +28,8 @@ ref: 380cf22
 
 ## Dangling Threads
 
-- Gary must create DNS records; browser HTTPS and real-iOS acceptance depend on public routing.
-- ~~Gary must create DNS records~~: Gary confirmed both records and configured the live Pages hostname. Archive HTTPS and physical-iOS acceptance remain to verify.
+- ~~Gary must create DNS records; browser HTTPS and real-iOS acceptance depend on public routing.~~ DNS and HTTPS resolved November 17; physical-iOS audio remains an explicit device-verification limit.
+- ~~Gary must create DNS records~~: Gary confirmed both records and configured the live Pages hostname. Both public deployments and HTTPS were verified November 17. Physical-iOS acceptance remains an explicit device-verification limit.
 
 ## Work Log
 
@@ -42,3 +42,8 @@ ref: 380cf22
 **Event:** decision
 **What:** Gary requested version dimensions and GA4 setup. Registered event-scoped Game version/game_version and Game channel/game_channel in the existing property and changed its stream URL to game.zerble.net. Gary confirmed both CNAME records and the live Pages hostname. Archive analytics uses page-local cookies while preserving fresh game sessions.
 **Refs:** D5 (version-labeled analytics), docs/time-machine.md.
+
+### 2026-11-17 -- Public release verified
+**Event:** phase-change
+**What:** The live deployment and both archive workflow runs passed. Public gameplay starts and HTTPS passed. The manual June 2 publication added a thirteenth unlisted package while retaining twelve curated chapters. GA4 Realtime showed archive_play with the expected archive channel and source commit. Only physical iOS audio and extended device play remain unclaimed acceptance limits.
+**Refs:** verification/time-machine/README.md; source commit c68f7ef; archive runs 44021153915 and 44021715783.
