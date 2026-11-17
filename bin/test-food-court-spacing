@@ -9,6 +9,16 @@ import {FESTIVAL_TUNING as T,setFestivalTuning,MODEL_DIMS} from '../src/worldgen
 import {nearestRoad} from '../src/worldgen/roads.js';
 import {CONFIG,bumpWorldgen} from '../src/worldgen/constants.js';
 const baseline=JSON.parse(readFileSync(new URL('../verification/food-court-spacing/baseline.json',import.meta.url)));
+// Match the existing road snapshot policy: libm/Node may differ by a final bit
+// in cosmetic atan2 results. Only persisted yaw values use a 1e-12 resolution;
+// production math and every positional, existence and identity field stay exact.
+const snapshot=value=>JSON.parse(JSON.stringify(value,(key,value)=>
+ key==='yaw'&&Number.isFinite(value)?Number(value.toFixed(12)):value));
+assert.deepEqual(snapshot({yaw:.365201449788173}),snapshot({yaw:.36520144978817304}));
+assert.notDeepEqual(snapshot({yaw:.365201449788173}),snapshot({yaw:.365201449888173}));
+assert.notDeepEqual(snapshot({x:1}),snapshot({x:1+Number.EPSILON}));
+assert.notDeepEqual(snapshot({clusterSeed:1}),snapshot({clusterSeed:2}));
+
 setLandscapeVersion(2);setSeed(baseline.seed);
 const plans=baseline.plans.map(({heart})=>festivalPlan(heart));
 const {x,z}=baseline.marker,reach=150+MAX_POI_REACH;
@@ -19,7 +29,7 @@ for(let i=0;i<baseline.plans.length;i++){
  const original=baseline.plans[i].plan;
  const kept=new Set(plans[i].map(d=>d.clusterSeed));
  const removed=new Set(original.filter(d=>d.kind==='food_court'&&!kept.has(d.clusterSeed)).map(d=>d.clusterSeed));
- assert.deepEqual(plans[i],original.filter(d=>!removed.has(d.clusterSeed)&&!removed.has(d.parentSeed)),
+ assert.deepEqual(snapshot(plans[i]),snapshot(original.filter(d=>!removed.has(d.clusterSeed)&&!removed.has(d.parentSeed))),
   'only suppressed courts and their dependent welfare posts change; sibling coordinates, seeds and variations stay stable');
 }
 let checked=0;
@@ -42,6 +52,6 @@ for(const seed of [3185230054,2641474229,1234,42,9876]){
 const spacing=T.FOOD_COURT_MIN_SPACING;
 try{
  setFestivalTuning({FOOD_COURT_MIN_SPACING:0});bumpWorldgen();setSeed(baseline.seed);
- assert.deepEqual(baseline.plans.map(({heart})=>festivalPlan(heart)),baseline.plans.map(p=>p.plan),'zero spacing restores the pre-fix plans exactly');
+ assert.deepEqual(snapshot(baseline.plans.map(({heart})=>festivalPlan(heart))),snapshot(baseline.plans.map(p=>p.plan)),'zero spacing restores the pre-fix plans exactly');
 }finally{setFestivalTuning({FOOD_COURT_MIN_SPACING:spacing});bumpWorldgen();}
 console.log(`PASS reported food-court pileup, ${checked} spaced courts across five seeds, unchanged siblings, welcome preservation, seed/query order and tuning invalidation.`);

@@ -18,9 +18,13 @@ not merge these non-overlapping courts. The failing regression reproduced three
 courts within 150 m before the fix.
 
 [baseline.json](baseline.json) records the original descriptors from 47 owning
-hubs around the marker, captured before changing density. This fixture allows an
-exact comparison of every unaffected descriptor, rather than checking only a
-court count. The reported-location assertion expands the owning-heart search by
+hubs around the marker, captured before changing density. This fixture allows a
+comparison of every unaffected descriptor, rather than checking only a court
+count. Persisted `yaw` angles use the existing road-snapshot policy of 1e-12
+radian resolution for cross-platform final-bit differences; positions, seeds,
+existence decisions and all other fields remain exact. Mutation controls prove
+that meaningful angle changes and any coordinate or seed change still fail.
+The reported-location assertion expands the owning-heart search by
 `MAX_POI_REACH`, so courts whose owners sit outside the immediate area are included.
 
 ## Current rule
