@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-11-17
+
+### Changed
+- **The Time Machine gives each chapter more breathing room.** Removed the repeated “Bring the bubbles, collect the memories” text beside every entry, leaving the chapter numbers alongside the road.
+
 ## 2026-11-16
 
 ### Added
