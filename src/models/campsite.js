@@ -17,6 +17,8 @@
 
 import * as THREE from 'three';
 import { PERF } from '../perf.js';
+import { A11y } from '../a11y.js';
+import { attachTentInterior } from '../tentInterior.js';
 import { register as registerContextLight,unregister as unregisterContextLight } from '../contextLights.js';
 import { disposeSceneResources } from '../sceneResources.js';
 import { planCampRecipe } from '../campPlanning.js';
@@ -140,6 +142,7 @@ export function buildCampTent(rng = Math.random, options = {}) {
   tent.castShadow = true;
   tent.receiveShadow = true;
   group.add(tent);
+  const fabricMeshes=[tent];
 
   // Optional small vestibule flap — a triangle sticking out from the front
   // gable. Picks 50% of the time per rng.
@@ -156,14 +159,14 @@ export function buildCampTent(rng = Math.random, options = {}) {
     flapGeo.computeVertexNormals();
     const flap = new THREE.Mesh(flapGeo, fabric);
     // Tent flap is small; the parent tent already casts a clean shadow.
-    group.add(flap);
+    group.add(flap);fabricMeshes.push(flap);
   }
 
   addTentPoles(group,[[[-w/2,.02,d/2],[0,h+.01,d/2]],[[0,h+.01,d/2],[w/2,.02,d/2]],[[0,h+.01,d/2],[0,h+.01,-d/2]]]);
   const door=buildTentDoor(group,{family:'ridge',width:.9,height:1.18,bottom:.04,surfaceZ:()=>d/2+.004});
   const shelter={radius:(vestibule?Math.hypot(w/3,d/2+.7):Math.hypot(w/2,d/2))+.02,doorReach:vestibule?2.6:2.25,width:w,depth:d+(vestibule?.7:0),height:h,capacity:2,
     doorZ:d/2+.015,bounds:[{x:0,z:0,halfWidth:w/2,halfDepth:d/2},...(vestibule?[{x:0,z:d/2+.35,halfWidth:w/3,halfDepth:.35}]:[])]};
-  return { group,color,family:'ridge',footprint:shelter.radius,shelter,door,entrance:{x:0,z:shelter.doorReach} };
+  return { group,color,fabricMeshes:[...fabricMeshes,door.mesh],family:'ridge',footprint:shelter.radius,shelter,door,entrance:{x:0,z:shelter.doorReach} };
 }
 
 // Door cloth and zipper strips share the shelter surface. The dome sampler
@@ -258,7 +261,8 @@ function buildTentDoor(group,{family,width,height,bottom,surfaceZ,surfaceMesh}) 
 // octagonal lodge, upright cabin walls, or a connected side sleeping room.
 function buildTentFamily(group,color,fabric,family,variation,vestibule) {
   const v=THREE.MathUtils.clamp(variation,0,1), scale=.94+v*.12;
-  const add=(geometry,material,x,y,z,shadow=true)=>{const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.castShadow=shadow;mesh.receiveShadow=true;group.add(mesh);return mesh;};
+  const fabricMeshes=[];
+  const add=(geometry,material,x,y,z,shadow=true)=>{const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.castShadow=shadow;mesh.receiveShadow=true;group.add(mesh);if(material===fabric||material===roofMaterial)fabricMeshes.push(mesh);return mesh;};
   const roofMaterial=matFor([0xd39a61,0x78986f,0x7488b0][Math.min(2,Math.floor(v*3))]);
   let radius,width,depth,height,doorZ,capacity,bounds,doorSurface,doorSurfaceMesh;
   const poles=[];
@@ -347,7 +351,7 @@ function buildTentFamily(group,color,fabric,family,variation,vestibule) {
   const door=buildTentDoor(group,{family,width:.8*scale,height:Math.min(1.28*scale,height*.72),bottom:.05*scale,surfaceZ:doorSurface,surfaceMesh:doorSurfaceMesh});
   if(poles.length)addTentPoles(group,poles);
   const shelter={radius,doorReach:Math.max(radius+.65,doorZ+.65),width,depth,height,capacity,doorZ,bounds};
-  return {group,color,family,variation:v,footprint:radius,shelter,door,entrance:{x:0,z:shelter.doorReach}};
+  return {group,color,fabricMeshes:[...fabricMeshes,door.mesh],family,variation:v,footprint:radius,shelter,door,entrance:{x:0,z:shelter.doorReach}};
 }
 
 // ---------- Camp chair (folding) ----------
@@ -1056,41 +1060,9 @@ function addCampLanterns(parent, animatables, hasTable=true) {
   parent.add(bulbs,frames);
   animatables.push({kind:'campLantern',material});
 }
-const _TENT_SILHOUETTE_MATERIAL=new THREE.MeshBasicMaterial({color:0x737a65});
-_TENT_SILHOUETTE_MATERIAL.userData.shared=true;
-function addTentEveningGlow(tent,animatables,phase) {
-  const panel=tent.door.mesh,material=panel.material.clone();
-  material.userData.shared=false;material.emissive.setHex(0xffad4f);material.emissiveIntensity=0;
-  panel.material=material;
-  // The actual zippered cloth glows, rather than a separate triangular sign.
-  const silhouetteGeometry=new THREE.BufferGeometry();
-  const buffer=new Float32Array(512*3),position=new THREE.Float32BufferAttribute(buffer,3);
-  silhouetteGeometry.setAttribute('position',position);silhouetteGeometry.setDrawRange(0,0);
-  const silhouette=new THREE.Mesh(silhouetteGeometry,_TENT_SILHOUETTE_MATERIAL);silhouette.visible=false;
-  // Thirteen finite poses are clipped once during construction. Animation
-  // only copies a prepared pose into the owned fixed-size vertex buffer.
-  const frames=[];
-  for(let step=-6;step<=6;step++) {
-    const shift=step*.0125,vertices=[];
-    for(const [halfWidth,low,high] of [[.11,.2,.56],[.075,.59,.76]]) {
-      const outline=[[shift-halfWidth,low],[shift+halfWidth,low],[shift+halfWidth,high],[shift-halfWidth,high]];
-      const clipped=tent.door.surfaceMesh?clipDoorToShell(tent.door.surfaceMesh,outline,.009):null;
-      if(clipped)vertices.push(...clipped);
-      else for(const i of [0,1,2,0,2,3]){const [x,y]=outline[i];vertices.push(x,y,tent.door.surfaceZ(x,y)+.005);}
-    }
-    frames.push(new Float32Array(vertices));
-  }
-  let previousStep=Infinity;
-  const updateSilhouette=offset=>{
-    const step=Math.max(-6,Math.min(6,Math.round(offset/.0125)));if(step===previousStep)return;previousStep=step;
-    const vertices=frames[step+6];position.array.set(vertices);position.needsUpdate=true;
-    silhouetteGeometry.setDrawRange(0,vertices.length/3);
-  };
-  const fabric=tent.group.children[0].material.clone();
-  fabric.userData.shared=false;fabric.emissive.setHex(0xffaa55);fabric.emissiveIntensity=0;
-  tent.group.children[0].material=fabric;
-  tent.group.add(silhouette);
-  animatables.push({kind:'tentGlow',panel,panelAlwaysVisible:true,material,fabric,silhouette,updateSilhouette,phase,bedtime:.79+phase*.065});
+export function addTentEveningGlow(tent,animatables,phase) {
+  const interior=attachTentInterior(tent,phase);
+  animatables.push({kind:'tentGlow',interior,phase,bedtime:.79+phase*.065});
 }
 
 // Retain each chair's empty transform group for seat metadata, but batch its
@@ -1512,13 +1484,7 @@ export function updateCampsiteProps(t, nightness, props, dayT) {
     if(p.kind==='campLantern')p.material.emissiveIntensity=nightness*1.8;
     if(p.kind==='tentGlow') {
       const evening=Number.isFinite(dayT)?THREE.MathUtils.smoothstep(dayT,.51,.56)*(1-THREE.MathUtils.smoothstep(dayT,p.bedtime,p.bedtime+.025)):nightness;
-      p.panel.visible=p.panelAlwaysVisible||evening>.01;
-      p.silhouette.visible=evening>.01;
-      p.material.emissiveIntensity=evening*.35;
-      if(p.fabric)p.fabric.emissiveIntensity=evening*.24;
-      const offset=Math.sin(t*.55+p.phase*6)*.075;
-      if(p.updateSilhouette){if(evening>.01)p.updateSilhouette(offset);}
-      else p.silhouette.position.x=offset;
+      p.interior.update(t,evening*nightness,A11y.reducedMotion);
     }
     if (p.kind === 'campTwinkle') { p.bulbMat.emissiveIntensity=nightness*2.2; }
     if (p.emberMat) {

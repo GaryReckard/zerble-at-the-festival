@@ -239,7 +239,7 @@ console.log('PASS chair batching: shared resources, metadata anchors, all transf
 
 const animateSource=source.slice(source.indexOf('export function updateCampsiteProps(')).replace('export function','function');
 const smoothstep=(v,a,b)=>{const n=Math.max(0,Math.min(1,(v-a)/(b-a)));return n*n*(3-2*n);};
-const animate=vm.runInNewContext(animateSource+';updateCampsiteProps',{THREE:{MathUtils:{smoothstep,clamp:(v,a,b)=>Math.max(a,Math.min(b,v))}}});
+const animate=vm.runInNewContext(animateSource+';updateCampsiteProps',{THREE:{MathUtils:{smoothstep,clamp:(v,a,b)=>Math.max(a,Math.min(b,v))}},A11y:{reducedMotion:false}});
 const flame={visible:true,scale:{y:1}},color={value:0,setHex(v){this.value=v;}};
 const fire={phase:.5,emberMat:{emissiveIntensity:1,color},fireFlame:flame};
 animate(1,0,[fire],.25);
@@ -249,14 +249,14 @@ animate(1,1,[fire],.95);assert.equal(fire.emberMat.emissiveIntensity,0);assert.e
 console.log('PASS fire schedule: cold daytime charcoal, evening flames and extinguished late-night fire.');
 
 {
-const panel={visible:true},silhouette={visible:true,position:{x:0}},material={emissiveIntensity:0},fabric={emissiveIntensity:0};
-const glow={kind:'tentGlow',panel,silhouette,material,fabric,phase:.5,bedtime:.82};
+const calls=[];
+const glow={kind:'tentGlow',interior:{update:(...args)=>calls.push(args)},phase:.5,bedtime:.82};
 const lantern={kind:'campLantern',material:{emissiveIntensity:0}};
-animate(10,0,[glow,lantern],.25);assert.equal(panel.visible,false);assert.equal(silhouette.visible,false);assert.equal(material.emissiveIntensity,0);assert.equal(fabric.emissiveIntensity,0);assert.equal(lantern.material.emissiveIntensity,0);
-animate(10,1,[glow,lantern],.65);assert.equal(panel.visible,true);assert.equal(silhouette.visible,true);assert(material.emissiveIntensity>0);assert(fabric.emissiveIntensity>0);assert(lantern.material.emissiveIntensity>0);
-const before=silhouette.position.x;animate(11,1,[glow],.65);assert.notEqual(before,silhouette.position.x,'silhouette moves gently while camper is awake');
-animate(12,1,[glow],.95);assert.equal(panel.visible,false);assert.equal(silhouette.visible,false);assert.equal(fabric.emissiveIntensity,0);
-console.log('PASS lantern/tent lighting: noon cold, evening internally lit fabric and motion, late-night tents dark.');
+animate(10,0,[glow,lantern],.25);assert.equal(calls.at(-1)[1],0);assert.equal(lantern.material.emissiveIntensity,0);
+animate(10,1,[glow,lantern],.65);assert(calls.at(-1)[1]>.9);assert(lantern.material.emissiveIntensity>0);
+animate(11,1,[glow],.65);assert.equal(calls.at(-1)[0],11,'the live clock reaches the fabric shadow animator');
+animate(12,1,[glow],.95);assert.equal(calls.at(-1)[1],0,'interior lighting extinguishes at bedtime');
+console.log('PASS lantern/tent lighting: daytime off, evening projection updates and late-night extinction.');
 
 }
 
@@ -317,39 +317,17 @@ for(let i=0;i<clippedDoor.length;i+=3){
 }
 console.log('PASS tent doors: triangular split flaps, curved left-hinge D zippers, bowed dome mapping and exact faceted-shell clipping.');
 
-// Exercise the real glow constructor so moving silhouettes cannot regress into
-// per-frame shell clipping or hide the actual daytime door cloth.
-class GlowGeometry {
-  constructor(){this.attributes={};}
-  setAttribute(name,attribute){this.attributes[name]=attribute;return this;}
-  setDrawRange(start,count){this.drawRange={start,count};}
-}
-class GlowMaterial {
-  constructor(){this.userData={};this.emissive={setHex(){}};}
-  clone(){return new GlowMaterial();}
-}
-let silhouetteClips=0;
-const glowConstructorSource=source.slice(source.indexOf('const _TENT_SILHOUETTE_MATERIAL='),source.indexOf('// Retain each chair'));
-const makeGlow=vm.runInNewContext(glowConstructorSource+';addTentEveningGlow',{
-  THREE:{Mesh,BufferGeometry:GlowGeometry,Float32BufferAttribute:class{constructor(array){this.array=array;}},MeshBasicMaterial:GlowMaterial},
-  clipDoorToShell:(mesh,outline,offset)=>{silhouetteClips++;return [outline[0][0],outline[0][1],1+offset,outline[1][0],outline[1][1],1+offset,outline[2][0],outline[2][1],1+offset];},
-});
-const glowGroup=new Group(),doorCloth=new Mesh(null,new GlowMaterial());
-glowGroup.add(new Mesh(null,new GlowMaterial()),doorCloth);
-const glowHooks=[];
-makeGlow({group:glowGroup,door:{mesh:doorCloth,surfaceMesh:{},surfaceZ:()=>1}},glowHooks,.5);
-assert.equal(silhouetteClips,26,'thirteen two-part silhouette poses are prepared once');
-animate(0,0,glowHooks,.25);
-assert.equal(doorCloth.visible,true,'the actual zippered fabric door remains visible by day');
-assert.equal(glowHooks[0].silhouette.visible,false);
-for(let i=0;i<120;i++)animate(i/6,1,glowHooks,.65);
-assert.equal(silhouetteClips,26,'animation reuses prepared poses without shell clipping');
-assert(glowHooks[0].silhouette.geometry.drawRange.count>0);
-assert.equal(glowHooks[0].silhouette.geometry.attributes.position.needsUpdate,true);
-animate(21,1,glowHooks,.95);
-assert.equal(doorCloth.visible,true);assert.equal(glowHooks[0].silhouette.visible,false);
-assert.equal(glowHooks[0].material.emissiveIntensity,0);
-console.log('PASS actual door glow: daytime cloth retained, thirteen cached silhouette poses, fixed buffer updates and late-night extinction.');
+// The constructor only attaches the fabric controller; projection and material
+// ownership are exercised against actual Three.js in test-tent-interior.
+const glowSource=source.slice(source.indexOf('function addTentEveningGlow('),source.indexOf('// Retain each chair'));
+const controller={update(){}};
+let attached=null;
+const makeGlow=vm.runInNewContext(glowSource+';addTentEveningGlow',{attachTentInterior:(tent,phase)=>{attached={tent,phase};return controller;}});
+const tentFixture={},glowHooks=[];makeGlow(tentFixture,glowHooks,.5);
+assert.equal(attached.tent,tentFixture);assert.equal(attached.phase,.5);
+assert.equal(glowHooks[0].interior,controller);
+assert.equal(glowHooks[0].bedtime,.79+.5*.065);
+console.log('PASS actual tent glow adapter: fabric controller owns motion and per-tent bedtime is retained.');
 
 // Woodland pitch acceptance against real campsite geometry and pre-existing
 // neighboring-chunk trunks, with the same pure clearance predicate as the game.

@@ -225,6 +225,30 @@ mesh uses 140 segments per side, down from 220 before the texture was added.
 - Register pedestrian shore colliders **without** a `chunkKey`, so chunk unload does not tear them down. The physical player excludes these barriers and can enter the lake.
 - Lakes own: canoes, beaches, lakeside campsites. Chunks consult the registry to avoid placing paths or decorations on water.
 
+### Tent interior projection (`tentInterior.js`)
+
+Campsite shelters expose their fabric meshes explicitly, including family walls,
+rainflies, the multiroom wing and the actual cloth door, while poles, zippers
+and groundsheets retain their normal materials. The existing independent layout
+stream selects evening-lit tents without changing their historical RNG draws.
+`addTentEveningGlow` attaches owned fabric-material clones and one uniform state
+per tent; it no longer adds a door silhouette mesh or clipped animation poses.
+
+The Standard/Lambert shader evaluates the lantern-to-fabric segment against six
+soft body capsules in tent-local space. Occlusion attenuates the warm transmitted
+emissive and darkens the cloth-relative diffuse color, so a seated camper casts
+across the appropriate walls rather than appearing as a gray sticker. Lamp
+distance affects projection scale and soft edges, and independent phases animate
+breathing, leaning and occasional arm reaches. Dark fragments skip the capsule
+work. The central campsite updater sends time, evening strength and live Reduced
+Motion; the existing staggered lights-out schedule remains authoritative.
+
+There are no added draws, textures, lights or shadow-map passes. Material clones
+are owned by the existing tent subtree, and shared source materials stay pooled.
+The effect represents ambient life inside selected tents, rather than a claim
+that a particular visible Crowd NPC occupies that tent. [Verification and
+performance limits](verification/tent-interiors/README.md).
+
 ### Distant ridgelines (`mountains.js`)
 
 Four continuous radial slopes and two narrow treetop fringes share one opaque
@@ -309,7 +333,7 @@ A render-only "semantic LOD" layer that fills the middle distance (from the
 chunk load ring out to the 520m fog-opaque limit on every tier — low
 originally stopped at 340m, but the unproxied 340–520m band read as missing
 content on real devices and was extended 2026-08-28) with batched festival
-silhouettes and coarse forest masses, so hubs read as destinations through
+silhouettes and tree impostors, so hubs read as destinations through
 the fog instead of popping out of empty grass. **Default on since 2026-08-28**
 (promotion gates + sign-off; see CHANGELOG). Effective enablement is
 `farFieldRequested && USE_WORLDGEN_V2` (`?farField=0` is the one-variable

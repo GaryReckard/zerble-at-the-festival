@@ -1,0 +1,10 @@
+{
+  "family": "multiroom",
+  "tier": "mid",
+  "counters": [
+    "scene: 11 draws · 695 tris · 12 geo · 2 tex",
+    "scene: 11 draws · 695 tris · 12 geo · 2 tex",
+    "scene: 11 draws · 695 tris · 12 geo · 2 tex"
+  ],
+  "errors": []
+}

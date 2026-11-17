@@ -58,6 +58,17 @@ Open `/menu-preview.html?screen=settings&mute=1` on the local Vite development o
 
 ## Blue Ridge backdrop workshop
 
+### Backlit tent fabric
+
+Open `/sandbox.html?entity=camp_tent_dome&interior=1&perf=low&mute=1`, then
+repeat on Mid and switch among ridge, dome, octagon, cabin and connected rooms.
+The `interior=1` shortcut holds an evening inspection time. Buttons frame the
+door, side or rear, pause or advance the camper pose, and move the interior
+lantern. A wall only carries a shadow when its light ray crosses the camper;
+the opposite wall stays lit. Noon and late-night lights-out must restore the
+ordinary fabric without a floating figure or hidden doorway.
+See [checks and rendering limits](verification/tent-interiors/README.md).
+
 ### Angle-aware forest impostors
 
 Open `/sandbox.html?entity=forest_impostors&perf=low&mute=1`, then repeat on Mid.

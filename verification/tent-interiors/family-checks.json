@@ -1,0 +1,62 @@
+[
+  {
+    "family": "ridge",
+    "tier": "low",
+    "counters": "scene: 7 draws · 138 tris · 8 geo · 2 tex",
+    "errors": []
+  },
+  {
+    "family": "dome",
+    "tier": "low",
+    "counters": "scene: 8 draws · 855 tris · 9 geo · 2 tex",
+    "errors": []
+  },
+  {
+    "family": "octagon",
+    "tier": "low",
+    "counters": "scene: 8 draws · 595 tris · 9 geo · 2 tex",
+    "errors": []
+  },
+  {
+    "family": "cabin",
+    "tier": "low",
+    "counters": "scene: 8 draws · 457 tris · 9 geo · 2 tex",
+    "errors": []
+  },
+  {
+    "family": "multiroom",
+    "tier": "low",
+    "counters": "scene: 11 draws · 695 tris · 12 geo · 2 tex",
+    "errors": []
+  },
+  {
+    "family": "ridge",
+    "tier": "mid",
+    "counters": "scene: 7 draws · 138 tris · 8 geo · 2 tex",
+    "errors": []
+  },
+  {
+    "family": "dome",
+    "tier": "mid",
+    "counters": "scene: 8 draws · 855 tris · 9 geo · 2 tex",
+    "errors": []
+  },
+  {
+    "family": "octagon",
+    "tier": "mid",
+    "counters": "scene: 8 draws · 595 tris · 9 geo · 2 tex",
+    "errors": []
+  },
+  {
+    "family": "cabin",
+    "tier": "mid",
+    "counters": "scene: 8 draws · 457 tris · 9 geo · 2 tex",
+    "errors": []
+  },
+  {
+    "family": "multiroom",
+    "tier": "mid",
+    "counters": "scene: 11 draws · 695 tris · 12 geo · 2 tex",
+    "errors": []
+  }
+]

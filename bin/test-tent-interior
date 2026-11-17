@@ -1,0 +1,116 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {attachTentInterior,tentRayCapsuleDistance,tentInteriorShadow,TENT_INTERIOR_CAPSULES} from '../src/tentInterior.js';
+const v=(x,y,z)=>new THREE.Vector3(x,y,z),near=(a,b,epsilon=1e-7)=>assert(Math.abs(a-b)<epsilon,`${a} differs from ${b}`);
+const light=v(0,.4,-.6),wall=v(0,1.6,1.2),a=v(0,.8,0),b=v(0,.8,.001),capsule={a,b,radius:.12};
+near(tentRayCapsuleDistance(light,wall,a,b).distance,0,.002);
+assert(tentInteriorShadow(light,wall,[capsule])>.99,'a camper between the lantern and fabric blocks transmitted light');
+assert(tentInteriorShadow(v(.6,.4,-.6),wall,[capsule])<.01,'moving a lantern moves its projected shadow rather than painting a fixed figure');
+assert(tentInteriorShadow(light,v(.8,1.6,1.2),[capsule])<.01,'neighboring cloth stays lit outside the person projection');
+assert(tentInteriorShadow(light,v(0,.4,-.1),[capsule])<.01,'a camper beyond the sampled fabric cannot shadow a nearer wall');
+// The same projection is independent of which tent side owns the fragment.
+const sideLight=v(-.6,.4,0),sideWall=v(1.2,1.6,0),sideCapsule={a:v(0,.8,0),b:v(.001,.8,0),radius:.12};
+assert(tentInteriorShadow(sideLight,sideWall,[sideCapsule])>.99,'the same camper can cast onto a side wall');
+for(const type of ['standard','lambert']){
+ const original=type==='standard'?new THREE.MeshStandardMaterial({color:0x568f83}):new THREE.MeshLambertMaterial({color:0x568f83});
+ original.userData.shared=true;
+ const group=new THREE.Group();group.position.set(100,12,-400);group.rotation.y=1.1;
+ const shell=new THREE.Mesh(new THREE.BoxGeometry(2.5,1.7,2.5),original);shell.position.y=.85;shell.rotation.y=.15;
+ const door=new THREE.Mesh(new THREE.PlaneGeometry(.8,1.2),original);door.position.set(0,.65,1.254);
+ group.add(shell,door);
+ const tent={group,fabricMeshes:[shell,door],family:'cabin',shelter:{width:2.5,depth:2.5,height:1.7}};
+ const children=group.children.length,geometry=shell.geometry,originalColor=original.color.clone();
+ let sharedReleases=0;original.addEventListener('dispose',()=>sharedReleases++);
+ const effect=attachTentInterior(tent,.47);
+ assert.equal(group.children.length,children,'projection adds no decals, lights or visible people');
+ assert.equal(shell.geometry,geometry,'fabric geometry is retained');
+ assert.notEqual(shell.material,original);assert.notEqual(door.material,original);
+ assert(shell.material.color.equals(originalColor),'base cloth color survives');
+ assert(original.color.equals(originalColor)&&original.emissiveIntensity===1&&original.emissive.getHex()===0,'pooled material remains unchanged');
+ assert(effect.materials.every(m=>m.userData.shared===false&&!m.transparent),'clones stay owned and opaque');
+ effect.update(10,0);assert.equal(shell.material.emissiveIntensity,0);assert.equal(effect.uniforms.strength.value,0);
+ effect.update(10,1);assert(shell.material.emissiveIntensity>.5);
+ const positions=effect.uniforms.bodyA.value,ends=effect.uniforms.bodyB.value;
+ assert.equal(positions.length,TENT_INTERIOR_CAPSULES);
+ const ids=[...positions,...ends],before=positions.map(p=>p.toArray());
+ for(let i=1;i<=600;i++)effect.update(10+i/60,1);
+ assert.deepEqual([...effect.uniforms.bodyA.value,...effect.uniforms.bodyB.value],ids,'animation retains the same joint uniform objects');
+ assert.notDeepEqual(positions.map(p=>p.toArray()),before,'camper changes pose rather than retaining a fixed figure');
+ for(let time=0;time<180;time+=.5){
+  effect.update(time,1);
+  for(let i=0;i<6;i++){
+   const start=positions[i],end=ends[i];
+   assert([...start.toArray(),...end.toArray()].every(Number.isFinite));
+   assert(start.y-start.w>=0&&end.y-start.w>=0&&Math.max(start.y,end.y)+start.w<tent.shelter.height,'camper fits inside shelter height');
+  }
+ }
+ effect.update(100,1,true);const held=positions.map(p=>p.toArray());effect.update(200,1,true);
+ assert.deepEqual(positions.map(p=>p.toArray()),held,'reduced motion retains a still interior pose');
+ effect.update(200,0);assert.equal(shell.material.emissiveIntensity,0,'lights extinguish without removing daytime door fabric');
+ const shader={vertexShader:THREE.ShaderLib[type].vertexShader,fragmentShader:THREE.ShaderLib[type].fragmentShader,uniforms:{}};
+ shell.material.onBeforeCompile(shader);
+ assert(shader.vertexShader.includes('vTentFabric=(tentMeshToLocal*vec4(transformed,1.0)).xyz'));
+ assert(shader.fragmentShader.includes('#include <emissivemap_fragment>'));
+ assert(shader.fragmentShader.includes('if(tentInteriorStrength>.001)'),'expensive capsule evaluation is gated while dark');
+ assert(shader.fragmentShader.includes('totalEmissiveRadiance*=tentLampFalloff*(1.0-.96*tentShadow)'));
+ assert(shader.fragmentShader.includes('diffuseColor.rgb*=1.0-.42*tentInteriorStrength*tentShadow'));
+ assert(shader.fragmentShader.includes('#include <fog_fragment>'),'scene fog remains authoritative');
+ const local=v(.1,.2,.3).applyMatrix4(shader.uniforms.tentMeshToLocal.value);
+ const expected=v(.1,.2,.3).applyMatrix4(shell.matrix);
+ near(local.distanceTo(expected),0,1e-6);
+ // Projection is tent-local even after the whole campsite moves or rotates.
+ group.position.set(-500,70,250);group.rotation.y=-2;group.updateWorldMatrix(true,true);
+ near(v(.1,.2,.3).applyMatrix4(shader.uniforms.tentMeshToLocal.value).distanceTo(expected),0,1e-6);
+ assert.equal(shader.uniforms.tentBodyA,effect.uniforms.bodyA,'all fabric pieces share one fixed pose');
+ let released=0;for(const material of effect.materials){material.addEventListener('dispose',()=>released++);material.dispose();}
+ assert.equal(released,2);assert.equal(sharedReleases,0,'disposal affects only owned clones');
+ original.dispose();shell.geometry.dispose();door.geometry.dispose();
+}
+// Phase variation changes where the lantern sits rather than copying the
+// same figure onto another face. Verify a real pose projects onto the side.
+{
+ const group=new THREE.Group(),cloth=new THREE.Mesh(new THREE.BoxGeometry(2.5,1.7,2.5),new THREE.MeshStandardMaterial());
+ group.add(cloth);const tent={group,fabricMeshes:[cloth],shelter:{width:2.5,depth:2.5,height:1.7}};
+ const side=attachTentInterior(tent,.8);side.update(0,1);
+ assert(side.lamp.x<-.5&&side.lamp.z>0,'higher phases light the camper from the side');
+ const head=side.uniforms.bodyA.value[0];
+ const bodyDistance=Math.hypot(head.x-side.lamp.x,head.z-side.lamp.z);
+ assert(bodyDistance>.5,'side lantern stays clear of the camper');
+ const ratio=(1.25-side.lamp.x)/(head.x-side.lamp.x);
+ const wall=v(1.25,side.lamp.y+(head.y-side.lamp.y)*ratio,side.lamp.z+(head.z-side.lamp.z)*ratio);
+ assert(wall.y>0&&wall.y<1.7&&Math.abs(wall.z)<1.25,'the projected head lands on the side fabric');
+ const bodies=side.uniforms.bodyA.value.map((a,i)=>({a,b:side.uniforms.bodyB.value[i],radius:a.w}));
+ assert(tentInteriorShadow(side.lamp,wall,bodies)>.99,'the side fabric receives the actual lantern/person projection');
+ const originalLamp=side.lamp.clone();side.update(30,1);assert(side.lamp.equals(originalLamp),'the fixture lamp does not orbit with the camper');
+ for(const material of side.materials)material.dispose();cloth.geometry.dispose();
+}
+// Real five-family integration: geometry builders own cloth membership and
+// attachment must leave pole/floor/zipper resources out of the effect.
+globalThis.window={innerWidth:1280,innerHeight:720,location:{search:'?perf=low'},matchMedia:()=>({matches:false})};
+globalThis.location=window.location;
+const {buildCampTent}=await import('../src/models/campsite.js');
+const {disposeSceneResources}=await import('../src/sceneResources.js');
+const counts={ridge:[2,3],dome:[2,2],octagon:[3,3],cabin:[3,3],multiroom:[5,5]};
+for(const family of Object.keys(counts))for(const vestibule of [false,true]){
+ let draws=0;const tent=buildCampTent(()=>{draws++;return vestibule?.2:.6;},{family,variation:.5});
+ assert.equal(draws,2,'fabric metadata consumes no additional world RNG');
+ assert.equal(tent.fabricMeshes.length,counts[family][vestibule?1:0],`${family} exposes all cloth pieces including its door and fly`);
+ assert(tent.fabricMeshes.includes(tent.door.mesh),'zippered cloth participates in the same interior light');
+ if(family==='multiroom')assert(tent.fabricMeshes.some(mesh=>mesh.position.x>1),'the connected sleeping wing is included');
+ const pieces=[];tent.group.traverse(mesh=>{if(mesh.isMesh)pieces.push({mesh,geometry:mesh.geometry,material:mesh.material,casts:mesh.castShadow});});
+ const effect=attachTentInterior(tent,.8);effect.update(15,1);
+ let meshes=0;tent.group.traverse(mesh=>{if(mesh.isMesh)meshes++;});assert.equal(meshes,pieces.length,'no added draw-bearing meshes');
+ assert.equal(effect.materials.length,tent.fabricMeshes.length,'every listed cloth piece receives one owned material');
+ for(const {mesh,geometry,material,casts} of pieces){
+  assert.equal(mesh.geometry,geometry,'no added or replaced geometry');assert.equal(mesh.castShadow,casts,'no added GPU shadow casters');
+  if(tent.fabricMeshes.includes(mesh)){
+   assert.notEqual(mesh.material,material,'fabric gets an owned projection material');
+   assert(!mesh.material.map&&!mesh.material.emissiveMap&&!mesh.material.alphaMap,'projection adds no textures');
+  }else assert.equal(mesh.material,material,'pole, floor and zipper-strip materials stay unchanged');
+ }
+ let released=0;for(const material of effect.materials)material.addEventListener('dispose',()=>released++);
+ disposeSceneResources(tent.group);assert.equal(released,effect.materials.length,'normal owned-subtree cleanup releases all fabric clones');
+}
+console.log('PASS actual tent families: ridge 2/3, dome 2, octagon 3, cabin 3, multiroom 5 fabric pieces; poles/floors unchanged, RNG stable, no added meshes/geometry/textures/casters and owned clones released.');
+console.log('PASS tent interior: finite light-to-wall projection, side-wall coverage, lamp-dependent shadows, opaque pooled-safe material clones, stable animated uniforms, reduced-motion pose, local transforms and real Standard/Lambert shader composition.');

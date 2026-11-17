@@ -611,7 +611,7 @@ import {buildShrub} from './src/models/shrub.js';
     import {buildPerformer} from './src/models/performer.js';
     import {
         buildCampTent, buildCampChair, buildCampCooler, buildChiminea, buildTikiTorch, buildTorchField,
-        buildEzUp, buildTapestry, buildCampsite, buildVendorCamp, updateCampsiteProps,
+        buildEzUp, buildTapestry, buildCampsite, buildVendorCamp, updateCampsiteProps, addTentEveningGlow,
     } from './src/models/campsite.js';
     import {createTreeImpostorGeometry,createTreeImpostorMaterial,writeTreeImpostor,finishTreeImpostorWrites} from './src/treeImpostors.js';
     import {applyProxyDither} from './src/farField.js';
@@ -2726,12 +2726,26 @@ import {buildShrub} from './src/models/shrub.js';
                 const family = name === 'camp_tent' ? 'ridge' : name.replace('camp_tent_', '');
                 const rng = mulberry32(Number(new URLSearchParams(location.search).get('seed') || 1977));
                 const t = buildCampTent(rng, {family});
-                scene.add(t.group);
-                entityRoot = t.group;
-                cam.target.set(0, 1.0, 0);
-                cam.dist = Math.max(5, (t.footprint || 1.8) * 3.5);
-                info.textContent = `Tent: ${t.family || family}`;
-                applyCam();
+                const hooks=[];addTentEveningGlow(t,hooks,.67);
+                scene.add(t.group);entityRoot=t.group;
+                const controls=document.createElement('div');controls.style.cssText='display:flex;flex-wrap:wrap;gap:4px;margin:6px 0';
+                const explanation=document.createElement('small');explanation.textContent='Interior lantern projects onto the fabric. Try Evening and compare side/back walls while the camper moves.';explanation.style.flexBasis='100%';controls.append(explanation);
+                const button=(label,fn)=>{const b=document.createElement('button');b.textContent=label;b.onclick=fn;controls.append(b);return b;};
+                button('Evening interior',()=>{tod.setT(.63);holdTimeOfDay=true;document.getElementById('tod-hold').checked=true;});
+                button('Door view',()=>{cam.yaw=.12;cam.pitch=.15;applyCam();});
+                button('Side wall',()=>{cam.yaw=Math.PI*.53;cam.pitch=.15;applyCam();});
+                button('Rear wall',()=>{cam.yaw=Math.PI*.92;cam.pitch=.15;applyCam();});
+                let poseTime=8,paused=false;
+                const pause=button('Pause camper motion',()=>{paused=!paused;pause.textContent=paused?'Resume camper motion':'Pause camper motion';});
+                button('Advance camper pose',()=>{paused=true;poseTime+=4;pause.textContent='Resume camper motion';});
+                const lamp=hooks[0].interior.uniforms.lamp.value,originalLamp=lamp.clone();let shifted=false;
+                button('Move interior lantern',()=>{shifted=!shifted;lamp.set(shifted?(originalLamp.z>0?-.25:-.65):originalLamp.x,originalLamp.y,shifted?(originalLamp.z>0?-.62:.55):originalLamp.z);});
+                button('Rebuild tent',()=>loadEntity(name));
+                info.after(controls);t.group.userData.cleanup=()=>controls.remove();
+                updateFn=dt=>{if(!paused)poseTime+=dt;updateCampsiteProps(poseTime,tod.nightness,hooks,tod.t);};
+                if(new URLSearchParams(location.search).get('interior')==='1'){tod.setT(.63);holdTimeOfDay=true;document.getElementById('tod-hold').checked=true;}
+                cam.target.set(0, t.shelter.height*.46, 0);cam.dist=Math.max(5,(t.footprint||1.8)*3.2);cam.yaw=.8;cam.pitch=.15;
+                info.textContent=`Tent: ${t.family||family}`;applyCam();
                 break;
             }
             case 'camp_seating': {
