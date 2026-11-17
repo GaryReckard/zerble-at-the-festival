@@ -322,6 +322,7 @@
             <option value="vendor_camp_lean">Vendor backstage camp (lean)</option>
         </optgroup>
         <optgroup label="Forest">
+            <option value="forest_impostors">Forest impostors — angle and handoff lab</option>
             <option value="forest_tree_pine">Forest tree — tall pine</option>
             <option value="forest_tree_oak">Forest tree — oak</option>
             <option value="forest_tree_birch">Forest tree — birch</option>
@@ -612,6 +613,8 @@ import {buildShrub} from './src/models/shrub.js';
         buildCampTent, buildCampChair, buildCampCooler, buildChiminea, buildTikiTorch, buildTorchField,
         buildEzUp, buildTapestry, buildCampsite, buildVendorCamp, updateCampsiteProps,
     } from './src/models/campsite.js';
+    import {createTreeImpostorGeometry,createTreeImpostorMaterial,writeTreeImpostor,finishTreeImpostorWrites} from './src/treeImpostors.js';
+    import {applyProxyDither} from './src/farField.js';
     import {buildTallPine, buildOak, buildBirch, buildForestTree, describeForestTree, buildForestInstanced, treeTrunkRadiusAtWorldHeight} from './src/models/tree.js';
     import {buildBird, buildBirdFlock, BIRD_KEYS, BIRD_SPECIES} from './src/models/bird.js';
     import {buildBubbleJug} from './src/models/bubbleJug.js';
@@ -3037,6 +3040,41 @@ import {buildShrub} from './src/models/shrub.js';
             }
 
             // ----- Forest trees -----
+            case 'forest_impostors': {
+                const root=new THREE.Group();root.name='Tree impostor workshop';
+                const geo=createTreeImpostorGeometry(3),mat=createTreeImpostorMaterial();
+                const fade=new THREE.InstancedBufferAttribute(new Float32Array(3).fill(1),1);
+                geo.setAttribute('aFade',fade);applyProxyDither(mat);
+                const mesh=new THREE.InstancedMesh(geo,mat,3);mesh.frustumCulled=false;
+                mesh.name='Actual-model tree impostors';mesh.castShadow=false;
+                const full=new THREE.Group(),matrix=new THREE.Matrix4();
+                const builders=[buildTallPine,buildOak,buildBirch];
+                for(let i=0;i<3;i++){
+                    matrix.makeTranslation((i-1)*25,0,0);mesh.setMatrixAt(i,matrix);
+                    writeTreeImpostor(geo,i,{species:i,yaw:0});
+                    const model=builders[i](mulberry32(0x54524545+i*131));
+                    model.position.set((i-1)*25,0,-28);full.add(model);
+                }
+                mesh.instanceMatrix.needsUpdate=true;finishTreeImpostorWrites(geo);
+                root.add(mesh,full);scene.add(root);entityRoot=root;currentEntity=root;
+                groundGroup.scale.setScalar(6);
+                const controls=document.createElement('div');controls.style.cssText='display:flex;flex-wrap:wrap;gap:4px;margin:6px 0';
+                const button=(label,fn)=>{const b=document.createElement('button');b.textContent=label;b.onclick=fn;controls.append(b);};
+                for(const [label,pitch,dist] of [['Driving angle',.10,110],['Elevated angle',.65,120],['Overhead angle',Math.PI/2,150],['Zoomed out',.35,200]]){
+                    button(label,()=>{cam.pitch=pitch;cam.dist=dist;applyCam();});
+                }
+                button('Rotate a quarter turn',()=>{cam.yaw+=Math.PI/2;applyCam();});
+                let shown=true;
+                button('Toggle full models',()=>{shown=!shown;full.visible=shown;});
+                button('Toggle handoff',()=>{for(let i=0;i<3;i++)fade.array[i]=fade.array[i]===1?0:1;fade.needsUpdate=true;});
+                button('Rebuild trees',()=>loadEntity('forest_impostors'));
+                const explanation=document.createElement('small');explanation.textContent='Front: impostors. Rear: exact source models. Inspect all angles, toggle handoff, or rebuild.';explanation.style.flexBasis='100%';controls.prepend(explanation);
+                info.after(controls);root.userData.cleanup=()=>controls.remove();
+                updateFn=()=>{const n=tod.nightness;mat.color.setScalar(.04+.56*(1-n)*(1-n));};
+                info.textContent='Front: two-triangle impostors. Rear: their exact source models. Orbit and inspect low, elevated and overhead views; toggle handoff or rebuild to check ownership.';
+                cam.target.set(0,9,-10);cam.dist=110;cam.pitch=.10;cam.yaw=0;applyCam();
+                break;
+            }
             case 'forest_tree_pine': {
                 const g = buildTallPine(Math.random);
                 scene.add(g);

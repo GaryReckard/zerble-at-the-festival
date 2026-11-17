@@ -1,0 +1,95 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import * as THREE from 'three';
+import {createTreeImpostorGeometry,createTreeImpostorMaterial,writeTreeImpostor,finishTreeImpostorWrites,treeImpostorView,treeImpostorBasis,treeImpostorPixel} from '../src/treeImpostors.js';
+import {TREE_ATLAS_SPECIES,TREE_ATLAS_ELEVATIONS,treeImpostorFrame} from '../src/treeImpostorViews.js';
+const near=(a,b,eps=1e-6)=>assert(Math.abs(a-b)<eps,`${a} differs from ${b}`);
+const direction=(a,e)=>new THREE.Vector3(Math.sin(a)*Math.cos(e),Math.sin(e),Math.cos(a)*Math.cos(e));
+for(let species=0;species<3;species++)for(let a=0;a<4;a++)for(let e=0;e<4;e++){
+ const d=direction(a*Math.PI/2,TREE_ATLAS_ELEVATIONS[e]);
+ const right={x:Math.cos(a*Math.PI/2),z:-Math.sin(a*Math.PI/2)};
+ const v=treeImpostorView(d,0,species,right);
+ assert.equal(v.azimuthIndex,a);
+ near(v.elevation,TREE_ATLAS_ELEVATIONS[e]);
+ const frame=v.blend<.5?v.frame0:v.frame1;
+ assert.equal(frame,treeImpostorFrame(species,e,a));
+ const basis=treeImpostorBasis(d,right);
+ near(basis.right.dot(basis.up),0);near(basis.up.dot(d),0);near(basis.right.dot(d),0);
+ near(basis.right.length(),1);near(basis.up.length(),1);
+ // The rendering plane faces the actual viewer, including the top-down pole.
+ near(new THREE.Vector3().crossVectors(basis.right,basis.up).dot(d),1);
+}
+for(let e=0;e<3;e++){
+ const v=treeImpostorView(direction(.1,(e+.5)*Math.PI/6));
+ assert.equal(v.lower,e);assert.equal(v.upper,e+1);near(v.blend,.5);
+}
+for(let yaw=-Math.PI*4;yaw<=Math.PI*4;yaw+=Math.PI/2){
+ const v=treeImpostorView(direction(yaw,Math.PI/6),yaw);
+ assert.equal(v.azimuthIndex,0,'tree yaw is removed before choosing a captured view');
+}
+assert.equal(treeImpostorView(new THREE.Vector3(0,-1,1)).lower,0,'below-center driving views use the lowest captured band');
+for(let a=0;a<Math.PI*2;a+=.07){
+ const right=new THREE.Vector3(Math.cos(a),0,-Math.sin(a));
+ const view=treeImpostorView(new THREE.Vector3(0,1,0),0,0,right);
+ // A world +X point lies at (cos(a),-sin(a)) in the runtime pole basis.
+ // Applying the capture UV correction recovers the selected capture basis.
+ const x=Math.cos(a),y=-Math.sin(a),c=Math.cos(view.topRotation),s=Math.sin(view.topRotation);
+ near(c*x-s*y,Math.cos(view.azimuthIndex*Math.PI/2));
+ near(s*x+c*y,-Math.sin(view.azimuthIndex*Math.PI/2));
+}
+const whiteTrunk=[.9,.9,.85,1],greenCrown=[.08,.3,.1,1];
+for(const blend of [.5,.65,.9,1]){
+ const pixel=treeImpostorPixel(whiteTrunk,greenCrown,blend);
+ assert.deepEqual(pixel.color,greenCrown.slice(0,3),'dominant top crown stays green instead of retaining a pale ghost trunk');
+ assert.equal(pixel.alpha,1);assert(pixel.visible);
+}
+assert.deepEqual(treeImpostorPixel(whiteTrunk,greenCrown,.25).color,whiteTrunk.slice(0,3),'the nearer lower view still retains its real trunk');
+const empty=[1,0,1,0];
+const edge=treeImpostorPixel(empty,greenCrown,.75);
+for(let i=0;i<3;i++)near(edge.color[i],greenCrown[i]);
+near(edge.alpha,.75);assert(edge.visible);
+assert.equal(treeImpostorPixel(empty,greenCrown,.25).visible,false,'interpolated coverage still cuts out a fading silhouette');
+const geo=createTreeImpostorGeometry(12);
+assert.equal(geo.index.count,6,'two triangles per tree');
+assert.equal(geo.attributes.position.count,4);
+assert.equal(geo.attributes.iTreeView.count,12);
+assert.equal(geo.attributes.iTreeShape.count,12);
+writeTreeImpostor(geo,0,{species:'oak',yaw:1.25});
+assert.equal(geo.attributes.iTreeView.getX(0),1);near(geo.attributes.iTreeView.getY(0),1.25);
+near(geo.attributes.iTreeShape.getX(0),TREE_ATLAS_SPECIES[1].centerY);
+near(geo.attributes.iTreeShape.getY(0),TREE_ATLAS_SPECIES[1].frameSize);
+const before=geo.attributes.iTreeView.version;finishTreeImpostorWrites(geo);assert.equal(geo.attributes.iTreeView.version,before+1);
+for(const a of Object.values(geo.attributes))assert([...a.array].every(Number.isFinite));
+const texture=new THREE.Texture(),material=createTreeImpostorMaterial({map:texture,loadTexture:false});
+assert(material.isMeshBasicMaterial,'cheap unlit material retains Three fog and tier behavior');
+assert(!material.transparent&&material.depthWrite&&material.depthTest);
+const shader={vertexShader:THREE.ShaderLib.basic.vertexShader,fragmentShader:THREE.ShaderLib.basic.fragmentShader};
+material.onBeforeCompile(shader);
+assert(!shader.vertexShader.includes('#include <project_vertex>'),'uses the camera-facing projection');
+assert(shader.vertexShader.includes('#include <begin_vertex>'),'far-field dissolve hook remains available');
+assert(shader.vertexShader.includes('#include <fog_vertex>'),'Three fog uses the new view-space position');
+assert(shader.vertexShader.includes('modelMatrix*instanceMatrix'),'world transform and scale applied once');
+assert(shader.fragmentShader.includes('#include <color_fragment>'),'instance colors and day/night dimming retained');
+assert(shader.fragmentShader.includes('#include <fog_fragment>'));
+assert.equal((shader.fragmentShader.match(/texture2D\(map,/g)||[]).length,2,'at most two atlas samples per fragment');
+assert(shader.fragmentShader.includes('treeAlpha<.42'),'cutout does not enter transparent sorting');
+assert(shader.fragmentShader.includes('treeColor=mix(treeColor,treeInterior,step(.42,min(treeA.a,treeB.a)))'),'shader uses the tested dominant interior-color policy');
+let textureReleases=0;texture.addEventListener('dispose',()=>textureReleases++);material.dispose();assert.equal(textureReleases,0,'caller-supplied texture remains caller owned');
+// Exercise the actual shader extension composition used in FarField, including
+// both hooks and distinct program keys. No browser/global state is needed.
+const {applyProxyDither}=await import('../src/farField.js');
+const composited=createTreeImpostorMaterial({map:texture,loadTexture:false});
+const initialKey=composited.customProgramCacheKey();applyProxyDither(composited);
+const shader2={vertexShader:THREE.ShaderLib.basic.vertexShader,fragmentShader:THREE.ShaderLib.basic.fragmentShader};
+composited.onBeforeCompile(shader2);
+assert(shader2.vertexShader.includes('treeCenter'),'dissolve does not overwrite the impostor hook');
+assert(shader2.vertexShader.includes('vFade = aFade'),'far-field per-owner fade is preserved');
+assert(shader2.fragmentShader.includes('ffBayer(gl_FragCoord.xy)'));
+assert(shader2.fragmentShader.includes('treeAtlasUv'));
+assert(composited.customProgramCacheKey().includes(initialKey),'cache key distinguishes the card shader');
+assert(!composited.customProgramCacheKey().includes('[object'),'cache key stays deterministic');
+const source=readFileSync(new URL('../src/treeImpostors.js',import.meta.url),'utf8');
+assert(!/from ['"]\.\/models\//.test(source),'runtime never loads model builders');
+geo.dispose();composited.dispose();texture.dispose();
+console.log('PASS tree impostors: actual-atlas view indices, yaw, elevation interpolation, stable overhead basis, two-triangle instancing, ownership and composed fog/dither shader.');

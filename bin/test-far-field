@@ -329,7 +329,7 @@ assert(JSON.stringify(exp1.canopy) === JSON.stringify(exp2.canopy)
   'expandFarInstances must be byte-identical across repeated calls');
 assert(exp1.canopy.length === 1, `one stage should expand to one canopy, got ${exp1.canopy.length}`);
 assert(exp1.truss.length === 6, `main stage should include deck, banner, back wall, two posts, and beam, got ${exp1.truss.length}`);
-assert(exp1.beacon.length === 1, `one stage should expand to one beacon, got ${exp1.beacon.length}`);
+assert(!('beacon' in exp1), 'stages no longer emit floating diamonds');
 const vendor = EXPAND_FIXTURE[1];
 const countRng = mulberry32(vendor.clusterSeed);
 const vendorCount = FESTIVAL_TUNING.VENDOR_ROW_COUNT_BASE + Math.floor(countRng() * FESTIVAL_TUNING.VENDOR_ROW_COUNT_SPAN);
@@ -376,7 +376,7 @@ assert(exp1.peak.every((roof, index) => roof.x === slots[index].x && roof.z === 
   const nExpected = campPlan.reduce((sum, p) => sum + p.recipe.tentFamilies.length, 0);
   assert(expV.peak.length === nExpected, `a 16-pitch village should expand to ${nExpected} tent peaks, got ${expV.peak.length}`);
   assert(expV.warm.length === 1, 'a village should carry exactly one campfire marker');
-  assert(expV.canopy.length === 1 && expV.marqueeWall.length === 0 && expV.truss.length === 0 && expV.beacon.length === 0,
+  assert(expV.canopy.length === 1 && expV.marqueeWall.length === 0 && expV.truss.length === 0 && !('beacon' in expV),
     'a village shares one kitchen canopy and has no stage slab, truss or beacon');
   for (const i of expV.peak) {
     assert(Math.hypot(i.x - vr.x, i.z - vr.z) + Math.max(i.sx,i.sz) <= vr.footprint,
@@ -412,7 +412,7 @@ assert(exp1.peak.every((roof, index) => roof.x === slots[index].x && roof.z === 
   const expTent = expandFarInstances(tent, 1);
   assert(expTent.canopy.length === 1 && expTent.peak.length === 0, 'marquee uses a long open gable, not a square cone');
   assert(expTent.marqueeWall.length === 1 && expTent.truss.length === 0, 'marquee has one complete closed rear wall');
-  assert(expTent.beacon.length === 1, 'every stage kind keeps its beacon');
+  assert(!('beacon' in expTent), 'tent stages emit no floating diamonds');
   const side = [{ ...EXPAND_FIXTURE[0], kind: 'side_stage' }];
   const expSide = expandFarInstances(side, 1);
   assert(expSide.canopy.length === 0 && expSide.truss.length === 5 && expSide.peak.length === 0,
@@ -444,9 +444,6 @@ assert(exp1.peak.every((roof, index) => roof.x === slots[index].x && roof.z === 
   assert(expTent.marqueeWall[0].sy === MARQUEE_SHAPE.ridgeHeight &&
     expTent.marqueeWall[0].sx === MARQUEE_SHAPE.width,
     'marquee rear wall reaches the ridge at the full real width');
-  assert(exp1.beacon[0].y - exp1.beacon[0].sy >
-    (STAGE_SHAPES.main.trussHeight + STAGE_SHAPES.main.roofRise) * scale,
-    'main-stage beacon bottom clears the roof ridge');
   assert(marquee.sy === expandFarInstances([{ ...EXPAND_FIXTURE[0], kind: 'tent_stage', scale: 1.5 }], 1).canopy[0].sy,
     'the marquee is unscaled — buildTentStage takes no scale argument');
   // Vendor roofs retain the detailed booth's dimensions and seeded color.
@@ -483,7 +480,7 @@ setSessionSeed(0);
 console.log('PASS vendor canopy session/position appearance, exact proxy colors/yaws, density omissions and revisits');
 assert(exp1.roads.length === 1 && exp1.roads[0].flat instanceof Float64Array,
   'road records must pass through as flat polylines');
-for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'vendorLegs', 'warm', 'beacon']) {
+for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'vendorLegs', 'warm']) {
   for (const inst of exp1[name]) {
     const rec = name === 'peak' || name === 'vendorLegs' || name === 'warm' ? EXPAND_FIXTURE[1] : EXPAND_FIXTURE[0];
     assert(inst.ownerCx === rec.ownerCx && inst.ownerCz === rec.ownerCz,
@@ -503,9 +500,9 @@ const TEST_TIER = {
   radius: 300,
   densityMul: 1,
   forestStep: 48,
-  caps: { canopy: 8, marqueeWall: 8, truss: 24, peak: 40, vendorLegs: 40, warm: 24, beacon: 8, forest: 16, roadVerts: 512, roadIndices: 768 },
+  caps: { canopy: 8, marqueeWall: 8, truss: 24, peak: 40, vendorLegs: 40, warm: 24, forest: 16, roadVerts: 512, roadIndices: 768 },
 };
-const POOL_NAMES = ['canopy', 'marqueeWall', 'truss', 'peak', 'vendorLegs', 'warm', 'beacon', 'forest'];
+const POOL_NAMES = ['canopy', 'marqueeWall', 'truss', 'peak', 'vendorLegs', 'warm', 'forest'];
 
 // Immutability hashes of the shared inputs the drive will consume.
 const driveHearts = heartsInBounds(-600, -600, 600, 600);
@@ -565,7 +562,7 @@ assert(litProbe._mats.canopy instanceof MeshLambertMaterial &&
        litProbe._mats.marqueeWall instanceof MeshLambertMaterial &&
        litProbe._mats.truss instanceof MeshLambertMaterial &&
        litProbe._mats.peak instanceof MeshLambertMaterial &&
-       litProbe._mats.forest instanceof MeshLambertMaterial,
+       litProbe._mats.forest instanceof MeshBasicMaterial,
        'scene-lit mode must light the defining proxy surfaces');
 assert(litProbe._mats.road instanceof MeshBasicMaterial && litProbe._geos.canopy.normalsComputed,
        'road underlay stays unlit and gable roof supplies normals');
@@ -657,11 +654,11 @@ checkPools('distant rewrite', 2400, 2400);
 
 // Night-marker gating (task 2.4): hidden by day, shown at night iff populated.
 ff.update(2400, 2400, { nightness: 0 });
-for (const name of ['warm', 'beacon']) {
+for (const name of ['warm']) {
   assert(ff._pools[name].mesh.visible === false, `${name} markers must be hidden at nightness 0`);
 }
 ff.update(2400, 2400, { nightness: 0.8 });
-for (const name of ['warm', 'beacon']) {
+for (const name of ['warm']) {
   const pool = ff._pools[name];
   assert(pool.mesh.visible === (pool.mesh.count > 0),
     `${name} markers at nightness 0.8 must be visible exactly when populated`);
@@ -684,8 +681,9 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
     const mat = ff3._mats[name];
     assert(typeof mat.onBeforeCompile === 'function' && typeof mat.customProgramCacheKey === 'function',
       `${name} material must carry the dither injection + a stable cache key`);
-    assert(mat.customProgramCacheKey() === ff3._mats.canopy.customProgramCacheKey(),
-      'all proxy materials must share one program cache key');
+    assert(mat.customProgramCacheKey().endsWith(ff3._mats.canopy.customProgramCacheKey().split(':').at(-1)),
+      'every proxy cache key retains the handoff shader version');
+    if(name==='forest')assert(mat.customProgramCacheKey()!==ff3._mats.canopy.customProgramCacheKey(),'tree atlas shaders use a distinct program');
     const shader = {
       vertexShader: 'void main() {\n#include <begin_vertex>\n}',
       fragmentShader: 'void main() {\n#include <clipping_planes_fragment>\n}',
@@ -838,26 +836,14 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
   assert(forestRecordsForCell(0, 0, 48, () => FOREST_DENSITY_THRESHOLD - 0.01).length === 0,
     'samples strictly below FOREST_DENSITY_THRESHOLD must never become clumps');
 
-  // Clump size RAMPS from the threshold (2026-08-31 fidelity pass): the gate
-  // dropped to 0.15 so that treed ground gets a silhouette at all, and the ramp
-  // is what stops that carpeting the thin outskirts in solid forest. Ground at
-  // the gate must read as low scrub with gaps between samples; only genuinely
-  // dense ground grows the overlapping wall asserted below.
+  // Density increases normal-sized tree COUNT, never the size of a bush.
   {
-    const mk = (density) => ({ kind: '__forest', x: 0, z: 0, density, step: 48, gx: 3, gz: 5, forestSeed: 0x1234abcd });
-    const thin = expandFarInstances([mk(FOREST_DENSITY_THRESHOLD + 0.001)], 1).forest[0];
-    const dense = expandFarInstances([mk(1)], 1).forest[0];
-    // Real canopy tops sit at 14-22 m (tree.js: pines 16-22, birch 10-14 + crown).
-    // The dome's top is y + sy; at half that it reads as a low wall, not treetops.
-    const top = dense.y + dense.sy;
-    assert(top > 12 && top < 22, `a dense clump's top must land in the real canopy band, got ${top}`);
-    assert(dense.sx * 2 < 48 * 1.6, 'a clump must not sprawl far past the grid step (that is the "green wall")');
-    assert(thin.sx * 2 < 48, 'a clump AT the density gate must span less than the grid step (isolated, with gaps)');
-    assert(dense.sx > thin.sx * 2.5, 'clump RADIUS carries the density ramp');
-    // Height barely moves on purpose: a tree is about as tall alone as in a
-    // wood, and ramping height instead of spread turns thin ground into flat
-    // green pancakes on the grass.
-    assert(dense.sy > thin.sy && dense.sy < thin.sy * 1.8, 'clump height must vary only mildly with density');
+    const mk=density=>({kind:'__forest',x:0,z:0,density,step:48,gx:3,gz:5,forestSeed:0x1234abcd});
+    const thin=expandFarInstances([mk(FOREST_DENSITY_THRESHOLD+.001)],1).forest;
+    const dense=expandFarInstances([mk(1)],1).forest;
+    assert(thin.length===2 && dense.length===8,'density maps to bounded groups of two through eight trees');
+    assert(dense.every(t=>t.sx>=.8 && t.sx<=1.2 && t.sx===t.sy && t.sy===t.sz),'actual tree sizes use uniform scale');
+    assert(JSON.stringify(dense.slice(0,2))===JSON.stringify(thin),'density adds trees without moving existing representatives');
   }
 
   // Half-open grid-point ownership: adjacent cells never emit the same sample.
@@ -872,19 +858,13 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
     }
   }
 
-  // Expansion: finite transforms, palette colors, overlap-sized domes, and
-  // owner cells derived from the JITTERED clump position (that chunk's real
-  // trees are what the clump stands in for).
-  const ex = expandFarInstances(fA, 1);
-  assert(ex.forest.length === fA.length, 'each __forest record must expand to exactly one clump');
-  for (let i = 0; i < ex.forest.length; i++) {
-    const inst = ex.forest[i];
-    assert([inst.x, inst.y, inst.z, inst.sx, inst.sy, inst.sz].every(Number.isFinite),
-      `forest instance transforms must be finite: ${JSON.stringify(inst)}`);
-    assert(inst.sx * 2 > 48 && inst.sz * 2 > 48 * 0.85,
-      'a DENSE clump must span more than the grid step so neighbouring masses read continuous');
-    assert(inst.ownerCx === ownerCellCoord(fA[i].x) && inst.ownerCz === ownerCellCoord(fA[i].z),
-      'forest owner cell must come from the jittered clump position');
+  // Individual impostors retain honest chunk ownership after scatter jitter.
+  const ex = expandFarInstances(fA,1);
+  assert(ex.forest.length===fA.reduce((n,r)=>n+2+Math.floor(Math.min(1,Math.max(0,(r.density-FOREST_DENSITY_THRESHOLD)/(1-FOREST_DENSITY_THRESHOLD)))*6),0),'sample density determines bounded individual tree demand');
+  for(const inst of ex.forest){
+    assert([inst.x,inst.y,inst.z,inst.sx,inst.sy,inst.sz].every(Number.isFinite),'finite tree transforms');
+    assert(inst.species>=0 && inst.species<3,'only baked real tree species');
+    assert(inst.ownerCx===ownerCellCoord(inst.x) && inst.ownerCz===ownerCellCoord(inst.z),'each tree hands off with its own real chunk');
   }
 
   // Real-density determinism at a fresh seed (then restore the suite seed).
@@ -899,7 +879,7 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
   // r160 geometries and the open four-triangle roof peak (box 12, octa 8;
   // icosa detail-0 is 20 by construction).
   const { FAR_FIELD_TIERS } = await import('../src/perf.js');
-  const TRIS = { canopy: 4, marqueeWall: 3, truss: 12, peak: 4, vendorLegs: 32, warm: 8, beacon: 8, forest: 20 };
+  const TRIS = { canopy: 4, marqueeWall: 3, truss: 12, peak: 4, vendorLegs: 32, warm: 8, forest: 2 };
   for (const [tname, t] of Object.entries(FAR_FIELD_TIERS)) {
     assert(Number.isFinite(t.forestStep) && t.forestStep > 0,
       `tier ${tname} must define forestStep`);

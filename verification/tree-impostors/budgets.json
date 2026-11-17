@@ -1,0 +1,42 @@
+{
+  "atlasTransferBytes": 67940,
+  "atlasWidth": 1024,
+  "atlasHeight": 1024,
+  "atlasRgbaBytesWithMipmaps": 5592404,
+  "atlasReadsPerFragment": 2,
+  "tiers": [
+    {
+      "tier": "low",
+      "forestSlots": 768,
+      "forestDraws": 1,
+      "forestMaxTriangles": 1536,
+      "forestBufferBytes": 73868,
+      "allProxyMaxTriangles": 16720,
+      "marginalTriCap": 17500,
+      "poolCount": 7,
+      "stageDiamondPool": false
+    },
+    {
+      "tier": "mid",
+      "forestSlots": 1408,
+      "forestDraws": 1,
+      "forestMaxTriangles": 2816,
+      "forestBufferBytes": 135308,
+      "allProxyMaxTriangles": 24288,
+      "marginalTriCap": 25500,
+      "poolCount": 7,
+      "stageDiamondPool": false
+    },
+    {
+      "tier": "high",
+      "forestSlots": 2048,
+      "forestDraws": 1,
+      "forestMaxTriangles": 4096,
+      "forestBufferBytes": 196748,
+      "allProxyMaxTriangles": 25568,
+      "marginalTriCap": 27000,
+      "poolCount": 7,
+      "stageDiamondPool": false
+    }
+  ]
+}

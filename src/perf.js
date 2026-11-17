@@ -138,7 +138,7 @@ const TABLE = {
       // content (fog is only OPAQUE at 520m), so low now reaches the fog
       // limit like mid/high. Caps sized from the measured within-radius
       // candidate demand across 5 seeds x 2,615 poses (max: canopy 25,
-      // truss 76, beacon 25 at r520; peaks/warm scale by densityMul).
+      // truss 76 at r520; peaks/warm scale by densityMul).
       radius: 520,
       densityMul: 0.6,        // thins per-hub supporting silhouettes, never the stage anchor
       // Re-budgeted 2026-08-31 (the horizon-fidelity pass). Three shape fixes
@@ -148,7 +148,10 @@ const TABLE = {
       // a silhouette (forest up ~3x). Caps re-sized from a fresh within-radius
       // demand sweep (5 seeds x 24 poses); `forestStep` grew alongside the lower
       // threshold so a coarser grid of larger domes covers far more ground for a
-      // similar instance count. Camp villages joined the layer on the same day
+      // similar instance count. The November 16 tree impostor pass replaced each
+      // dome with at most eight normal-sized two-triangle trees, removed stage
+      // diamonds and expanded forest slots eightfold without raising tri caps.
+      // Camp villages joined the layer on the same day
       // (they ride their own coarse grid outside festivalPlan, so they had no
       // silhouette at all) — they are sparse, ~4 within the radius, so they cost
       // only ~20 more peaks; peak/warm carry the usual ~15% headroom over the
@@ -162,10 +165,10 @@ const TABLE = {
       // reserve 288 without increasing the draw count or triangle ceiling.
       // Vendor posts add one batched draw and 32 triangles per retained booth.
       // Equal peak/leg capacities preserve roofs under dense snapshot pressure.
-      marginalTriCap: 17500,   // worst case at full caps: 17,360 tris including vendor legs
+      marginalTriCap: 17500,   // worst case at full caps: 16,720 tris including vendor legs and impostor trees
       maxColdStepMs: 2,
-      forestStep: 72,         // coarse forest-mass sample grid (m)
-      caps: { canopy: 56, marqueeWall: 32, truss: 108, peak: 288, vendorLegs: 288, warm: 144, beacon: 32, forest: 96, roadVerts: 4096, roadIndices: 6144 },
+      forestStep: 72,         // representative impostor-cluster sample grid (m)
+      caps: { canopy: 56, marqueeWall: 32, truss: 108, peak: 288, vendorLegs: 288, warm: 144, forest: 768, roadVerts: 4096, roadIndices: 6144 },
     },
   },
   mid: {
@@ -189,15 +192,15 @@ const TABLE = {
     farField: {
       radius: 520,            // the fog-opaque limit (design D6)
       densityMul: 1.0,
-      marginalTriCap: 25500,  // worst case at full caps: 25,312 tris including vendor legs
+      marginalTriCap: 25500,  // worst case at full caps: 24,288 tris including vendor legs and impostor trees
       maxColdStepMs: 2,
       forestStep: 56,
-      // canopy/truss/beacon raised 2026-08-28: measured within-radius demand
+      // canopy/truss raised 2026-08-28: measured within-radius demand
       // (max 25 stages / 76 truss parts) exceeded the provisional 24/72 —
       // dense seeds dropped a VISIBLE stage. Sized from the same demand run
       // as low; peak/warm/forest re-sized in the 2026-08-31 fidelity pass (see
       // the low tier's note for what moved).
-      caps: { canopy: 56, marqueeWall: 32, truss: 120, peak: 448, vendorLegs: 448, warm: 192, beacon: 40, forest: 176, roadVerts: 4096, roadIndices: 6144 },
+      caps: { canopy: 56, marqueeWall: 32, truss: 120, peak: 448, vendorLegs: 448, warm: 192, forest: 1408, roadVerts: 4096, roadIndices: 6144 },
     },
   },
   high: {
@@ -224,10 +227,10 @@ const TABLE = {
     farField: {
       radius: 520,
       densityMul: 1.0,
-      marginalTriCap: 27000,  // worst case at full caps: 26,976 tris including vendor legs
+      marginalTriCap: 27000,  // worst case at full caps: 25,568 tris including vendor legs and impostor trees
       maxColdStepMs: 2,
       forestStep: 40,         // finest forest grid — high absorbs the tris
-      caps: { canopy: 56, marqueeWall: 32, truss: 120, peak: 448, vendorLegs: 448, warm: 192, beacon: 48, forest: 256, roadVerts: 4096, roadIndices: 6144 },
+      caps: { canopy: 56, marqueeWall: 32, truss: 120, peak: 448, vendorLegs: 448, warm: 192, forest: 2048, roadVerts: 4096, roadIndices: 6144 },
     },
   },
 };

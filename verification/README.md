@@ -11,6 +11,8 @@ report's date, source baseline, method and limitations before using its result.
 A desktop CPU benchmark is not a phone FPS measurement, and a passing render is
 not physical-device acceptance.
 
+- [Angle-aware forest tree impostors](tree-impostors/README.md): actual-model captures, driving/overhead views, stage-diamond removal, fixed rendering budgets and placement limits.
+
 - [Blue Ridge ridgelines](ridgelines/README.md): day/night terrain fit, camera modes and geometry/render budget.
 
 ## Interface

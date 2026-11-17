@@ -5,7 +5,7 @@ import { terrainHeight, terrainEnabled, terrainGenerationKey, drapeTerrainTriang
 //
 // A PEER of ChunkManager/LakeManager owned by world.js, never another chunk
 // ring: it draws batched far-distance silhouettes (roads, gabled stage and
-// marquee roofs, vendor peaks, trusses, coarse forest masses + night markers) from the same
+// marquee roofs, vendor peaks, trusses, tree impostors + warm night markers) from the same
 // deterministic worldgen descriptors/fields the real builders consume, and
 // dissolves each proxy when its owning real chunk finishes building. It owns NOTHING gameplay-side: no
 // registry entries, colliders, NPCs, audio, pickups, real lights, shadow
@@ -44,6 +44,8 @@ import { roadsInBounds } from './worldgen/roads.js';
 import { treeDensity } from './worldgen/density.js';
 import { CONFIG } from './worldgen/constants.js';
 import { planCampNeighborhood } from './campPlanning.js';
+import { createTreeImpostorGeometry, createTreeImpostorMaterial, writeTreeImpostor, finishTreeImpostorWrites } from './treeImpostors.js';
+import { TREE_ATLAS_SPECIES } from './treeImpostorViews.js';
 
 // Handoff dissolve length (design D4). Reduced motion skips it and snaps.
 export const HANDOFF_ENVELOPE_S = 0.3;
@@ -58,40 +60,25 @@ export const ROAD_UNDERLAY_Y = 0.03;
 // already amortizes.
 export const COARSE_CELL = 240;
 
-// Night marker batches (warm lights + stage beacons) stay hidden below this
+// Night marker batches (warm lights) stay hidden below this
 // nightness (design D5) — by day the horizon is silhouettes only.
 export const NIGHT_MARKER_THRESHOLD = 0.12;
 
 // The underlay ribbon is deliberately narrower than the authoritative road
 // (CONFIG.ROAD_WIDTH) so the real ribbon always covers it edge-to-edge.
 const FAR_ROAD_WIDTH_FRAC = 0.8;
-// Coarse forest masses (the ROADMAP follow-up promoted 2026-08-28): the
-// density FIELD is sampled on a fixed global grid (tier.forestStep meters),
-// never the exact far-tree scatter — reproducing per-tree placement would
-// spend exactly the CPU this layer exists to avoid.
-//
-// The threshold used to be 0.45, on the reasoning that a sparse fringe should
-// not be "promised by a solid silhouette mass". Measured, that reasoning cost
-// far more than it saved: `scatterTrees` grows trees from about 0.05 up
-// (`floor(density * 18)` per chunk, so 0.2 still plants three), and a 4 km
-// sample says only 5.2% of ground clears 0.45 while 36.7% grows real trees —
-// so 87.5% of treed ground had NO horizon representation at all and the woods
-// arrived out of thin air as chunks completed (Gary 2026-08-31: "trees pop up
-// out of nowhere with no far-field rep showing up first"). The fix is to lower
-// the gate AND make the mass honest about what it is standing in for: the
-// clump size below now ramps from the threshold, so thin ground reads as low
-// scrub and only genuinely dense forest reads as a wall. Tier `forestStep`
-// grew alongside it, which keeps the instance count in the same range while
-// covering roughly eight times the ground.
+// The existing world-anchored density grid supplies small groups of normal-sized
+// tree impostors. It deliberately does not replay near-tree builders or registry
+// exclusions. Species/scale/positions use independent hashes and never consume
+// the world's RNG. Completion ownership belongs to each tree's final position.
 export const FOREST_DENSITY_THRESHOLD = 0.15;
 
 // Flat-color hex palettes (plain numbers at module scope — THREE.Color
 // instances are built at construction time, never module evaluation).
-const BEACON_PALETTE = [0xff5a4d, 0x4da2ff, 0xffd24d, 0xb56aff];
 // Match the near camp's muted fabric palette so streaming does not recolor it.
 const VILLAGE_PALETTE = [0x75816a, 0x969d94, 0x667b6b, 0xb2a66f, 0xd0ceb9, 0xe0dfd1];
-// Darker cuts of tree.js's FOREST_GREENS — far masses read through fog.
-const FOREST_PALETTE = [0x355a32, 0x3f6d3a, 0x2d4e2a, 0x4a7a45];
+// Mild per-tree tint variation; species colors are already in the atlas.
+const FOREST_PALETTE = [0xffffff, 0xe8f1df, 0xd8e8d0, 0xf0eadc];
 const TRUSS_HEX = 0x2e2a33;
 const WARM_HEX = 0xffb054;
 const ROAD_HEX = 0x9c7c58;   // a shade darker than the real road's 0xb89570
@@ -100,7 +87,7 @@ const ROAD_HEX = 0x9c7c58;   // a shade darker than the real road's 0xb89570
 // the real canvas. These are LINEAR-space multipliers: even 0.18 becomes a
 // conspicuous pale grey after sRGB output conversion at midnight. Keep the
 // non-emissive horizon subdued at noon and let it settle close to the night
-// fog color; the intentional warm/beacon markers retain their own glow curve.
+// fog color; the intentional warm markers retain their own glow curve.
 const SURFACE_DAY_BRIGHTNESS = 0.6;
 const SURFACE_NIGHT_BRIGHTNESS = 0.04;
 const ROAD_DAY_BRIGHTNESS = 0.8;
@@ -204,12 +191,12 @@ export function copyPolyline(points) {
   return flat;
 }
 
-// One coarse cell's forest-mass records: the global sample grid (step meters,
+// One coarse cell's representative forest records: the global sample grid (step meters,
 // world-anchored so clumps never move when the player does) restricted to the
 // grid points this coarse cell OWNS (half-open, same rule as hearts — no
 // duplicates across cells). Each qualifying sample becomes one record with a
 // deterministic hash-jittered position (breaks the visible grid alignment)
-// and the density it sampled; expansion turns density into clump size.
+// and the density it sampled; expansion turns density into tree count.
 // `sample` is injectable for fixture-driven tests; the game passes nothing
 // and gets the real density field. Pure — zero shared-RNG draws.
 export function forestRecordsForCell(cellCx, cellCz, step, sample = treeDensity) {
@@ -273,8 +260,11 @@ float ffBayer(vec2 p) {
   return (v + 0.5) / 16.0;
 }`;
 export function applyProxyDither(mat) {
-  mat.customProgramCacheKey = () => DITHER_CACHE_KEY;
-  mat.onBeforeCompile = (shader) => {
+  const previousCompile=mat.onBeforeCompile?.bind(mat);
+  const previousKey=mat.customProgramCacheKey?.bind(mat);
+  mat.customProgramCacheKey = () => `${previousKey?.() || ""}:${DITHER_CACHE_KEY}`;
+  mat.onBeforeCompile = (shader,renderer) => {
+    previousCompile?.(shader,renderer);
     shader.vertexShader = 'attribute float aFade;\nvarying float vFade;\n' +
       shader.vertexShader.replace('#include <begin_vertex>',
         '#include <begin_vertex>\n\tvFade = aFade;');
@@ -302,7 +292,7 @@ export function instHash(seed, i) {
 // owning chunk).
 //
 // The semantic vocabulary (design D2/D3): a stage becomes its defining deck,
-// backdrop, roof or rear wall, truss and beacon; a vendor row becomes a strip
+// backdrop, roof or rear wall, truss; a vendor row becomes a strip
 // of roof peaks with warm light markers alongside. Sizes are coarse on purpose —
 // these read through 300-500m of fog, not up close.
 // Ground heights are DEFERRED: every instance carries the point it stands on
@@ -313,39 +303,29 @@ export function instHash(seed, i) {
 // tile runs festival and woodland planning). Selection reads x/z only, so the
 // kept set is unchanged by resolving heights afterwards.
 export function planFarInstances(records, densityMul) {
-  const out = { canopy: [], marqueeWall: [], truss: [], peak: [], vendorLegs: [], warm: [], beacon: [], forest: [], roads: [] };
+  const out = { canopy: [], marqueeWall: [], truss: [], peak: [], vendorLegs: [], warm: [], forest: [], roads: [] };
   for (const r of records) {
     if (r.kind === '__road') { out.roads.push({flat:r.flat,width:r.width,surface:r.surface}); continue; }
     if (r.kind === '__forest') {
-      // One squashed low-poly dome per sample. Radius overlaps the grid step
-      // so adjacent qualifying samples merge into a continuous mass instead of
-      // reading as one giant tree per point. Both size axes ramp from the
-      // THRESHOLD rather than from zero density: at the gate a sample is thin
-      // scrub (a small, low dome with gaps to its neighbours) and only fully
-      // dense ground grows the overlapping wall. That ramp is what lets the
-      // gate sit at 0.15 without carpeting the outskirts in solid forest.
-      // The ramp lives almost entirely in the RADIUS, not the height: a tree is
-      // about as tall whether it stands alone or in a wood, so thin ground has
-      // to read as a small isolated clump — not as a wide flat pancake, which is
-      // what ramping the height instead produces. At the gate a clump spans well
-      // under the grid step (isolated, gaps between neighbours); at full density
-      // it spans comfortably more than the step, so adjacent samples merge into
-      // the continuous mass a real forest reads as.
+      // Representative trees, not exact near-tree scatter: the latter also
+      // depends on gameplay clearance/registry truth. Retain the existing
+      // density-grid plan and chunk completion handoff without replaying builders.
       const t = Math.min(1, Math.max(0, (r.density - FOREST_DENSITY_THRESHOLD) / (1 - FOREST_DENSITY_THRESHOLD)));
-      // Sized against the real canopy: pines reach 16-22 m and birch/oak crowns
-      // 12-18 m, but these domes topped out at 7-13 m while spanning up to 69 m,
-      // which is precisely how you get "a big green wall" instead of treetops.
-      // Taller and narrower now: the top lands at 12-20 m, and the radius only
-      // has to exceed HALF the grid step for neighbours to merge, not 0.86 of it.
-      const rad = r.step * (0.14 + t * 0.44 + instHash(r.forestSeed, 3) * 0.12);
-      const h = 13.0 + t * 7.0 + instHash(r.forestSeed, 4) * 2.0;
-      out.forest.push({
-        x: r.x, z: r.z, y: 0, yaw: instHash(r.forestSeed, 5) * Math.PI * 2,
-        sx: rad, sy: h * 0.6, sz: rad * (0.85 + instHash(r.forestSeed, 6) * 0.3),
-        color: FOREST_PALETTE[(r.forestSeed >>> 3) % FOREST_PALETTE.length],
-        ownerCx: ownerCellCoord(r.x), ownerCz: ownerCellCoord(r.z),
-        gx: r.x, gz: r.z, ya: h * 0.32,
-      });
+      const count = 2 + Math.floor(t * 6);
+      for (let i=0;i<count;i++) {
+        const angle=instHash(r.forestSeed,i*7+10)*Math.PI*2;
+        const radius=Math.sqrt(instHash(r.forestSeed,i*7+11))*r.step*.48;
+        const x=r.x+Math.sin(angle)*radius,z=r.z+Math.cos(angle)*radius;
+        const roll=instHash(r.forestSeed,i*7+12);
+        const species=roll<.45?0:roll<.8?1:2;
+        const scale=.80+instHash(r.forestSeed,i*7+13)*.40;
+        out.forest.push({
+          x,z,y:0,yaw:instHash(r.forestSeed,i*7+14)*Math.PI*2,species,
+          sx:scale,sy:scale,sz:scale,
+          color:FOREST_PALETTE[Math.floor(instHash(r.forestSeed,i*7+15)*FOREST_PALETTE.length)],
+          ownerCx:ownerCellCoord(x),ownerCz:ownerCellCoord(z),gx:x,gz:z,ya:0,
+        });
+      }
       continue;
     }
     // Every instance of a cluster stands on the cluster's own ground sample
@@ -414,14 +394,6 @@ export function planFarInstances(records, densityMul) {
           { x: r.x, z: r.z, y: 0, ya: postH, yaw: rightYaw, sx: 0.4 * s, sy: 0.4 * s, sz: shape.width * s, color: TRUSS_HEX, ...own },
         );
       }
-      const bs = 0.8 + instHash(r.clusterSeed, 3) * 0.3;
-      const roofTop = r.kind === 'tent_stage' ? MARQUEE_SHAPE.ridgeHeight
-        : (r.kind === 'main_stage' ? STAGE_SHAPES.main.trussHeight + STAGE_SHAPES.main.roofRise : STAGE_SHAPES.side.trussHeight) * s;
-      const beaconY = roofTop + bs + 0.4 * (r.kind === 'tent_stage' ? 1 : s);
-      out.beacon.push({
-        x: r.x, z: r.z, y: 0, ya: beaconY, yaw: 0, sx: bs, sy: bs, sz: bs,
-        color: BEACON_PALETTE[paletteIndex(r, BEACON_PALETTE.length)], ...own,
-      });
     } else if (r.kind === 'camp_village') {
       // Match the real builder's first two cluster draws and shared pure plan.
       // Registry-driven rejection and outward retries remain near-field truth;
@@ -618,7 +590,7 @@ function peakRoofGeometry() {
 
 // ---------- Road underlay geometry ----------
 
-const POOL_ORDER = ['canopy', 'marqueeWall', 'truss', 'peak', 'vendorLegs', 'warm', 'beacon', 'forest'];
+const POOL_ORDER = ['canopy', 'marqueeWall', 'truss', 'peak', 'vendorLegs', 'warm', 'forest'];
 // Roads within reach of one anchor number in the low hundreds; this leaves
 // room for the cells around it without growing for a whole session.
 const ROAD_MEMO_LIMIT = 768;
@@ -725,7 +697,7 @@ export class FarField {
     this._roadMemoGen = '';
     this._todQ = -1;
     this._nightOn = false;
-    this._active = { canopy: [], marqueeWall: [], truss: [], peak: [], vendorLegs: [], warm: [], beacon: [], forest: [] };
+    this._active = { canopy: [], marqueeWall: [], truss: [], peak: [], vendorLegs: [], warm: [], forest: [] };
     this._ownerCells = new Map();   // 'cx,cz' -> { cx, cz, loaded, insts: [{pool, i}] }
     this._handoffs = [];            // active envelopes: { pool, i, target }
     this._ownershipOverride = null; // null (live) | 'proxy' (all shown) | 'real' (all dissolved)
@@ -790,8 +762,7 @@ export class FarField {
       peak: mkSurface(0xffffff, { side: THREE.DoubleSide }),
       vendorLegs: mkSurface(VENDOR_LEG_SHAPE.color),
       warm: mkMat(WARM_HEX),
-      beacon: mkMat(0xffffff),
-      forest: mkSurface(0xffffff),   // white base × per-instance FOREST_PALETTE color
+      forest: createTreeImpostorMaterial(),
       road: new THREE.MeshBasicMaterial({color:0xffffff,vertexColors:true}),     // opaque, depthWrite:true (default) — audit V12
     };
     this._geos = {
@@ -801,9 +772,7 @@ export class FarField {
       peak: peakRoofGeometry(),
       vendorLegs: vendorLegGeometry(),
       warm: new THREE.OctahedronGeometry(1, 0),
-      beacon: new THREE.OctahedronGeometry(1, 0),
-      // Detail-0 icosa (20 tris) — the ROADMAP's sanctioned far-crown shape.
-      forest: new THREE.IcosahedronGeometry(1, 0),
+      forest: createTreeImpostorGeometry(caps.forest),
     };
 
     // The horizon RINGS the player, so per-batch frustum culling would almost
@@ -813,8 +782,8 @@ export class FarField {
     // owner-computed bounding spheres are still maintained after every
     // committed rewrite so bounds stay truthful for raycast/debug reads.
     this._pools = {};
-    const hasColor = { canopy: true, marqueeWall: true, truss: true, peak: true, vendorLegs: false, warm: false, beacon: true, forest: true };
-    for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'vendorLegs', 'warm', 'beacon', 'forest']) {
+    const hasColor = { canopy: true, marqueeWall: true, truss: true, peak: true, vendorLegs: false, warm: false, forest: true };
+    for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'vendorLegs', 'warm', 'forest']) {
       const cap = name === 'vendorLegs' ? (caps.vendorLegs ?? caps.peak) : caps[name];
       const mesh = new THREE.InstancedMesh(this._geos[name], this._mats[name], cap);
       mesh.count = 0;
@@ -1064,6 +1033,7 @@ export class FarField {
       m.scale(s.set(inst.sx, inst.sy, inst.sz));
       m.setPosition(inst.x, inst.y, inst.z);
       mesh.setMatrixAt(i, m);
+      if(pool.name==='forest')writeTreeImpostor(mesh.geometry,i,inst);
       if (pool.hasColor) {
         c.setHex(inst.color);
         mesh.setColorAt(i, c);
@@ -1087,13 +1057,14 @@ export class FarField {
       if (inst.x > maxX) maxX = inst.x;
       if (inst.y > maxY) maxY = inst.y;
       if (inst.z > maxZ) maxZ = inst.z;
-      const e = Math.max(inst.sx, inst.sy, inst.sz) * (pool.name === 'vendorLegs' ? 4 : 1);
+      const e = Math.max(inst.sx, inst.sy, inst.sz) * (pool.name === 'vendorLegs' ? 4 : pool.name === 'forest' ? TREE_ATLAS_SPECIES[inst.species].centerY + TREE_ATLAS_SPECIES[inst.species].frameSize / Math.SQRT2 : 1);
       if (e > maxExt) maxExt = e;
     }
     mesh.count = kept.length;
     mesh.instanceMatrix.needsUpdate = true;
     if (pool.hasColor && mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     pool.fade.needsUpdate = true;
+    if(pool.name==='forest')finishTreeImpostorWrites(mesh.geometry);
     mesh.visible = kept.length > 0;
     if (kept.length > 0) {
       const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, cz = (minZ + maxZ) / 2;
@@ -1336,7 +1307,6 @@ export class FarField {
     this._nightOn = n > NIGHT_MARKER_THRESHOLD;
     const glow = this._nightOn ? Math.min(1, (n - NIGHT_MARKER_THRESHOLD) / 0.25) : 0;
     this._mats.warm.color.setHex(WARM_HEX).multiplyScalar(0.3 + 0.7 * glow);
-    this._mats.beacon.color.setScalar(0.3 + 0.7 * glow);
     this._applyNightVisibility();
   }
 
@@ -1400,7 +1370,7 @@ export class FarField {
   }
 
   _applyNightVisibility() {
-    for (const name of ['warm', 'beacon']) {
+    for (const name of ['warm']) {
       const mesh = this._pools[name].mesh;
       mesh.visible = this._nightOn && mesh.count > 0;
     }

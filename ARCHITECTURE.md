@@ -321,29 +321,42 @@ programs, no planning, nothing in the scene.
 never a wider chunk ring. It consumes the same pure worldgen descriptors the
 real builders use (`heartsInBounds` → `festivalPlan`, `roadsInBounds`),
 copies them into compact owned records (shared memoized arrays are never
-mutated — `bin/test-far-field` hashes them pre/post), and owns at most eight
-draws: seven fixed-capacity `InstancedMesh` pools (gabled stage/marquee roofs,
+mutated, which `bin/test-far-field` verifies), and owns at most eight draws:
+seven fixed-capacity `InstancedMesh` pools (gabled stage/marquee roofs,
 closed marquee rear walls, stage/truss surfaces, open four-triangle vendor and
-camp roof peaks, warm night markers, colored stage
-beacons, and coarse forest masses — detail-0 icosa domes sampled from the
-`treeDensity` field on a per-tier world-anchored grid, never the exact
-far-tree scatter; per-instance color, unlit `MeshBasicMaterial` in the game,
-fog-aware, with whole-batch linear-color dimming tied to `nightness` so pale
-canvas does not stay bright after sunset,
-no shadows, frustum culling deliberately off since the layer rings the
-player) plus one preallocated road-ribbon underlay at y=0.03 (opaque,
-`depthWrite:true`, slightly narrower than the real y=0.06 road so the
-authoritative ribbon always covers it) — and it registers **nothing**: no
-registry entries, colliders, crowds, audio, lights, pickups.
-The stage, marquee, and vendor roof definitions come from
-`src/festivalShapes.js`, which their real model builders also use. Vendor-row
-candidate coordinates come from `vendorRowSlots` in `worldgen/placement.js`.
-The stage pool includes the raised deck and colored backdrop, and the main
-stage beacon clears the roof ridge. The extra marquee wall batch costs one
-draw when visible, while the open peak geometry lowers the full-pool triangle
-total despite larger roof capacities.
-Camp pitches and forest trees still have separate proxy placement rules, so
-their near/far identity remains an open visual task.
+camp roof peaks, vendor legs, warm night markers, and forest tree impostors)
+plus one preallocated road-ribbon underlay at y=0.03. The opaque underlay is
+slightly narrower than the real y=0.06 road, which covers it. All pools avoid
+shadows; the horizon rings the player, so batch frustum culling stays off.
+It registers no colliders, crowds, audio, lights or pickups. Floating stage
+diamonds and their pool have been removed.
+
+`treeImpostors.js` renders each representative tree with two triangles in one
+forest draw. Its 1024² mipmapped RGBA atlas is generated offline from the actual
+pine, oak and birch builders by `bin/bake-tree-impostors.mjs`. Four azimuths and
+four elevations cover driving through overhead cameras; the GPU selects azimuth
+and blends neighboring elevation silhouettes. The square faces each viewer and
+corrects its overhead capture basis. Material cutouts retain depth writes, fog,
+instance tints and the existing owner-cell dissolve, without transparent sorting,
+per-frame CPU facing updates or runtime model captures. The material owns and
+releases its loaded texture, and stays hidden until the atlas is ready.
+
+The existing world-anchored `treeDensity` grid supplies groups of two through
+eight normal-sized representatives with isolated hashed species/scale/position.
+Density changes count rather than inflating one crown into a bush. Forest pool
+slots are capped at 768/1408/2048 on Low/Mid/High. Each tree hands off with its
+final position's chunk; the near forest still owns its actual placement and
+registry-dependent clearance, so individual near/far tree identities differ.
+The atlas adds approximately 5.33 MiB including mipmaps, with two texture reads
+per forest fragment; fewer triangles do not establish a device frame-time gain.
+
+Other surfaces use fog-aware unlit `MeshBasicMaterial` in the game, with
+whole-batch linear-color dimming tied to `nightness`. The stage, marquee and
+vendor roof definitions come from `src/festivalShapes.js`, which their real
+builders also use, and vendor candidates come from `vendorRowSlots` in
+`worldgen/placement.js`. The stage pool retains its raised deck and colored
+backdrop. Camp pitches and forest trees retain separate near/far placement
+rules. [Verification and limits](verification/tree-impostors/README.md).
 
 **Planning.** Boundary-triggered on 80m player-cell crossings, incremental
 per 240m coarse cell (never one monolithic ~1km² query), and versioned by the

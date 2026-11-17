@@ -58,6 +58,18 @@ Open `/menu-preview.html?screen=settings&mute=1` on the local Vite development o
 
 ## Blue Ridge backdrop workshop
 
+### Angle-aware forest impostors
+
+Open `/sandbox.html?entity=forest_impostors&perf=low&mute=1`, then repeat on Mid.
+The front row uses the atlas cards and the rear row shows the exact source
+models. Buttons inspect driving, elevated, overhead and zoomed-out views,
+rotate the camera, hide source models, exercise the handoff and rebuild.
+Check Noon and Midnight and repeated rebuild resource counts; the real game
+remains the streaming/terrain acceptance surface. Rebuild the checked-in atlas
+after tree model changes with `node bin/bake-tree-impostors.mjs`, and verify it
+without writing with `node bin/bake-tree-impostors.mjs --check`.
+See [evidence and limits](verification/tree-impostors/README.md).
+
 Open `/sandbox.html?entity=mountain_backdrop&perf=low&mute=1` (also check Mid).
 The production ridge mesh appears above a large reference ground disc with the
 same fog colors; Noon/Midnight expose the palette, and the orbit controls expose
