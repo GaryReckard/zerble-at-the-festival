@@ -11,8 +11,9 @@ pine, oak and birch samples from the actual [tree builders](../../src/models/tre
 Each species has four azimuths and elevations of 0°, 30°, 60° and 90°, totaling
 48 images with transparent gutters. Common per-species framing preserves the
 trunk’s ground anchor across views; the checked-in manifest records dimensions
-and a source hash. `node bin/bake-tree-impostors.mjs --check` reproduces the PNG
-and manifest byte for byte and checks every silhouette for coverage and padding.
+and a source hash. `node bin/bake-tree-impostors.mjs --check` reproduces the exact decoded RGBA pixels
+and manifest text, and checks every silhouette for coverage and padding. PNG
+compression bytes may differ across Node/zlib versions without changing the image.
 
 The [runtime](../../src/treeImpostors.js) uses one camera-facing instanced square
 per tree. Its GPU shader selects a yaw-relative azimuth and blends neighboring
@@ -101,6 +102,16 @@ An early development asset-path error was corrected to use the repository’s
 `assets/` directory and Vite URL discovery; fresh loads passed. No headless WebGL
 sessions were launched, and temporary browser tabs were closed after inspection.
 The pre-existing development server was left running.
+
+## Deployment verifier correction
+
+The initial deployment check stalled on Node 24.22.2 while comparing a PNG
+compressed differently from Node 24.10.0. The newer runtime encoded 68,324 bytes
+versus the checked-in 67,940 bytes, with identical decoded RGBA pixels and
+manifest text. The verifier now checks decoded pixels exactly, validates PNG
+format/dimensions/chunk checksums, and reports concise hashes on a mismatch.
+Regression fixtures prove that alternate compression passes and a changed pixel
+fails. Both Node versions passed; the shipped image and game code were unchanged.
 
 ## Reproduce
 
