@@ -106,3 +106,12 @@ if (screen === 'juice') {
   };
   requestAnimationFrame(tick);
 }
+
+if (screen === 'toast') {
+  document.body.classList.add('game-started');
+  document.getElementById('title-card').classList.add('hidden');
+  const showHail = () => HUD.toast('Someone is flagging you down. Pull up beside them and stop to give them a lift!', 60000);
+  const replay = document.createElement('button');
+  replay.textContent = 'Show hailing message'; replay.onclick = showHail;
+  toolbar.append(replay); showHail();
+}

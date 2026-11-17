@@ -632,7 +632,7 @@ if(landscapeVersion()===2){
   landscapeRuntime.player=zerble;landscapeRuntime.bindVehicle(zerble);
   landscapeRuntime.update(zerble,{deadline:performance.now()+PERF.chunkBudgetMs});
 }
-const labWorldOwners=buildWorld(scene, crowd, zerble.position,{landscape:landscapeRuntime});
+const labWorldOwners=buildWorld(scene, crowd, zerble.position,{landscape:landscapeRuntime,camera});
 const horizonCapture = _perfFrameParts ? attachHorizonCapture(getFarField()) : null;
 // Live physics defaults on. Loading is independent of the synchronous audio
 // unlock gesture; failure falls back to classic driving and prop contacts.

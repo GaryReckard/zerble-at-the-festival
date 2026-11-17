@@ -111,7 +111,7 @@ const TABLE = {
     // another after spending this long. Dense single chunks are split separately.
     chunkBudgetMs: 3,
     // Fog is fully opaque at 520m, but the shared backdrop sets the safe floor:
-    // sky 900m, stars 850m, and randomized mountain vertices at <= ~1012m.
+    // sky 900m, stars 850m, and layered ridges inside the star shell.
     // 1040m keeps those intact while culling retained lakes out to 1500m.
     cameraFar: 1040,
     // Forest tree count multiplier. Trees doubled in size (2026-06-01), so

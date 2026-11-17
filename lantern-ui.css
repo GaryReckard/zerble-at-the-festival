@@ -1783,7 +1783,7 @@ body #toast {
   background:var(--cream);
   color:var(--night);
   border:2px solid var(--night);
-  border-radius:99px;
+  border-radius:18px;
   box-shadow:0 4px 0 var(--ledge);
   font-family:Outfit,sans-serif
 }

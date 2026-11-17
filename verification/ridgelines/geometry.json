@@ -1,0 +1,9 @@
+{
+  "draws": 1,
+  "triangles": 10240,
+  "vertices": 6168,
+  "geometryBytes": 357504,
+  "constructionMs": 7.750624999999999,
+  "noTextures": true,
+  "noShadowCasters": true
+}

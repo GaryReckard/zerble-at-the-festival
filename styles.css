@@ -528,7 +528,12 @@ body.reduced-motion .quest-chip.is-urgent { animation: none; border-color: #ff6f
   letter-spacing: 0.04em;
   opacity: 0;
   transition: opacity 0.35s ease;
-  white-space: nowrap;
+  box-sizing: border-box;
+  width: max-content;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.4;
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
@@ -1834,8 +1839,6 @@ body.reduced-motion .upgrade-toggle span { transition: none; }
   #toast {
     top: max(calc(58px + env(safe-area-inset-top, 0)), var(--quest-toast-top, 0px));
     max-width: calc(100vw - 24px);
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 }
 

@@ -54,7 +54,19 @@ Open `http://127.0.0.1:8765/player-driving.html?mute=1` for the real dynamic cha
 
 ## Menu design preview
 
-Open `/menu-preview.html?screen=settings&mute=1` on the local Vite development or preview server for the production menu components without the 3D world. Other `screen` values are `passport`, `upgrades`, `results`, `loading` and `failed`; `locked=1`, `empty=1`, `blocked=1` and `new=1` exercise state variants. Passport and upgrades use memory-only progress, while Settings uses real preferences, so restore changes made during inspection. This page is outside the guided LAN allowlist. [Usage, evidence and limits](verification/lantern-night/README.md).
+Open `/menu-preview.html?screen=settings&mute=1` on the local Vite development or preview server for the production menu components without the 3D world. Other `screen` values are `passport`, `upgrades`, `results`, `loading`, `failed` and `toast` (the long hailing instruction); `locked=1`, `empty=1`, `blocked=1` and `new=1` exercise state variants. Passport and upgrades use memory-only progress, while Settings uses real preferences, so restore changes made during inspection. This page is outside the guided LAN allowlist. [Usage, evidence and limits](verification/lantern-night/README.md).
+
+## Blue Ridge backdrop workshop
+
+Open `/sandbox.html?entity=mountain_backdrop&perf=low&mute=1` (also check Mid).
+The production ridge mesh appears above a large reference ground disc with the
+same fog colors; Noon/Midnight expose the palette, and the orbit controls expose
+camera transitions. Looking down hides the backdrop; switching to another model
+releases its geometry/material and restores the sandbox fog and camera far plane.
+The real game remains the terrain-blend check: start through a ready mode plank,
+use `V` for chase/first-person/top-down, and check the zoom extremes with the
+wheel or camera controls. `/camera top 600` also exercises a wide plan view.
+[Evidence and render budget](verification/ridgelines/README.md).
 
 ## Empty-juice feedback workshop
 

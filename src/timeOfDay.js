@@ -18,10 +18,10 @@ import * as THREE from 'three';
 // One full day takes 6 minutes. Adjust if it's too fast/slow during play.
 const CYCLE_SECONDS = 360;
 
-// Hand-tuned color stops for each phase. cosmetics nudged toward warm festival
-// palette so the night doesn't feel like an empty void.
+// Daylight haze matches the wooded Blue Ridge backdrop. Sunset remains warm,
+// and the lifted night palette keeps the festival readable between light pools.
 const SKY_TOP_DAY     = new THREE.Color(0x6fb6e8);
-const SKY_BOTTOM_DAY  = new THREE.Color(0xffd0a8);
+const SKY_BOTTOM_DAY  = new THREE.Color(0xc8dce3);
 const SKY_TOP_DUSK    = new THREE.Color(0x3a2e6a);
 const SKY_BOTTOM_DUSK = new THREE.Color(0xff7a4e);
 // Night colors lifted slightly from the original 0x0a0a28 / 0x191638 set —
@@ -35,7 +35,7 @@ const SUN_DAY    = new THREE.Color(0xffe1b0);
 const SUN_DUSK   = new THREE.Color(0xff7a3e);
 const MOON_NIGHT = new THREE.Color(0xa6bcdf);
 
-const FOG_DAY   = new THREE.Color(0xffcfae);
+const FOG_DAY   = new THREE.Color(0x94aaa0);
 const FOG_DUSK  = new THREE.Color(0xb86a5a);
 const FOG_NIGHT = new THREE.Color(0x232048);
 

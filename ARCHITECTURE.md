@@ -221,9 +221,32 @@ mesh uses 140 segments per side, down from 220 before the texture was added.
 - Independent of the chunk grid. Lakes live on a **320m macrocell grid**.
 - Body radius 70–100m (large) or 25–40m (small), placed deterministically within the macrocell.
 - Load when within `LOAD_RADIUS` of the player, unload past `LOAD_RADIUS_UNLOAD` — so they don't pop in/out at chunk boundaries.
-- Their unload hysteresis can retain lake groups out to 1,500m, while fog is fully opaque by 520m. The gameplay camera's `PERF.cameraFar = 1040` drops that invisible tail but remains beyond every recentered backdrop (sky 900m, stars 850m, worst-case mountain geometry ~1,012m).
+- Their unload hysteresis can retain lake groups out to 1,500m, while fog is fully opaque by 520m. The gameplay camera's `PERF.cameraFar = 1040` drops that invisible tail but remains beyond every recentered backdrop (sky 900m, stars 850m, ridgelines inside the 850m star shell).
 - Register pedestrian shore colliders **without** a `chunkKey`, so chunk unload does not tear them down. The physical player excludes these barriers and can enter the lake.
 - Lakes own: canoes, beaches, lakeside campsites. Chunks consult the registry to avoid placing paths or decorations on water.
+
+### Distant ridgelines (`mountains.js`)
+
+Four continuous radial slopes share one opaque indexed mesh (10,240 triangles,
+6,168 vertices, 357,504 geometry bytes). A dedicated seeded stream controls the
+silhouette and baked woodland colors without consuming world-generation draws.
+The group follows player X/Z at the world’s vertical datum; its buried skirts
+and fog-colored feet meet the real ground, which depth-tests in front of it.
+This is scenery, while playable hills remain owned by terrain/landscape systems.
+
+The unlit shader blends baked day/night colors using the existing `nightness`,
+borrows the actual fog color and sun direction, and needs no textures, real lights,
+shadow passes or terrain queries. Daylight fog and the lower sky use muted cool
+colors; sunset and night stops retain their existing colors. All ridge vertices
+sit inside the star shell and the existing camera far plane. The sky draws first,
+then ridges, then the normal depth-tested world.
+
+`buildWorld` retains the actual gameplay camera for the view gate. As its forward
+vector points down, silhouettes lower toward their buried feet; at a downward
+component of 0.78 the group is hidden, avoiding both the draw and a circular wall
+in top-down views. The geometry/material belong to the world-lifetime group,
+carry no shared-resource tag and are released by ordinary owned-subtree disposal
+in the sandbox. [Checks, captures and limitations](verification/ridgelines/README.md).
 
 ### Shared tree and bird rendering
 

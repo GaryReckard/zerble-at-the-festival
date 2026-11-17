@@ -175,6 +175,7 @@
     <label for="entity">Entity</label>
     <select id="entity">
         <optgroup label="Carts">
+            <option value="mountain_backdrop">Blue Ridge backdrop</option>
             <option value="zerble">Zerble</option>
             <option value="lurleen">Lurleen</option>
             <option value="lurleen_zerble">Zerble + Lurleen (side by side)</option>
@@ -553,6 +554,7 @@
     import {Sound} from './src/sound.js';
     import {TimeOfDay} from './src/timeOfDay.js';
     import * as ContextLights from './src/contextLights.js';
+    import {buildMountains} from './src/mountains.js';
     import {Zerble} from './src/zerble.js';
     import {buildStarPreview, STAR_UNIFORMS, StarPower} from './src/starPower.js';
     import {Lurleen, createHeartGeometry} from './src/lurleen.js';
@@ -925,6 +927,7 @@ import {buildShrub} from './src/models/shrub.js';
     }
 
     function clearEntity() {
+        camera.far=500;camera.updateProjectionMatrix();
         stageAudiencePreview?.dispose();stageAudiencePreview=null;
         groundGroup.scale.setScalar(1);
         groundGroup.position.set(0,0,0);
@@ -1150,6 +1153,19 @@ import {buildShrub} from './src/models/shrub.js';
         clearEntity();
         info.textContent = `Loading ${name}...`;
         switch (name) {
+            case 'mountain_backdrop': {
+                scene.fog=new THREE.Fog(0x94aaa0,260,520);
+                scene.background=scene.fog.color;tod.fog=scene.fog;
+                const ridges=buildMountains(scene);
+                ridges.userData.cleanup=()=>{scene.fog=null;tod.fog=null;scene.background=new THREE.Color(0x1a1430);};
+                entityRoot=ridges; currentEntity=ridges;
+                camera.far=1040;camera.updateProjectionMatrix();
+                cam.target.set(0,2,0);cam.dist=10;cam.pitch=.12;applyCam();
+                groundGroup.scale.setScalar(20);
+                const origin=new THREE.Vector3();
+                updateFn=()=>ridges.userData.update?.(origin,camera,tod);
+                break;
+            }
             case 'zerble': {
                 const z = new Zerble();
                 z.position.set(0, 0, 0);

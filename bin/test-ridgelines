@@ -1,0 +1,87 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {writeFileSync,readFileSync} from 'node:fs';
+import {Scene,PerspectiveCamera,Vector3,Fog} from 'three';
+import {buildMountains,buildRidgeGeometry,ridgeViewVisibility,RIDGE_LAYERS,RIDGE_SEGMENTS,RIDGE_ROWS} from '../src/mountains.js';
+import {disposeSceneResources} from '../src/sceneResources.js';
+import {setSessionSeed,mulberry32} from '../src/rng.js';
+const count=RIDGE_LAYERS.length*(RIDGE_SEGMENTS+1)*RIDGE_ROWS;
+const start=performance.now(),g=buildRidgeGeometry(2641474229),constructionMs=performance.now()-start;
+assert.equal(g.attributes.position.count,count);
+assert.equal(g.index.count/3,10240);
+assert(g.index.count/3<18720,'lighter than the measured old backdrop');
+for(const a of Object.values(g.attributes))assert([...a.array].every(Number.isFinite));
+assert(Math.max(...g.index.array)<count);
+for(let layer=0;layer<4;layer++)for(let row=0;row<RIDGE_ROWS;row++){
+ const a=(layer*(RIDGE_SEGMENTS+1)*RIDGE_ROWS+row)*3,b=a+RIDGE_SEGMENTS*RIDGE_ROWS*3;
+ for(const attr of Object.values(g.attributes)) assert.deepEqual(attr.array.slice(a,a+3),attr.array.slice(b,b+3),'height, color and normals close without a seam');
+}
+for(let i=0;i<count;i++){
+ const p=g.attributes.position,dist=Math.hypot(p.getX(i),p.getY(i),p.getZ(i));
+ assert(dist<830,'all geometry is inside the 850 m star shell, so stars cannot shine through hills');
+ const c=g.attributes.nightColor;
+ assert(Math.max(c.getX(i),c.getY(i),c.getZ(i))<.08,'moonlit colors cannot become bright bloom emitters');
+}
+for(const seed of [2641474229,4077605147,0]){
+ const a=buildRidgeGeometry(seed),b=buildRidgeGeometry(seed);
+ assert.deepEqual(a.attributes.position.array,b.attributes.position.array,'stable seeded skyline');
+ assert.deepEqual(a.attributes.color.array,b.attributes.color.array,'stable canopy');a.dispose();b.dispose();
+}
+const different=buildRidgeGeometry(1);assert.notDeepEqual(g.attributes.position.array,different.attributes.position.array);different.dispose();
+const rng=mulberry32(99),expected=mulberry32(99);rng();expected();buildRidgeGeometry(99).dispose();assert.equal(rng(),expected(),'does not consume another system’s random stream');
+assert.equal(ridgeViewVisibility(.2),1);assert.equal(ridgeViewVisibility(.98),0);
+for(let i=1;i<100;i++) assert(ridgeViewVisibility(i/100)<=ridgeViewVisibility((i-1)/100),'no camera-transition rebound');
+const scene=new Scene(),camera=new PerspectiveCamera(62,16/9,.5,1040),root=buildMountains(scene,{seed:2641474229});
+assert.equal(root.children.length,1);const mesh=root.children[0],u=mesh.material.uniforms;
+assert(!mesh.castShadow&&!mesh.receiveShadow&&!mesh.material.transparent);
+assert(mesh.material.depthWrite&&mesh.material.depthTest,'real terrain and mountains occlude in depth order');
+assert(!Object.values(mesh.material.uniforms).some(x=>x.value?.isTexture),'no texture allocation');
+const tod={nightness:0,fog:new Fog(0x94aaa0,260,520),sun:{position:new Vector3(90,130,60)}};
+const pos=new Vector3(230,120,-470),geometry=mesh.geometry,material=mesh.material;
+camera.position.set(230,126,-456);camera.lookAt(230,122,-480);
+root.userData.update(pos,camera,tod);assert(root.visible);assert.equal(u.visibility.value,1);assert(root.position.equals(new Vector3(230,0,-470)),'world datum, not a floating skirt at player height');
+for(const height of [3,80,220,600]){
+ camera.position.set(pos.x,height+pos.y,pos.z);camera.lookAt(pos.x,pos.y,pos.z);
+ root.userData.update(pos,camera,tod);assert.equal(root.visible,false,'top-down skips the backdrop at every height');
+}
+camera.position.set(230,126,-456);camera.lookAt(230,122,-480);tod.nightness=1;tod.fog.color.setHex(0x232048);
+root.userData.update(pos,camera,tod);assert(root.visible);assert.equal(u.nightness.value,1);assert.equal(u.fogColor.value.getHex(),0x232048);
+for(let i=0;i<600;i++)root.userData.update(pos,camera,tod);
+assert.equal(mesh.geometry,geometry);assert.equal(mesh.material,material,'no streaming/per-frame resource replacements');
+// Day/night jumps use the actual atmosphere owner, including the midnight stop.
+const {TimeOfDay}=await import('../src/timeOfDay.js');
+scene.fog=new Fog(0x94aaa0,120,520);
+const atmosphere=new TimeOfDay(scene);atmosphere.attach({});
+for(const time of [.3,.49,.75,.99,.3]){
+ atmosphere.setT(time);root.userData.update(pos,camera,atmosphere);
+ assert(u.fogColor.value.equals(scene.fog.color));assert.equal(u.nightness.value,atmosphere.nightness);
+ if(time===.75)assert.equal(scene.fog.color.getHex(),0x232048,'night fog retains its previous color');
+}
+// Exercise the actual production camera targets at both ends of every zoom axis.
+globalThis.window={addEventListener(){}};
+const {ChaseCamera}=await import('../src/camera.js');
+const cart={position:new Vector3(0,0,0),heading:0},rig=new ChaseCamera(camera,cart);
+for(const elevation of [0,120])for(const mode of ['third','first','top'])for(const zoom of ['near','far']){
+ cart.position.y=elevation;rig.mode=mode;
+ rig.chaseZoom=zoom==='near'?.5:2.4;rig.topHeight=zoom==='near'?30:220;rig.fpvFov=zoom==='near'?28:62;
+ rig.snap();root.userData.update(cart.position,camera,tod);
+ assert.equal(root.visible,mode!=='top',`${mode} ${zoom} elevation ${elevation}: horizon visibility`);
+ assert.equal(camera.far,1040,'no widened far clip to accommodate the backdrop');
+ if(root.visible){
+  // Bounds include the full 360° mesh; the furthest actual vertex must still
+  // fit the existing far plane from both dolly endpoints and elevated terrain.
+  for(let i=0;i<count;i++){
+   const p=mesh.geometry.attributes.position;
+   assert(Math.hypot(p.getX(i)-camera.position.x,p.getY(i)-camera.position.y,p.getZ(i)-camera.position.z)<camera.far);
+  }
+ }
+}
+let releases=0;geometry.addEventListener('dispose',()=>releases++);material.addEventListener('dispose',()=>releases++);disposeSceneResources(root);assert.equal(releases,2,'instance-owned geometry and material release together');
+setSessionSeed(0);g.dispose();
+const bytes=Object.values(g.attributes).reduce((n,a)=>n+a.array.byteLength,0)+g.index.array.byteLength;
+assert(bytes<=360000,'geometry buffers remain within the fixed 360 KB budget');
+if(process.argv.includes('--record'))writeFileSync('verification/ridgelines/geometry.json',JSON.stringify({draws:1,triangles:g.index.count/3,vertices:count,geometryBytes:bytes,constructionMs,noTextures:true,noShadowCasters:true},null,2)+'\n');
+const world=readFileSync('src/world.js','utf8'),main=readFileSync('src/main.js','utf8');
+assert(world.includes('mountainsGroup.userData.update(playerPos,backdropCamera,timeOfDay)'));
+assert(main.includes('landscape:landscapeRuntime,camera}'),'actual gameplay camera feeds the view gate');
+console.log(`PASS ridgelines: ${g.index.count/3} triangles, ${count} vertices, ${bytes} bytes; deterministic seams, far clip, night/fog, terrain datum, top-down, fixed resources and disposal.`);

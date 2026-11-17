@@ -11,6 +11,8 @@ report's date, source baseline, method and limitations before using its result.
 A desktop CPU benchmark is not a phone FPS measurement, and a passing render is
 not physical-device acceptance.
 
+- [Blue Ridge ridgelines](ridgelines/README.md): day/night terrain fit, camera modes and geometry/render budget.
+
 ## Interface
 
 - [Lantern Night, November 14](lantern-night/README.md): title/menu implementation, production DOM fixtures, desktop/compact layouts, Low Noon/Midnight smoke test, map transitions, keyboard ownership, Passport pause and remaining physical-device limits. The [November 15 title extension](lantern-night/title-extension/README.md) adds generated scenery margins, retained original subjects, wider/taller framing and the restored bubble plume.

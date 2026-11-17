@@ -13,11 +13,11 @@ import { PERF, USE_FAR_FIELD } from './perf.js';
 import { A11y } from './a11y.js';
 
 const SKY_TOP = 0x6fb6e8;
-const SKY_BOTTOM = 0xffd0a8;
+const SKY_BOTTOM = 0xc8dce3;
 const SUN_COLOR = 0xffe1b0;
 const HEMI_SKY = 0xa9d6ff;
 const HEMI_GROUND = 0xc89265;
-const FOG_COLOR = 0xffcfae;
+const FOG_COLOR = 0x94aaa0;
 const GROUND_GREEN = 0x7cb37a;
 const DIRT = 0xc69566;
 const GROUND_DARK = new THREE.Color(0x669b69);
@@ -38,6 +38,7 @@ let farField = null;
 let landscapeRuntime = null;
 let groundMesh = null;
 let mountainsGroup = null;
+let backdropCamera = null;
 let skyMesh = null;
 let starsMesh = null;
 let moonMesh = null;
@@ -63,8 +64,9 @@ export function getFarField() {
 // otherwise the title-card backdrop + __dbg.start() briefly look at an unloaded
 // neighbourhood until the first post-Start updateWorld() streams it in. Defaults
 // to origin for any headless/legacy caller.
-export function buildWorld(scene, crowd, playerPos = new THREE.Vector3(0, 0, 0), {landscape=null}={}) {
+export function buildWorld(scene, crowd, playerPos = new THREE.Vector3(0, 0, 0), {landscape=null,camera=null}={}) {
   landscapeRuntime=landscape;
+  backdropCamera=camera;
   _scene = scene;
   skyMesh = buildSky(scene);
   starsMesh = buildStars(scene);
@@ -203,7 +205,7 @@ export function updateWorld(playerPos, dt = 0.016, preparePhysical = null, timin
     }
   }
   if(timings)timings.mark('ground');
-  if (mountainsGroup) mountainsGroup.position.set(playerPos.x, 0, playerPos.z);
+  if (mountainsGroup) mountainsGroup.userData.update(playerPos,backdropCamera,timeOfDay);
   // Keep the sun's shadow frustum centered on the player too, so shadows
   // continue to render no matter how far Zerble drives. The TimeOfDay system
   // owns the *offset* (sun arc + below-horizon at night); we only translate
@@ -371,6 +373,7 @@ function buildSky(scene) {
     `,
   });
   const sky = new THREE.Mesh(skyGeo, skyMat);
+  sky.renderOrder=-20; // sky, distant ridges, then the depth-tested playable world
   scene.add(sky);
   return sky;
 }
