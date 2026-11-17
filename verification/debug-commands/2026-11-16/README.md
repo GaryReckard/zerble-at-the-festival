@@ -55,6 +55,23 @@ The picker also has an accessible Teleport destination label. The final console
 inspection contained no warnings or errors. The temporary tab was closed; no
 standalone browser or development server was started.
 
+## Published-host adapter verification
+
+Release review found that the original adapter depended on the local-only
+`window.__dbg` object. The command actions now live in a bounded production hook
+shared with the local console, while capture, unlock and general automation
+helpers stay behind the existing host guard. The adapter test runs without a
+`window` global and exercises the same selectors and read-only snapshots.
+
+Opened `http://release.localhost:8765/?seed=4&x=57&z=-107&perf=low&mute=1`,
+whose hostname does not satisfy the local automation guard. After a real ready
+mode-plank click, all three new inspect commands returned production snapshots,
+`/quest hail` created a real drum-circle hailer, pickup and approach worked, and
+both summon commands succeeded. Quest give/go and party commands reported their
+normal no-rider/no-active-request/not-riding prerequisites rather than missing
+helpers. Console inspection contained no warnings or errors; the tab was closed.
+Focused debug tests, passenger-quest tests, live-driving tests and the build passed.
+
 ## Boundaries
 
 The full monk-party boarding/delivery flow was not repeated in the browser;

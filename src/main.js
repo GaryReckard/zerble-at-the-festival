@@ -2363,6 +2363,89 @@ if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&['1','subtract'].includ
     subtract:new URLSearchParams(location.search).get('sceneProbe')==='subtract'}));
 }
 
+// Bounded slash-command actions are available on the published game as well as
+// localhost. The larger automation/capture surface below remains local-only.
+const debugCommandHelpers = {
+  physics() { return physicalWorld?.stats() ?? {requested:physicalRequested,error:physicalLoadError}; },
+  festivalMap() { return festivalMap.snapshot(); },
+  upgrades() {
+    return {
+      types: BUBBLE_TYPES.map(({ id, name, secret }) => ({ id, name, secret, earned: bubbleProgress.isEarned(id), enabled: bubbleProgress.isEnabled(id) })),
+      charmLevel: charmLevel(visibleCatalog(bubbleProgress.earnedIds()).found),
+      lifetimeSmiles: bubbleProgress.lifetimeSmiles,
+      challenges: bubbleChallenges.debugState(),
+    };
+  },
+  summonOneWheel() { return oneWheels.trySpawn(zerble.position,camera,true); },
+  quests() { return quests.snapshot(); },
+  // Force a request on a seated rider, seating one if the cart is empty.
+  giveQuest(kind = true) {
+    let riders = crowd.zerbleRiders().filter(h => !quests.engine.has(h));
+    if (!riders.length) { this.rider('bench'); riders = crowd.zerbleRiders().filter(h => !quests.engine.has(h)); }
+    if (!riders.length) return 'no free rider (no NPC nearby to seat)';
+    const quest = quests.onBoard(riders[0], { force: kind });
+    return quest ? `${quest.type}: ${quest.label}, ${Math.round(quest.startDist)} m` : `no ${kind === true ? '' : kind + ' '}destination in range here`;
+  },
+  hail(kind = null) {
+    const hail = quests.startHail({ force: kind });
+    return hail ? `${hail.plan.type}: someone wants ${hail.label}` : 'nobody suitable nearby, no destination in range, or the limit is reached';
+  },
+  hailGo(i = 0) {
+    const hail = quests.hails[i]; const w = {};
+    if (!hail || !crowd.walkerInfo(hail.handle, w)) return 'no one is hailing';
+    if (this.teleport(w.x + 5, w.z + 3) === false) return 'Pickup point has no safe driving support.';
+    return 'parked beside them';
+  },
+  hailApproach(i = 0) {
+    const hail = quests.hails[i], w = {};
+    if (!hail || !crowd.walkerInfo(hail.handle, w)) return 'no one is hailing';
+    if (this.teleport(w.x + 35, w.z, Math.PI / 2) === false) return 'Approach point has no safe driving support.';
+    return '35 m from the hailer, facing them. Drive forward, brake nearby, and wait for boarding.';
+  },
+  questLog(action) { if (action === 'reset') quests.log.reset(); return quests.log.snapshot(); },
+  monkQuest(kind = null) {
+    if (monks.status().vehicle !== 'zerble') return 'the monks are not riding Zerble';
+    const quest = quests.offerParty(monks, monks, monks.members.length, { force: kind });
+    if (quest) monks.questHold = true;
+    return quest ? `party of ${quest.members}: ${quest.label}, ${Math.round(quest.startDist)} m` : 'no destination in range (or the strip is full)';
+  },
+  questGo(i = 0) {
+    const quest = quests.active[i];
+    if (!quest) return 'no active quest';
+    if (this.teleport(quest.x - Math.min(10, quest.radius * 0.4), quest.z) === false) return 'Quest destination has no safe driving support.';
+    return `at ${quest.label}; stop to let them off`;
+  },
+  summonNutWagon() { return nutWagon.trySpawn(zerble.position, camera, true); },
+  // Use the ordinary seat claim and boarding handoff.
+  rider(kind = 'bench') {
+    const slot = zerble.seatSlots?.find((s) => s.kind === kind && !s.occupied);
+    if (!slot) return null;
+    let seated=false;
+    people.forEachPersonNear(zerble.position.x,zerble.position.z,Number.MAX_VALUE,(handle,person)=>{
+      if(person.grouped||person.claimed||!['idle','walking','watching','approaching'].includes(person.state))return;
+      if(crowd.seatPerson(handle,zerble,slot,{rideTime:99999})){seated=true;return false;}
+    },adultQuery);
+    if(!seated)return null;
+    return slot.name;
+  },
+  // Relocation is admitted by the selected terrain surface before state changes.
+  teleport(x = 0, z = 0, heading = zerble.heading) {
+    if (zerble.surfaceBinding) {
+      if (!zerble.relocateOnSurface(x, z, { heading })) return false;
+      physicalWorld?.reset('teleport');
+      playerStats.relocate();
+      return `teleported to (${x}, ${z})`;
+    }
+    physicalWorld?.reset('teleport');
+    playerStats.relocate();
+    zerble.heading = heading;
+    zerble.position.set(x, terrainHeight(x,z), z);
+    if (zerble.surfaceSampler) zerble.groundOnSurface();
+    zerble.speed = 0;
+    return `teleported to (${x}, ${z})`;
+  },
+};
+
 // ---- Local-dev debug backdoor (window.__dbg) ----
 // Hooks for verifying the *running* game programmatically, because the real
 // UX actively resists automation: the title card needs a trusted gesture to
@@ -2397,19 +2480,13 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
   };
 
   window.__dbg = {
-    physics() { return physicalWorld?.stats() ?? {requested:physicalRequested,error:physicalLoadError}; },
+    ...debugCommandHelpers,
+
     peopleFrames() { return peopleFrameTrace?.report() ?? null; },
     leaderboardInfo() { return Leaderboard.diagnostics(); },
-    festivalMap() { return festivalMap.snapshot(); },
+
     passport(open = false) { if (open) PassportMenu.open(); return playerStats.snapshot(); },
-    upgrades() {
-      return {
-        types: BUBBLE_TYPES.map(({ id, name, secret }) => ({ id, name, secret, earned: bubbleProgress.isEarned(id), enabled: bubbleProgress.isEnabled(id) })),
-        charmLevel: charmLevel(visibleCatalog(bubbleProgress.earnedIds()).found),
-        lifetimeSmiles: bubbleProgress.lifetimeSmiles,
-        challenges: bubbleChallenges.debugState(),
-      };
-    },
+
     unlock(id) {
       const ids = id === 'all' ? BUBBLE_TYPES.map((type) => type.id) : [id];
       return ids.filter((typeId) => BUBBLE_TYPES.some((type) => type.id === typeId))
@@ -2600,69 +2677,10 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       return `seated: ${seated.join(', ') || 'none (no free seat/NPC)'}`;
     },
 
-    // Seat one free NPC in the first open slot of `kind`. Replicates the
-    // boarding hand-off: claim slot → riding state → snap to worldSeatPosition
-    // → write matrices → flag every crowd InstancedMesh dirty.
     people() {return people.inspect();},
     monks() { return monks.status(); },
     oneWheels() { return oneWheels.status(); },
-    summonOneWheel() { return oneWheels.trySpawn(zerble.position,camera,true); },
-    // Passenger quests. giveQuest(kind?) hands a request to a seated rider
-    // (seating one first if the cart is empty); kind may be a destination
-    // kind, 'urgent' or 'summit'. questGo(i) drops Zerble at the i-th stop.
-    quests() { return quests.snapshot(); },
-    giveQuest(kind = true) {
-      let riders = crowd.zerbleRiders().filter(h => !quests.engine.has(h));
-      if (!riders.length) { this.rider('bench'); riders = crowd.zerbleRiders().filter(h => !quests.engine.has(h)); }
-      if (!riders.length) return 'no free rider (no NPC nearby to seat)';
-      const quest = quests.onBoard(riders[0], { force: kind });
-      return quest ? `${quest.type}: ${quest.label}, ${Math.round(quest.startDist)} m` : `no ${kind === true ? '' : kind + ' '}destination in range here`;
-    },
-    // hail(kind?) makes someone nearby flag the cart down now; questLog()
-    // reads the all-time record (questLog('reset') clears it).
-    hail(kind = null) {
-      const hail = quests.startHail({ force: kind });
-      return hail ? `${hail.plan.type}: someone wants ${hail.label}` : 'nobody suitable nearby, no destination in range, or the limit is reached';
-    },
-    hailGo(i = 0) {
-      const hail = quests.hails[i]; const w = {};
-      if (!hail || !crowd.walkerInfo(hail.handle, w)) return 'no one is hailing';
-      if (this.teleport(w.x + 5, w.z + 3) === false) return 'Pickup point has no safe driving support.';
-      return 'parked beside them';
-    },
-    hailApproach(i = 0) {
-      const hail = quests.hails[i], w = {};
-      if (!hail || !crowd.walkerInfo(hail.handle, w)) return 'no one is hailing';
-      if (this.teleport(w.x + 35, w.z, Math.PI / 2) === false) return 'Approach point has no safe driving support.';
-      return '35 m from the hailer, facing them. Drive forward, brake nearby, and wait for boarding.';
-    },
-    questLog(action) { if (action === 'reset') quests.log.reset(); return quests.log.snapshot(); },
-    // Force the monk party's shared request (they must already be riding Zerble).
-    monkQuest(kind = null) {
-      if (monks.status().vehicle !== 'zerble') return 'the monks are not riding Zerble';
-      const quest = quests.offerParty(monks, monks, monks.members.length, { force: kind });
-      if (quest) monks.questHold = true;
-      return quest ? `party of ${quest.members}: ${quest.label}, ${Math.round(quest.startDist)} m` : 'no destination in range (or the strip is full)';
-    },
-    questGo(i = 0) {
-      const quest = quests.active[i];
-      if (!quest) return 'no active quest';
-      if (this.teleport(quest.x - Math.min(10, quest.radius * 0.4), quest.z) === false) return 'Quest destination has no safe driving support.';
-      return `at ${quest.label}; stop to let them off`;
-    },
     nutWagon() { return nutWagon.status(); },
-    summonNutWagon() { return nutWagon.trySpawn(zerble.position, camera, true); },
-    rider(kind = 'bench') {
-      const slot = zerble.seatSlots?.find((s) => s.kind === kind && !s.occupied);
-      if (!slot) return null;
-      let seated=false;
-      people.forEachPersonNear(zerble.position.x,zerble.position.z,Number.MAX_VALUE,(handle,person)=>{
-        if(person.grouped||person.claimed||!['idle','walking','watching','approaching'].includes(person.state))return;
-        if(crowd.seatPerson(handle,zerble,slot,{rideTime:99999})){seated=true;return false;}
-      },adultQuery);
-      if(!seated)return null;
-      return slot.name;
-    },
 
     // Time of day, 0..1 (0 dawn · .25 noon · .5 dusk · .75 midnight).
     tod(t = 0.25) {
@@ -2737,23 +2755,6 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       await wait(afterS);
       dbg.perfPhase('');
       return dbg.perfPhaseSummary();
-    },
-
-    // Move the cart to world (x, z), zeroing speed.
-    teleport(x = 0, z = 0, heading = zerble.heading) {
-      if (zerble.surfaceBinding) {
-        if (!zerble.relocateOnSurface(x, z, { heading })) return false;
-        physicalWorld?.reset('teleport');
-        playerStats.relocate();
-        return `teleported to (${x}, ${z})`;
-      }
-      physicalWorld?.reset('teleport');
-      playerStats.relocate();
-      zerble.heading = heading;
-      zerble.position.set(x, terrainHeight(x,z), z);
-      if (zerble.surfaceSampler) zerble.groundOnSurface();
-      zerble.speed = 0;
-      return `teleported to (${x}, ${z})`;
     },
 
     // Star power test surface. `__dbg.starPower()` triggers the 15s buff
@@ -3283,6 +3284,7 @@ installDebug({
   getTimeOfDay,
   getFarField,                          // perf samples record horizon counters
   captureTitleCadence:()=>_perfTitleCadence?.snapshot()??null,
+  commandHelpers:debugCommandHelpers,
   captureDrawCensus:()=>window.__dbg?.drawCensus({top:40})??null,
   onTeleport:()=>{physicalWorld?.reset('teleport');playerStats.relocate();},
   getLandscapeRuntime,

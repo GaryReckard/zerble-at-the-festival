@@ -1065,7 +1065,7 @@ In the game, `/inspect people` includes the `cornhole` controller's active/vacan
 
 ### Passenger command palette
 
-In a local running game, press `/` and use `/quest status`, `/quest hail`, `/quest pickup`, `/quest give`, `/quest go` or `/quest log` to inspect and exercise production pickup and delivery. `give` and `hail` accept `urgent`, `summit` or a supported destination kind such as `food_court`. These commands use the existing bounded action adapter, without evaluating arbitrary code. Teleports still mark Passport exploration as relocated.
+In a running game, press `/` and use `/quest status`, `/quest hail`, `/quest pickup`, `/quest give`, `/quest go` or `/quest log` to inspect and exercise production pickup and delivery. `give` and `hail` accept `urgent`, `summit` or a supported destination kind such as `food_court`. These commands use the existing bounded action adapter, without evaluating arbitrary code. Teleports still mark Passport exploration as relocated.
 
 `/quest give hammock` forces a registered hammock request, and `/quest status` includes cart speed, grounded/immersion state and matching built facilities within 100 m. Active quest records include the effective arrival target, blocked-arrival reason and `phase`, so a playtest can distinguish the suggestion, an occupied or unreachable facility, and a pending `handoff`. A free facility is reserved before safe disembarkation; completion and reward wait for `hammock_riding` or `using_potty`, with the urgent timer paused during the walk. Check occupied alternatives and interruption/unload without a reward, plus usable tree-hammock seats. `menu-preview.html?screen=rides&touch=1&mute=1` lays out three production request cards against the real touch-control markup without a running world.
 
@@ -1079,6 +1079,10 @@ For the actual hailer approach check, create a hail with `/quest hail`, then run
 `node bin/test-hammock-placement` builds real contextual campsite hammocks and checks empty woods, unsuitable camps, clear approaches, regeneration and the retained undergrowth fingerprint. `/quest status` distinguishes `approaching` from the resource's occupied reservation flag. The ride-card fixture `/menu-preview.html?screen=rides&case=approach&mute=1` previews approaching-visitor guidance. [Evidence and limits](verification/passenger-quests/hammock-rest-areas/README.md).
 
 ### Quest and exploration command expansion (November 16)
+
+The quest, summon and inspect adapters use bounded production hooks, so they
+work on the published game without the local-only `window.__dbg` automation
+surface. The local console shares these same action implementations.
 
 The backtick Teleport menu and `/tp` now share one destination catalog, including
 aliases, generator availability and search-scope labels. Repeat a destination to

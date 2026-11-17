@@ -18,7 +18,9 @@ let mute=true;
 const dbg={};
 for(const method of ['physics','festivalMap','upgrades','monkQuest','giveQuest','hail','hailGo','hailApproach','questGo'])dbg[method]=(...args)=>{calls.push([method,...args]);return {method,args};};
 dbg.summonNutWagon=()=>true;dbg.summonOneWheel=()=>false;
-const context=vm.createContext({window:{__dbg:dbg},state,createDebugCommands,USE_WORLDGEN_V2:true,getSessionSeed:()=>1977,
+hooks.commandHelpers=dbg;
+// Production has no window.__dbg; commands must use their bounded hooks.
+const context=vm.createContext({state,createDebugCommands,USE_WORLDGEN_V2:true,getSessionSeed:()=>1977,
  Sound:{isMuted:()=>mute,isReady:()=>true,campJamStates:()=>[],setMuted:v=>mute=v},
  api:()=>({pause:on=>state.paused=on,step:n=>state.pendingSteps+=n,god:on=>state.god=on,
  showColliders:on=>state.showColliders=on,freezeNPCs:on=>state.freezeNPCs=on,
@@ -61,15 +63,13 @@ console.log('PASS expanded adapters: 1-based selectors, special offer aliases, p
 
 // Exercise the production helpers, including failed selected-surface relocation.
 const main=fs.readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
-const helperSource=main.slice(main.indexOf('    hailGo(i ='),main.indexOf('    questLog(action)'))+
- main.slice(main.indexOf('    questGo(i ='),main.indexOf('    nutWagon()'))+
- main.slice(main.indexOf('    teleport(x ='),main.indexOf('    // Star power test surface.'));
+const helperSource=main.slice(main.indexOf('const debugCommandHelpers = {')+'const debugCommandHelpers = '.length,main.indexOf('// ---- Local-dev debug backdoor')).trim().replace(/;$/,'');
 let allowMove=false,relocated=0,reset=0;
 const cart={heading:.4,position:{x:0,z:0},surfaceBinding:{},relocateOnSurface(x,z,options){if(!allowMove)return false;Object.assign(this.position,{x,z});this.heading=options.heading;return true;}};
 const helperContext=vm.createContext({zerble:cart,physicalWorld:{reset(){reset++;}},playerStats:{relocate(){relocated++;}},
  quests:{hails:[{handle:10},{handle:20}],active:[{x:100,z:200,radius:25,label:'one'},{x:300,z:400,radius:25,label:'two'}]},
  crowd:{walkerInfo(handle,w){Object.assign(w,{x:handle,z:handle+1});return true;}}});
-const helpers=vm.runInContext('({'+helperSource+'})',helperContext);
+const helpers=vm.runInContext('('+helperSource+')',helperContext);
 assert.match(helpers.hailGo(1),/no safe driving support/);
 assert.match(helpers.hailApproach(1),/no safe driving support/);
 assert.match(helpers.questGo(1),/no safe driving support/);
@@ -87,3 +87,6 @@ const numbered=JSON.parse(run('/quest status'));
 assert.deepEqual(numbered.active.map(q=>q.number),[1,2]);
 assert.deepEqual(numbered.hails.map(q=>q.number),[1,2]);
 console.log('PASS quest status labels current request and hailer ordering with the same one-based selectors.');
+
+assert.match(main,/commandHelpers:debugCommandHelpers/,'production InitDebug hooks receive the bounded command actions');
+console.log('PASS command actions require no local-only window.__dbg, and retain the production hook connection.');

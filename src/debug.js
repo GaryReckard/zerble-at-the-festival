@@ -558,7 +558,7 @@ function inspectCommand(kind) {
   const h=state.hooks;
   if(kind==='world')return commandStatus();
   if(['physics','map','upgrades'].includes(kind)){
-    const dbg=window.__dbg,method={physics:'physics',map:'festivalMap',upgrades:'upgrades'}[kind];
+    const dbg=h.commandHelpers,method={physics:'physics',map:'festivalMap',upgrades:'upgrades'}[kind];
     return dbg?.[method]?JSON.stringify(dbg[method](),null,2):'Inspection helpers are not ready.';
   }
   if(kind==='people')return JSON.stringify(h.people.inspect(),null,2);
@@ -622,13 +622,13 @@ function getCommandController() {
     seed:()=>`Seed ${getSessionSeed()}`,
     status:commandStatus,inspect:inspectCommand,
     summon:kind=>{
-      const dbg=window.__dbg;
+      const dbg=h().commandHelpers;
       if(!dbg)return 'Encounter helpers are not ready.';
       const spawned=kind==='wagon'?dbg.summonNutWagon():dbg.summonOneWheel();
       return spawned?`${kind==='wagon'?'Nut Wagon':'One-wheel rider'} summoned nearby.`:'Could not summon: encounter capacity, placement or safe-route requirements were not met.';
     },
     quest:(verb,kind)=>{
-      const dbg=window.__dbg;
+      const dbg=h().commandHelpers;
       if(!dbg)return 'Passenger helpers are not ready.';
       if(verb==='status'){
         const z=h().zerble;
