@@ -560,6 +560,8 @@ body .title-links {
 body #title-card .title-links .title-link {
   position:relative;
   display:block;
+  text-decoration:none;
+  min-height:44px;
   width:auto;
   padding:6px clamp(8px,1.1cqw,14px);
   background:var(--panel);
@@ -617,6 +619,17 @@ body .title-link:nth-child(4)::after {
 body #title-card .title-links .title-link:hover {
   background:var(--cream);
   color:var(--night)
+}
+
+@media(max-width:700px) {
+  body #title-card .title-links .time-machine-link {
+    position:fixed;
+    top:auto;
+    right:max(12px,env(safe-area-inset-right));
+    bottom:max(12px,env(safe-area-inset-bottom));
+    display:flex;
+    align-items:center
+  }
 }
 
 body .title-link.has-unread {

@@ -1,0 +1,88 @@
+name: Prepare and publish Time Machine
+
+on:
+  workflow_call:
+    inputs:
+      source_ref:
+        description: Source commit or tag, or milestones for the complete curated history
+        required: false
+        default: milestones
+        type: string
+
+concurrency:
+  group: zerble-archive-publication
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    # This reusable workflow runs in the archive repository, never the live repo.
+    if: github.repository == 'GaryReckard/zerble-game-archive'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: GaryReckard/zerble-at-the-festival
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+          path: tools
+      - uses: actions/checkout@v4
+        with:
+          ref: site
+          persist-credentials: false
+          path: site
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+      - name: Install the trusted archive toolchain
+        working-directory: tools
+        run: npm ci --ignore-scripts
+      - name: Verify archive isolation contracts
+        working-directory: tools
+        run: node bin/test-time-machine.mjs
+      - name: Prepare complete snapshots and timeline
+        working-directory: tools
+        env:
+          ARCHIVE_REF: ${{ inputs.source_ref }}
+        run: |
+          if [ "$ARCHIVE_REF" = milestones ]; then
+            node bin/time-machine.mjs --output ../site --milestones
+          else
+            node bin/time-machine.mjs --output ../site --ref "$ARCHIVE_REF"
+          fi
+      - name: Retain immutable archive output
+        id: retain
+        working-directory: site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publish Time Machine snapshots'
+            git -c credential.helper='!gh auth git-credential' push origin HEAD:site
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Stage public files only
+        if: steps.retain.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        run: rsync -a --exclude=.git site/ publish/
+      - uses: actions/configure-pages@v5
+        if: steps.retain.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.retain.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        with:
+          path: publish
+      - uses: actions/deploy-pages@v4
+        if: steps.retain.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        id: deployment

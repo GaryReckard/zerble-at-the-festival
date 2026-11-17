@@ -25,6 +25,7 @@
       document.head.appendChild(s);
       window.dataLayer = window.dataLayer || [];
       window.gtag = function () { window.dataLayer.push(arguments); };
+      window.gtag('set', { game_version: '__ZERBLE_GAME_VERSION__', game_channel: 'live' });
       window.gtag('js', new Date());
       window.gtag('config', 'G-CY1FNMY8H8');
     })();
@@ -51,14 +52,14 @@
        the GitHub Pages deploy; a dedicated opaque ~1200x630 landscape share image
        is follow-up polish (assets/zerble.png is a near-square stopgap). -->
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://garyreckard.github.io/zerble-at-the-festival/" />
+  <meta property="og:url" content="https://game.zerble.net/" />
   <meta property="og:title" content="Zerble at the Festival — A Bubble Adventure" />
   <meta property="og:description" content="Drive a mustachioed cart through a procedural festival. Bring the bubbles, collect the smiles." />
-  <meta property="og:image" content="https://garyreckard.github.io/zerble-at-the-festival/assets/zerble.png" />
+  <meta property="og:image" content="https://game.zerble.net/assets/zerble.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Zerble at the Festival" />
   <meta name="twitter:description" content="Bring the bubbles, collect the smiles." />
-  <meta name="twitter:image" content="https://garyreckard.github.io/zerble-at-the-festival/assets/zerble.png" />
+  <meta name="twitter:image" content="https://game.zerble.net/assets/zerble.png" />
   <!-- Self-host the Lantern Night typefaces without third-party font requests. -->
   <link rel="preload" href="assets/fonts/caprasimo-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="assets/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin />
@@ -220,6 +221,7 @@
           <button id="passport-open-title" class="title-link" type="button" aria-label="Open Festival Passport" disabled>Festival passport</button>
           <button id="upgrades-open-title" class="title-link" type="button" aria-label="Open bubble upgrades" disabled>Bubble upgrades</button>
           <button id="board-open-title" class="title-link" type="button" aria-label="View the leaderboard">Leaderboard</button>
+          <a class="title-link time-machine-link" href="https://game-archive.zerble.net/">Time Machine</a>
         </nav>
       </div>
 

@@ -24,6 +24,8 @@ Keep unresolved acceptance separate from shipped implementation.
 
 ## Task guides
 
+- [Time Machine](time-machine.md): historical snapshots, milestone tags, manual publishing, fresh sessions, GA4 version reporting and DNS.
+
 - [Development and deployment](toolchain.md): Vite commands, dependency aliases, captures, build checks and GitHub Pages.
 
 - [Performance lab](performance-lab.md): verified reserved-Mac scenarios, calibrated comparisons, ownership and operating skill.

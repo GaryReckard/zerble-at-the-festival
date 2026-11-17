@@ -2,9 +2,11 @@ import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { cpSync, copyFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { captureMiddleware } from './tooling/capture.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
+const gameVersion = (process.env.GITHUB_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()).slice(0, 12);
 export const pages = ['index.html', 'sandbox.html', 'hub-sandbox.html',
   'physical-sandbox.html', 'player-driving.html', 'terrain-sandbox.html', 'map-sandbox.html', 'menu-preview.html', 'passport-preview.html', 'festival-map-preview.html'];
 const staticFiles = ['favicon.ico', 'favicon.svg', 'favicon-96x96.png',
@@ -43,7 +45,8 @@ export default defineConfig({
       handler(html) {
         // Manifest icon URLs are relative to the manifest, so keep it at the
         // site root alongside its icons rather than relocating it to assets/.
-        return html.replace(/(<link\s+rel="manifest"\s+href=")[^"]+/, '$1./site.webmanifest');
+        return html.replaceAll('__ZERBLE_GAME_VERSION__', gameVersion)
+          .replace(/(<link\s+rel="manifest"\s+href=")[^"]+/, '$1./site.webmanifest');
       },
     },
     configureServer(server) { server.middlewares.use(captureMiddleware(root)); },

@@ -8,7 +8,9 @@
 
 Drive a smiling, mustachioed golf cart through a procedural festival. Trail bubbles past dancing crowds, drum circles, food trucks, brass bands, and giant puppet parades. Collect smiles. Don't run over the kids.
 
-**▶ Play it live: <https://garyreckard.github.io/zerble-at-the-festival/>**
+**▶ Play it live: <https://game.zerble.net/>**
+
+Visit the [Time Machine](https://game-archive.zerble.net/) to play earlier chapters. Archived games start fresh whenever you leave or reload.
 
 ## Premise
 
@@ -72,7 +74,7 @@ Settings → Accessibility lets you hide the minimap or reset this festival’s 
 
 ## Play it
 
-Play in a modern browser: <https://garyreckard.github.io/zerble-at-the-festival/>. Players do not need to install anything.
+Play in a modern browser: <https://game.zerble.net/>. Players do not need to install anything.
 
 To play from a local checkout, install Node.js 24 and run:
 

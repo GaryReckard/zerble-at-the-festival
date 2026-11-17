@@ -1,0 +1,24 @@
+name: Publish Time Machine
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Source commit or tag, or milestones to publish the curated history and milestone tags
+        required: true
+        default: milestones
+        type: string
+  schedule:
+    # Discover new time-machine/* tags without a cross-repository access token.
+    - cron: '17,47 * * * *'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  publish:
+    uses: GaryReckard/zerble-at-the-festival/.github/workflows/archive.yml@main
+    with:
+      source_ref: ${{ inputs.source_ref || 'milestones' }}

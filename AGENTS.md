@@ -8,7 +8,7 @@ read only the references relevant to the task.
 ## Project and documentation
 
 Zerble is a browser game using plain ES modules, Vite, pinned Three.js,
-and synthesized Web Audio. The [live GitHub Pages deployment](https://garyreckard.github.io/zerble-at-the-festival/)
+and synthesized Web Audio. The [live GitHub Pages deployment](https://game.zerble.net/)
 has real players; analytics calls go through `src/analytics.js`.
 
 | Need | Authoritative reference |

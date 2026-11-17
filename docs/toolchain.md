@@ -74,6 +74,8 @@ Vite continue to serve their original source. Use Vite for ordinary iteration.
 
 ## GitHub Pages
 
+The live game uses `game.zerble.net`. Its title links to the [Time Machine](time-machine.md), whose timeline and snapshots deploy independently at `game-archive.zerble.net`. See that guide for tag/manual publishing, ephemeral archive storage and version-labeled GA4 reporting.
+
 `.github/workflows/pages.yml` runs `npm ci`, `npm run check` and `npm run build`, plus HTTP integration checks,
 on pull requests and pushes to `main`. Successful `main` builds upload only
 `dist/` and deploy through the official Pages actions. Pull requests have read

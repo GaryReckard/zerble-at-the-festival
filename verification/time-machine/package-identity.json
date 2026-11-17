@@ -1,0 +1,98 @@
+[
+  {
+    "source": "7eb3437edf596fa2679e80c190f6bf38cda6ab1f",
+    "browserQualifiedPackage": "7eb3437edf596fa2679e80c190f6bf38cda6ab1f-7781f9486b16",
+    "publicationPackage": "7eb3437edf596fa2679e80c190f6bf38cda6ab1f-11d1fbcbd442",
+    "publicationChecksum": "caa715b6ec75f88d8f9890815d7d1cd02d1ae7e363982ee23694b2d5dccf5a9e",
+    "runtimeAssetsIdentical": true,
+    "htmlChange": "Move UTF-8 declaration before the synchronous policy; game scripts and styles unchanged."
+  },
+  {
+    "source": "f0c763a5ad5c141860f84a075fb289b50194d401",
+    "browserQualifiedPackage": "f0c763a5ad5c141860f84a075fb289b50194d401-7781f9486b16",
+    "publicationPackage": "f0c763a5ad5c141860f84a075fb289b50194d401-11d1fbcbd442",
+    "publicationChecksum": "c350b3eee68f0399ca3556b68b8add98b3371de5180d29499b56762fe815955b",
+    "runtimeAssetsIdentical": true,
+    "htmlChange": "Move UTF-8 declaration before the synchronous policy; game scripts and styles unchanged."
+  },
+  {
+    "source": "5a73bb38d8207b8ce8847b2b11eda649ad054f58",
+    "browserQualifiedPackage": "5a73bb38d8207b8ce8847b2b11eda649ad054f58-7781f9486b16",
+    "publicationPackage": "5a73bb38d8207b8ce8847b2b11eda649ad054f58-11d1fbcbd442",
+    "publicationChecksum": "52db5e322b7c0382f75ea74c183d1f911757d9947e9dc846e8a5fdadb8f34a93",
+    "runtimeAssetsIdentical": true,
+    "htmlChange": "Move UTF-8 declaration before the synchronous policy; game scripts and styles unchanged."
+  },
+  {
+    "source": "f7e7bc97b932bdf07832c6c92f7fb3d25b9cc791",
+    "browserQualifiedPackage": "f7e7bc97b932bdf07832c6c92f7fb3d25b9cc791-7781f9486b16",
+    "publicationPackage": "f7e7bc97b932bdf07832c6c92f7fb3d25b9cc791-11d1fbcbd442",
+    "publicationChecksum": "bf3b2f7292f5646fbb5290dfc968d97ab311855800b67dc7737267651e616462",
+    "runtimeAssetsIdentical": true,
+    "htmlChange": "Move UTF-8 declaration before the synchronous policy; game scripts and styles unchanged."
+  },
+  {
+    "source": "d680786866b165086d2fd8abae1bc7a809006a4f",
+    "browserQualifiedPackage": "d680786866b165086d2fd8abae1bc7a809006a4f-7781f9486b16",
+    "publicationPackage": "d680786866b165086d2fd8abae1bc7a809006a4f-11d1fbcbd442",
+    "publicationChecksum": "a9514bada887dae36948e73ba4b22834d0cebab75d9718bffbef58e3e24e3a93",
+    "runtimeAssetsIdentical": true,
+    "htmlChange": "Move UTF-8 declaration before the synchronous policy; game scripts and styles unchanged."
+  },
+  {
+    "source": "8a15434656b282fadf0b7a334c40f54ee55f2e26",
+    "browserQualifiedPackage": "8a15434656b282fadf0b7a334c40f54ee55f2e26-7781f9486b16",
+    "publicationPackage": "8a15434656b282fadf0b7a334c40f54ee55f2e26-11d1fbcbd442",
+    "publicationChecksum": "1ae9817d45649ef5c0a0f6250d47f9133699273d6060bb70722429b3bf390bb4",
+    "runtimeAssetsIdentical": true,
+    "htmlChange": "Move UTF-8 declaration before the synchronous policy; game scripts and styles unchanged."
+  },
+  {
+    "source": "9eaf2e5d73419f7c926c11ab06882f007b2bf1e4",
+    "browserQualifiedPackage": "9eaf2e5d73419f7c926c11ab06882f007b2bf1e4-7781f9486b16",
+    "publicationPackage": "9eaf2e5d73419f7c926c11ab06882f007b2bf1e4-11d1fbcbd442",
+    "publicationChecksum": "69765c3658522a2c27f48b2879c85c85b42827d962be635e8ef38efae8d61073",
+    "runtimeAssetsIdentical": true,
+    "htmlChange": "Move UTF-8 declaration before the synchronous policy; game scripts and styles unchanged."
+  },
+  {
+    "source": "5ef3df22e4345e71e09fe9bb01da9e8261e82801",
+    "browserQualifiedPackage": "5ef3df22e4345e71e09fe9bb01da9e8261e82801-7781f9486b16",
+    "publicationPackage": "5ef3df22e4345e71e09fe9bb01da9e8261e82801-11d1fbcbd442",
+    "publicationChecksum": "3f2edf2d6df8985b6e18d3e0a2b2401f348d5958507c62cedf6f54398b69e091",
+    "runtimeAssetsIdentical": true,
+    "htmlChange": "Move UTF-8 declaration before the synchronous policy; game scripts and styles unchanged."
+  },
+  {
+    "source": "7e7fd38eef4667e67802191a9df3acd43697ebfa",
+    "browserQualifiedPackage": "7e7fd38eef4667e67802191a9df3acd43697ebfa-7781f9486b16",
+    "publicationPackage": "7e7fd38eef4667e67802191a9df3acd43697ebfa-11d1fbcbd442",
+    "publicationChecksum": "66cb36e3c3169824119cc73c381b3152403c2e282a0fa4d51c9873d93de5c3f2",
+    "runtimeAssetsIdentical": true,
+    "htmlChange": "Move UTF-8 declaration before the synchronous policy; game scripts and styles unchanged."
+  },
+  {
+    "source": "c8ce9a199221f55a704fc0da7ce98a805a8f3a83",
+    "browserQualifiedPackage": "c8ce9a199221f55a704fc0da7ce98a805a8f3a83-7781f9486b16",
+    "publicationPackage": "c8ce9a199221f55a704fc0da7ce98a805a8f3a83-11d1fbcbd442",
+    "publicationChecksum": "61a31efd5e7b4401097ef178726e699356926dba252eee178fcccdfd6cf7b4f0",
+    "runtimeAssetsIdentical": true,
+    "htmlChange": "Move UTF-8 declaration before the synchronous policy; game scripts and styles unchanged."
+  },
+  {
+    "source": "93228887a6d0c615661fae170741004fa0715522",
+    "browserQualifiedPackage": "93228887a6d0c615661fae170741004fa0715522-7781f9486b16",
+    "publicationPackage": "93228887a6d0c615661fae170741004fa0715522-11d1fbcbd442",
+    "publicationChecksum": "465d8147e97543859d401757a1a2c9e9c4fbb6ab077c8ee85305bb60ab97305d",
+    "runtimeAssetsIdentical": true,
+    "htmlChange": "Move UTF-8 declaration before the synchronous policy; game scripts and styles unchanged."
+  },
+  {
+    "source": "380cf22f7654b222c4974451f2a80957a7429073",
+    "browserQualifiedPackage": "380cf22f7654b222c4974451f2a80957a7429073-7781f9486b16",
+    "publicationPackage": "380cf22f7654b222c4974451f2a80957a7429073-11d1fbcbd442",
+    "publicationChecksum": "ef1401ca734793a7663c7826230bce4e098e85f872371b9a873757bf8892cdc8",
+    "runtimeAssetsIdentical": true,
+    "htmlChange": "Move UTF-8 declaration before the synchronous policy; game scripts and styles unchanged."
+  }
+]
