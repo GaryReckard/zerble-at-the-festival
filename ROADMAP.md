@@ -16,6 +16,19 @@ reproduction lead, not proof that the current build still has the problem.
 
 ## Physical driving acceptance
 
+- **Dedicated brake and parking behavior.** Add an unambiguous way to stop for
+  passengers without requesting reverse. The service brake should decelerate in
+  either direction and hold ordinary hills through finite tire/contact forces,
+  while allowing sliding when grip is insufficient and preserving airborne
+  motion. Gary approved Space to brake, E to honk, Shift to boost, R to toggle
+  parking and Ctrl for precision driving; replace touch Slow with Brake and offer
+  a separate Park toggle. Parking releases on fresh forward/reverse throttle,
+  requiring neutral first if throttle was held when parking engaged. Parking
+  engages only near a supported stop, retains physical grip limits and permits
+  explicit release. Implementation and hill/boarding/device verification remain.
+  Gary approved implementation November 17, 2026; see
+  [the braking design and source evidence](docs/backlog/ordinary-visit.md#stopping-zerble).
+
 - **Cornhole device feel and play balance.** Desktop native and sandbox checks cover one-tire board contact, full NPC games, retrieval and vacancies. Check incidental board feel and naturally observed busy/idle balance on a physical device; the seeded example and scheduling intent do not establish actual occupancy. [Evidence](verification/cornhole/README.md).
 
 - **Handling, water and damage on physical devices.** The physical player, surface response, damage and submersion paths have deterministic and desktop evidence in [the driving verification record](verification/driving/2026-11-02/README.md). Verify iPhone/iPad controls, iOS engine audio, frame delivery, rollover recovery and unprompted handling/terrain recognition; tune against those observations. Capture allocation spikes and compare graphics budgets against a reproducible baseline.
@@ -241,6 +254,81 @@ harness history, tier contract and acceptance criteria.
 
 The [gameplay design backlog](docs/backlog/gameplay.md) preserves the full
 mechanics, tradeoffs, dependencies and original proposals.
+
+### First passenger vignette: a lift to a friend's set
+
+The [ordinary-visit design record](docs/backlog/ordinary-visit.md) preserves the
+broader Locke-inspired direction, feasibility assessment and exploratory brake
+and on-foot participation ideas. The actionable vignette summary follows.
+
+**Design direction, recorded November 17, 2026.** Compose an optional first-visit
+experience around an ordinary passenger asking for a lift to hear a friend's band.
+The player makes someone smile, notices a readable invitation, shares a short
+journey, brings the passenger to a gathering and can stay for the music or continue
+exploring. Aim for a satisfying five-to-ten-minute visit without a mandatory
+sequence, countdown or guaranteed unlock. Ignoring the invitation must leave
+ordinary play available.
+
+Reuse the existing [passenger dialogue and tuning](src/quests/catalog.js),
+[destination selection](src/quests/pick.js),
+[arrival handling](src/quests/runtime.js),
+[song-end/audience hooks](src/sound.js) and [Passport Ride log](docs/passport.md#ride-log).
+These are integration points, not evidence that this composed experience exists.
+
+Remaining work:
+
+- **Choose a good invitation.** Favor one visible, ordinary stage-bound request
+  for a new player's introduction when a suitable person and destination exist.
+  Fall back gracefully otherwise, avoid competing introductory hails, and leave
+  breathing room after delivery. Do not force boarding or redirect a player who
+  chooses another activity.
+- **Choose a pleasant journey.** Check usable approach and stopping space,
+  terrain and obstacles rather than treating straight-line distance as travel
+  difficulty. Inspect the first-drive bubble reaction and passenger readability
+  at real chase-camera and phone scale. Do not silently alter seeded layouts.
+- **Connect the story.** Give the request, in-ride remarks, thanks and visible
+  departure a coherent authored variant, ending in a supported venue behavior.
+  Let the player enjoy the existing band and audience response without promising
+  a timed encore, a new crowd migration or a fabricated performance schedule.
+- **Remember the visit.** Extend the bounded Ride log with a stable vignette
+  identifier and a human-readable memory such as a lift to a friend's set,
+  preserving existing saves and storage-failure behavior. No named recurring
+  character or cross-device persistence is required.
+- **Verify the whole experience.** Exercise absent/unsuitable destinations,
+  ignored invitations, interrupted rides, streaming/unload and save migration in
+  deterministic checks; observe the real-game journey and arrival on desktop and
+  phone. With an uncoached player, check whether they notice the invitation,
+  understand the trip, recognize the passenger's arrival and choose what to do
+  afterward. Do not claim success from a scripted completion alone.
+
+This section records future work, not an implementation or scheduling approval.
+Keep the [current performance gate](#performance) and existing passenger/device
+acceptance in force; measure any added selection work and simulation cost.
+
+### On-foot festival participation as Gary
+
+**Exploration direction, recorded November 17, 2026.** Gary wants the ability to
+switch from driving Zerble to controlling the person, with substantial planning
+before implementation. The purpose is to join the festival after arriving:
+use a porta-potty, lie in a hammock, sit in a camping chair, get a cooler drink,
+play cornhole or frisbee, hula hoop, dance, clap, do yoga or potentially shop.
+This is an activity wishlist, not evidence that NPC behaviors are already usable
+by the player or a commitment to deliver them all together.
+
+Design explicit driving, walking and activity states, with appropriate input,
+camera and interaction choices. Passenger quests cannot simply keep behaving as
+though the player is driving: decide departure eligibility, passenger handling,
+quest clocks and resumption, as well as Festival Run consequences. Recommend
+nearby-object highlighting and a deliberate contextual action, with a short choice
+when several actions are available; proximity alone should not make Gary sit,
+buy, take a drink or join a game. Exact controls and UI remain undecided.
+
+Plan safe exits/re-entry, physical parking, parked-cart persistence and streaming,
+occupied/blocked objects, shared NPC/player resource ownership and cancellation.
+Prove park, exit, one meaningful activity and return before expanding the roster.
+Joining a stage audience to dance/clap after a delivery is the recommended first
+scene, not a selected implementation requirement. See the
+[on-foot design, activity wishlist and open decisions](docs/backlog/ordinary-visit.md#stepping-out-as-gary).
 
 ---
 

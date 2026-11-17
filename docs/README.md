@@ -61,6 +61,7 @@ parallel roadmaps or automatic implementation requests.
 | --- | --- |
 | [Festival Run acceptance](backlog/festival-run.md) | Tuning, leaderboard operations, device checks and unresolved human decisions |
 | [Gameplay designs](backlog/gameplay.md) | Passenger quests, activities, juice economy and prop physics; passenger quests have an [integration and acceptance record](../openspec/changes/passenger-quests/README.md) |
+| [An ordinary visit worth remembering](backlog/ordinary-visit.md) | Locke-inspired design direction, first passenger vignette, practical extensions, and exploratory braking/on-foot participation |
 | [Physical festival plan](../openspec/changes/physical-festival/README.md) | Chairs and occupants, cooler, drinks, useful damageable signs, implementation tasks and verification; standalone engine proof and opt-in live empty-chair encounter implemented, full integration and device acceptance pending |
 | [Festival map plan](backlog/festival-map.md) | Map design and decisions; [active implementation](../openspec/changes/festival-map/README.md) and [verification](../verification/festival-map/README.md) track acceptance |
 | [Festival layout](backlog/festival-layout.md) | Original plan/build diagnosis, delivered slices and remaining acceptance |
