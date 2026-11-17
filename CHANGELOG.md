@@ -5,6 +5,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-11-17
 
 ### Changed
+- **The start prompt names the actual choice.** Replaced “Pick a lantern to start” with “Choose a mode to start” above the two game modes.
 - **The title’s twelve colored bulbs now glow in a gentle traveling pattern.** Registered CSS lights to the original logo artwork so their centers stay aligned at every size, with soft bloom, staggered brightening, and a steady glow under Reduced Motion. Lowered the large-screen marquee slightly into the open sky; its animation pauses when the title closes.
 - **The desktop title fills more of the open sky.** Enlarged the Zerble marquee on large screens while reserving room for the hanging navigation, and removed the inherited top margin that left “How to play” below its neighboring menu items. Compact layouts retain their existing logo sizing.
 - **The Time Machine gives each chapter more breathing room.** Removed the repeated “Bring the bubbles, collect the memories” text beside every entry, leaving the chapter numbers alongside the road.
