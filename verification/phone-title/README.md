@@ -5,14 +5,17 @@
 Gary reported that rotating a fresh load of the published game into landscape
 on an iPhone 14 Pro Max/iOS 26.6.1 briefly showed a cramped title, followed by
 Safari's repeated-problem error. Both a Safari tab and a Home Screen launch were
-affected. The title-only comparison page also crashed once, then remained stable
-after reloading. Its persistent “Pressurizing the bubble tank” text is intentional:
+affected. Gary initially described a crash/reload on the title-only comparison
+page, then clarified that the fast transition only seemed like a reboot and he
+was unsure whether it crashed. It subsequently appeared stable. Record this as
+a possible brief reload, not a confirmed title-only crash. Its persistent
+“Pressurizing the bubble tank” text is intentional:
 `menu-preview.html?screen=loading&mute=1` holds that state without starting a world.
 
-This demonstrates that the 3D game is not required to trigger the reported
-failure. It does not identify the browser crash mechanism. Cold-start decoding
-or compositing pressure is a hypothesis, not a confirmed Safari crash diagnosis.
-No physical-device crash log was available.
+The comparison does not isolate the failing component: 3D startup/rendering
+remains a candidate alongside the title. Cold-start decoding or compositing
+pressure is a hypothesis, not a confirmed Safari crash diagnosis. No physical
+device crash log was available.
 
 ## Delivered changes
 
@@ -57,7 +60,8 @@ The revised local page was inspected in that native Safari. The
 
 Device Hub's window became unavailable during the subsequent rotation attempt,
 so that attempt is **not** recorded as a passed rotation test or as a Safari
-crash. The task-owned iPhone simulator was shut down. The pre-existing TV
+crash. Gary subsequently reported that the Mac had slept, which may explain the
+window interruption. The task-owned iPhone simulator was shut down. The pre-existing TV
 simulator was left running and no TV controls were operated.
 
 The Vite session also logged one module-import failure during live edits before

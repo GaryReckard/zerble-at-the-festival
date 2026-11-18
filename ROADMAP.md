@@ -223,8 +223,8 @@ harness history, tier contract and acceptance criteria.
 ## Touch / UX
 
 - **iPhone cold-load rotation crash: physical acceptance.** Gary reported Safari
-  and Home Screen crashes on iPhone 14 Pro Max/iOS 26.6.1, with one crash followed
-  by a stable reload on the title-only comparison page. A lighter touch title
+  and Home Screen crashes on iPhone 14 Pro Max/iOS 26.6.1, with a possible brief
+  reload on the title-only page that Gary later clarified is unconfirmed. A lighter touch title
   and full-width compact mode layout are implemented. Confirm a fresh main-page
   portrait-to-landscape load and playable mode entry on that phone before calling
   the crash fixed. [Native simulator evidence and limits](verification/phone-title/README.md).
