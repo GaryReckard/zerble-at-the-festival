@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-11-18
+
+### Changed
+- **A lighter touch title and a roomier phone menu.** Touch devices select the four original artwork layers without the four large extension images, masks, background motion or plume sprites. Short landscape screens now give mode selection the available width and put secondary actions in a native Menu disclosure. This responds to a physical iPhone 14 Pro Max/iOS 26.6.1 rotation crash, including an intermittent crash on the title-only comparison page. Native iOS 27.2 simulator evidence confirms the lighter path; it does not establish that the physical-device crash is fixed. [Evidence and remaining acceptance](verification/phone-title/README.md).
+
 ## 2026-11-17
 
 ### Added

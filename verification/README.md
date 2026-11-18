@@ -19,6 +19,8 @@ not physical-device acceptance.
 
 ## Interface
 
+- [Touch title and iPhone rotation, November 18](phone-title/README.md): physical failure report, title-only isolation, native Safari asset/mask evidence, compact mode layout and unresolved exact-device stability.
+
 - [iPad title header, November 17](ipad-title/README.md): reproduced logo/menu overlap, reserved header width, wrapping navigation, short-phone focus/scroll correction and fourteen-size browser bounds.
 
 - [Focused touch controls, November 17](touch-controls/README.md): bounded Astra plan review, floating-stick ownership, paused menu navigation, camera-return contracts, combined map layout, compact passenger sidebar and physical-phone limits.

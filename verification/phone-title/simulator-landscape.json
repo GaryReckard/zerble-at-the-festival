@@ -1,0 +1,113 @@
+{
+  "viewport": [
+    832,
+    376
+  ],
+  "coarse": true,
+  "logo": {
+    "x": 12,
+    "y": 8,
+    "width": 180,
+    "height": 60,
+    "top": 8,
+    "right": 192,
+    "bottom": 68,
+    "left": 12
+  },
+  "primary": {
+    "x": 12,
+    "y": 76,
+    "width": 808,
+    "height": 280,
+    "top": 76,
+    "right": 820,
+    "bottom": 356,
+    "left": 12
+  },
+  "menu": {
+    "x": 744,
+    "y": 10,
+    "width": 76,
+    "height": 44,
+    "top": 10,
+    "right": 820,
+    "bottom": 54,
+    "left": 744
+  },
+  "navigationOpen": false,
+  "layers": [
+    {
+      "extension": true,
+      "source": "inline-placeholder",
+      "width": 1,
+      "height": 1,
+      "display": "none",
+      "mask": "unused (element hidden)",
+      "animation": "none"
+    },
+    {
+      "extension": false,
+      "source": "/assets/title-screen/layer-sky.webp",
+      "width": 1672,
+      "height": 941,
+      "display": "block",
+      "mask": "none",
+      "animation": "none"
+    },
+    {
+      "extension": true,
+      "source": "inline-placeholder",
+      "width": 1,
+      "height": 1,
+      "display": "none",
+      "mask": "unused (element hidden)",
+      "animation": "none"
+    },
+    {
+      "extension": false,
+      "source": "/assets/title-screen/layer-mountains.webp",
+      "width": 1672,
+      "height": 941,
+      "display": "block",
+      "mask": "none",
+      "animation": "none"
+    },
+    {
+      "extension": true,
+      "source": "inline-placeholder",
+      "width": 1,
+      "height": 1,
+      "display": "none",
+      "mask": "unused (element hidden)",
+      "animation": "none"
+    },
+    {
+      "extension": false,
+      "source": "/assets/title-screen/layer-festival.webp",
+      "width": 1672,
+      "height": 941,
+      "display": "block",
+      "mask": "none",
+      "animation": "none"
+    },
+    {
+      "extension": true,
+      "source": "inline-placeholder",
+      "width": 1,
+      "height": 1,
+      "display": "none",
+      "mask": "unused (element hidden)",
+      "animation": "none"
+    },
+    {
+      "extension": false,
+      "source": "/assets/title-screen/layer-foreground.webp",
+      "width": 1672,
+      "height": 941,
+      "display": "block",
+      "mask": "none",
+      "animation": "none"
+    }
+  ],
+  "plume": 0
+}

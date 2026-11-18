@@ -10,6 +10,13 @@ browser console and call `window.__dbg.help()`.
 
 ## Quick start
 
+For title-only isolation, `menu-preview.html?screen=loading&mute=1` deliberately
+holds the loading state and never starts the 3D game. Its loading text is not a
+startup hang. On localhost only, add `titleProbe=1` to save measured title DOM,
+selected image sources, mask/animation state and viewport geometry through the
+existing `/__capture/title-phone` endpoint. The native iOS simulator can use the
+same loopback server; the probe is disabled on the published site.
+
 Run these from the repository root:
 
 ```sh

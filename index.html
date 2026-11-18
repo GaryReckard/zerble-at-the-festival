@@ -163,20 +163,20 @@
   <div id="title-card">
     <div id="title-stage">
       <div class="title-layer title-sky">
-        <img class="title-extension" src="assets/title-screen/layer-sky-extended.webp" alt="" />
+        <picture><source media="(pointer: coarse)" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" /><img class="title-extension" src="assets/title-screen/layer-sky-extended.webp" alt="" /></picture>
         <img class="title-original" src="assets/title-screen/layer-sky.webp" alt="" fetchpriority="high" />
       </div>
       <div class="title-layer title-mountains">
-        <img class="title-extension" src="assets/title-screen/layer-mountains-extended.webp" alt="" />
+        <picture><source media="(pointer: coarse)" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" /><img class="title-extension" src="assets/title-screen/layer-mountains-extended.webp" alt="" /></picture>
         <img class="title-original" src="assets/title-screen/layer-mountains.webp" alt="" fetchpriority="high" />
       </div>
       <div class="title-layer title-festival">
-        <img class="title-extension" src="assets/title-screen/layer-festival-extended.webp" alt="" />
+        <picture><source media="(pointer: coarse)" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" /><img class="title-extension" src="assets/title-screen/layer-festival-extended.webp" alt="" /></picture>
         <img class="title-original" src="assets/title-screen/layer-festival.webp" alt="" />
       </div>
       <div id="title-bubbles" aria-hidden="true"></div>
       <div class="title-layer title-foreground">
-        <img class="title-extension" src="assets/title-screen/layer-foreground-extended.webp" alt="" />
+        <picture><source media="(pointer: coarse)" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" /><img class="title-extension" src="assets/title-screen/layer-foreground-extended.webp" alt="" /></picture>
         <img class="title-original" src="assets/title-screen/layer-foreground.webp" alt="" />
       </div>
       <h1 class="title-sr-only">Zerble at the Festival</h1>
@@ -231,6 +231,7 @@
         <div class="title-status"><span id="boot-copy" role="status" aria-live="polite">Pressurizing the bubble tank…</span>
         <button id="boot-retry" type="button" hidden>Try loading again</button></div>
 
+        <details id="title-navigation"><summary class="title-menu-summary">Menu</summary>
         <nav class="title-links" aria-label="Menus">
           <button id="howto-open" class="title-link" type="button" aria-expanded="false" aria-controls="title-page-howto">How to play</button>
           <button id="settings-open-title" class="title-link" type="button" aria-label="Open settings" disabled>Settings</button>
@@ -239,6 +240,7 @@
           <button id="board-open-title" class="title-link" type="button" aria-label="View the leaderboard">Leaderboard</button>
           <a class="title-link time-machine-link" href="https://game-archive.zerble.net/">Time Machine</a>
         </nav>
+        </details>
       </div>
 
       <!-- The instructions sheet shares its content with the in-game Settings tab. -->

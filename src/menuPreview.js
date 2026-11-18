@@ -10,6 +10,34 @@ const [{ HUD }, { Settings }, { createPlayerStats }, { createPassportMenu }, { c
   import('./passportMenu.js'), import('./bubbleProgress.js'), import('./upgradesMenu.js'),
 ]);
 const flags = new URLSearchParams(location.search);
+// Local-only DOM evidence from native simulator Safari, whose content is not
+// exposed through the desktop browser connector. Existing capture middleware
+// owns the loopback write and its access checks. No probe runs on the live site.
+if (flags.has('titleProbe') && /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+  let timer;
+  const capture = () => {
+    const rect = selector => document.querySelector(selector)?.getBoundingClientRect().toJSON();
+    const report = {
+      viewport: [innerWidth, innerHeight], coarse: matchMedia('(pointer: coarse)').matches,
+      logo: rect('.title-marquee'), primary: rect('#title-page-main'),
+      menu: rect('.title-menu-summary'), navigationOpen: document.getElementById('title-navigation').open,
+      layers: [...document.querySelectorAll('.title-original,.title-extension')].map(el => ({
+        extension: el.classList.contains('title-extension'),
+        source: el.currentSrc.startsWith('data:') ? 'inline-placeholder' : new URL(el.currentSrc || el.src).pathname,
+        width: el.naturalWidth, height: el.naturalHeight,
+        display: getComputedStyle(el).display, mask: getComputedStyle(el).maskImage,
+        animation: getComputedStyle(el.parentElement.closest('.title-layer')).animationName,
+      })),
+      plume: document.querySelectorAll('.title-bubble').length,
+    };
+    fetch('/__capture/title-phone', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(report) }).catch(console.error);
+  };
+  const schedule = () => { clearTimeout(timer); timer = setTimeout(capture, 500); };
+  window.addEventListener('resize', schedule);
+  document.fonts.ready.then(schedule);
+  for (const img of document.querySelectorAll('.title-layer img')) img.addEventListener('load', schedule, {once:true});
+  window.addEventListener('pagehide', () => { clearTimeout(timer); window.removeEventListener('resize', schedule); }, {once:true});
+}
 const stats = createPlayerStats({ get: () => null, set: () => { if (flags.has('blocked')) throw Error('Fixture: storage unavailable'); } });
 stats.start({ entrance: { x: 0, z: 0 }, worldSeed: 1977 });
 stats.record('smiles', 243); stats.record('bubbles', 12840); stats.record('passengers', 8); stats.flush();
