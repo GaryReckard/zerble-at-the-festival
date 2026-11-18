@@ -222,12 +222,10 @@ harness history, tier contract and acceptance criteria.
 
 ## Touch / UX
 
-- **iPhone cold-load rotation crash: physical acceptance.** Gary reported Safari
-  and Home Screen crashes on iPhone 14 Pro Max/iOS 26.6.1, with a possible brief
-  reload on the title-only page that Gary later clarified is unconfirmed. A lighter touch title
-  and full-width compact mode layout are implemented. Confirm a fresh main-page
-  portrait-to-landscape load and playable mode entry on that phone before calling
-  the crash fixed. [Native simulator evidence and limits](verification/phone-title/README.md).
+- **iPhone startup follow-through.** Gary confirmed that the updated fresh Safari
+  link reaches playable driving after portrait-to-landscape rotation on iPhone
+  14 Pro Max/iOS 26.6.1. Home Screen launch, repeated cold rotations and longer
+  play remain unconfirmed. [Physical pass and remaining limits](verification/phone-title/README.md#physical-iphone-result-november-18).
 
 - **Title layout on physical Safari.** The iPad logo/menu overlap and short-phone
   title clipping have responsive-browser fixes and a fourteen-size bounds record.

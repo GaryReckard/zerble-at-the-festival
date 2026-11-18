@@ -91,6 +91,15 @@ checks establish integration and desktop behavior, not physical-phone stability.
 passed locally. Owned in-app browser tabs were closed and viewport overrides
 reset. The local server is stopped when the release checks finish.
 
-The physical iPhone crash remains an acceptance item until Gary can freshly
-load the updated main page, rotate it and enter a playable mode. Neither the
-newer simulator nor desktop checks can close that item.
+## Physical iPhone result, November 18
+
+Gary tested the published main-game link with `phoneCheck=a6b8386&mute=1` on the
+reported iPhone 14 Pro Max/iOS 26.6.1. Asked to open it fresh in portrait, rotate
+to landscape and try Just Cruisin', he confirmed: “It reaches playable driving.”
+This closes the initial physical Safari startup-sequence acceptance check through
+playable mode entry. The exact browser crash mechanism remains unidentified.
+
+This is one user-reported successful sequence. It does not establish repeated
+cold-rotation stability, a successful Home Screen launch, long-session performance
+or audio unlock, since the supplied test link was muted. Those observations
+must not be inferred from the pass.
