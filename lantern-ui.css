@@ -77,7 +77,9 @@ body :is(.settings-close,.upgrades-close,.passport-close,#howto-back,#boot-retry
 /* Original composition stays registered; painted extensions fill the overscan. */
 body #title-card {
   display:block;
-  overflow:hidden;
+  /* Clip the painting without making the entire title a scroll container.
+     Focusing a field must scroll its mode column, never displace the header. */
+  overflow:clip;
   padding:0;
   background:var(--night);
   backdrop-filter:none;
@@ -226,6 +228,7 @@ body #title-stage .title-logo {
 }
 
 body #title-ui {
+  --title-marquee-width:min(42cqw,720px,60cqh);
   position:absolute;
   inset:0;
   width:100%;
@@ -266,23 +269,25 @@ body .title-marquee {
   position:fixed;
   left:3cqw;
   top:2cqh;
-  width:min(42cqw,720px,60cqh);
+  width:var(--title-marquee-width);
   aspect-ratio:3;
   pointer-events:none
 }
 
 /* Tablet-width headers need room for both the logo and hanging navigation. */
 @media(min-width:901px) and (max-width:1199px) {
-  body .title-marquee {
-    width:min(clamp(180px,calc(100cqw - 740px),460px),60cqh)
+  body #title-ui {
+    --title-marquee-width:min(clamp(180px,calc(100cqw - 740px),460px),60cqh)
   }
 }
 
 /* Let the desktop marquee fill the open sky while reserving the menu row. */
 @media(min-width:1200px) and (min-height:501px) {
+  body #title-ui {
+    --title-marquee-width:min(48cqw,calc(100cqw - 880px),1400px,108cqh)
+  }
   body .title-marquee {
-    top:6cqh;
-    width:min(48cqw,calc(100cqw - 880px),1400px,108cqh)
+    top:6cqh
   }
 }
 
@@ -588,6 +593,19 @@ body .title-links {
   background:none;
   box-shadow:none;
   flex-wrap:nowrap
+}
+
+/* The six labels can exceed the old tablet menu allowance once fonts load.
+   Reserve the same logo width the marquee uses, then wrap inside the remaining
+   header space. Row gaps also leave room for each sign's hanging cord. */
+@media(min-width:701px) and (min-height:501px) {
+  body .title-links {
+    max-width:calc(93cqw - var(--title-marquee-width));
+    box-sizing:border-box;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+    row-gap:clamp(24px,4cqh,30px)
+  }
 }
 
 body #title-card .title-links .title-link {
@@ -2004,8 +2022,8 @@ body #title-bubbles {
     bottom:2vh
   }
 
-  body .title-marquee {
-    width:min(42cqw,720px,42cqh)
+  body #title-ui {
+    --title-marquee-width:min(42cqw,720px,42cqh)
   }
 
   body #title-card .title-links .title-link {
@@ -2052,6 +2070,27 @@ body #title-bubbles {
     margin-bottom:8px
   }
 
+}
+
+/* Short phones need a side-by-side menu/content layout. Keep the marquee
+   above the mode column, whose content can scroll instead of escaping the top. */
+@media(max-width:700px) and (max-height:500px) and (orientation:landscape) {
+  body .title-links {
+    left:52cqw;
+    right:2cqw;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+    row-gap:24px
+  }
+  body #title-page-main {
+    top:calc(2cqh + var(--title-marquee-width) / 3 + 10px);
+    min-height:0;
+    overflow-y:auto;
+    scrollbar-width:thin
+  }
+  body #title-page-main > :not(.title-marquee,.title-links) {
+    flex-shrink:0
+  }
 }
 
 @media(prefers-reduced-motion:reduce) {

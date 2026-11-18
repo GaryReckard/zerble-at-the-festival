@@ -222,6 +222,11 @@ harness history, tier contract and acceptance criteria.
 
 ## Touch / UX
 
+- **Title layout on physical Safari.** The iPad logo/menu overlap and short-phone
+  title clipping have responsive-browser fixes and a fourteen-size bounds record.
+  Confirm the refreshed title, rotation and name-field keyboard behavior on the
+  iPad/iPhone. [Evidence and limits](verification/ipad-title/README.md).
+
 - **Focused touch controls: phone acceptance.** The focused Brake/Honk/Boost
   layout, compact paused menu, forgiving floating stick and touch-only chase
   return are implemented. Verify physical-phone thumb reach, steering precision,

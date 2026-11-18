@@ -19,6 +19,8 @@ not physical-device acceptance.
 
 ## Interface
 
+- [iPad title header, November 17](ipad-title/README.md): reproduced logo/menu overlap, reserved header width, wrapping navigation, short-phone focus/scroll correction and fourteen-size browser bounds.
+
 - [Focused touch controls, November 17](touch-controls/README.md): bounded Astra plan review, floating-stick ownership, paused menu navigation, camera-return contracts, combined map layout, compact passenger sidebar and physical-phone limits.
 
 - [Braking and parking, November 17](braking/README.md): keyboard/touch controls, finite hill holding, fresh-throttle parking release, native slope/impact cases and physical-phone acceptance limits.
