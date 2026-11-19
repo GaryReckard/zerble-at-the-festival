@@ -328,6 +328,55 @@ play cornhole or frisbee, hula hoop, dance, clap, do yoga or potentially shop.
 This is an activity wishlist, not evidence that NPC behaviors are already usable
 by the player or a commitment to deliver them all together.
 
+**November 18 additions:** walking into a loose jug occupies one hand and slows
+Gary slightly; carrying two makes him noticeably encumbered. Returning to Zerble
+stows them under the seat and immediately refills Zerble. Cornhole and ordering
+food each need one free hand; two full hands block both. Plan explicit hand/item
+ownership, putting things down, the stow trigger and full-tank behavior, without a backpack menu or
+mandatory supply chores. Also explore first-person cornhole, with mouse aim plus
+hold/release and touch drag-to-aim plus a separate Throw control as prototype
+suggestions, not chosen bindings. See [hands and jug carrying](docs/backlog/ordinary-visit.md#hands-jugs-and-returning-to-zerble)
+and [first-person cornhole](docs/backlog/ordinary-visit.md#first-person-cornhole).
+
+Also explore on-foot smiles earned through interactions, plus a Minecraft-inspired
+emote menu with dance moves and potentially earned emotes. Learn moves as a
+surprise from relaxed participation, without a checklist or advertised unlocks.
+Gary also specifically wants to join Healing Arts yoga when a mat is available.
+Participation invitations, smile rewards, yoga's purpose and controls remain
+open conversation topics. See
+[human smiles and emotes](docs/backlog/ordinary-visit.md#human-smiles-and-emotes).
+
+Yoga can remain relaxed automatic participation, with optional pose selection.
+Consider a forgiving teacher-pose match with occasional smiles during the session,
+not a reward for every pose, without turning it into a yoga minigame. Gary endorsed
+subtle outlines; prototype them on nearby interaction
+targets as a discovery cue, including a single free mat rather than the whole
+tent or mat collection. Compare a six-slot moves wheel with a six-card tray on
+phone before selecting the picker. Mechanics and rendering remain exploratory. See
+[yoga participation](docs/backlog/ordinary-visit.md#yoga-participation-and-optional-matching)
+and [target highlighting](docs/backlog/ordinary-visit.md#highlighting-interaction-targets).
+The [menu comparison notes](docs/backlog/ordinary-visit.md#moves-menu-comparison)
+record the purpose and limits of the visual prototype. Gary's later visual
+direction is a translucent circular wheel emerging from Moves, without the
+rectangular container, with blur and restrained light bending. Explore leaving
+it open until closed or tapped outside; the earlier preview's dismissal on
+selection is not the new target behavior.
+
+**Tabled as separate projects, November 18:** develop walking, first-person
+cornhole and the moves picker piece by piece with careful iteration. An early
+candidate is a Gary modeling/rig session, followed by idle and looking-around
+motions, walking/running, then individual actions such as waving and throwing
+a sack. The rig/pipeline and exact sequence remain undecided. See
+[project boundaries and the movement foundation](docs/backlog/ordinary-visit.md#separate-projects-and-garys-movement-foundation).
+This records future work, not authorization to begin implementation.
+
+**Summoning Zerble is its own future project.** Gary endorsed Zerble as a little
+companion: Gary whistles, Zerble beeps back and comes to meet him. Explore a
+physical drive to a safe nearby pickup spot; passenger handling and getting
+stuck/recovery remain explicitly open. Keep this separate from the initial
+walking and modeling work. See
+[companion summoning and open decisions](docs/backlog/ordinary-visit.md#summoning-zerble-as-a-companion).
+
 Design explicit driving, walking and activity states, with appropriate input,
 camera and interaction choices. Passenger quests cannot simply keep behaving as
 though the player is driving: decide departure eligibility, passenger handling,

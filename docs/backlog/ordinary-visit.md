@@ -171,14 +171,283 @@ resource-release behavior appropriate for a human player.
 | Play frisbee | Choosing a partner, throwing/catching assistance, missed discs and leaving without stranding NPC participants. |
 | Hula hoop | Starting/stopping, animation and whether participation is expressive, skill-based or both. |
 | Dance and clap | Immediate expressive actions, optional music synchronization and compatibility with walking or seated states. |
-| Do yoga | Joining a suitable space, pose choice, session duration and a deliberate exit. |
+| Do yoga | Gary specifically wants to join yoga at the Healing Arts tent when a mat is available. Plan mat ownership, participation and a deliberate exit; the purpose/reward remains exploratory. |
 | Shop, potentially | What is sold, browsing/confirmation, whether purchases cost anything and whether there is a worthwhile reward or use. |
 
 Joining a drum circle and sitting at a campfire or picnic table are additional
 assistant suggestions. Repairs could later connect to stepping out, but should
 not become mandatory roadside chores.
 Avoid introducing hunger, inventories, fetch errands or a second progression
-economy merely to justify having a walking controller.
+economy merely to justify having a walking controller. The visible two-hand jug
+carrying below is a requested practical activity, not a reason to add a backpack
+menu or mandatory supply chores.
+
+### Hands, jugs and returning to Zerble
+
+**Gary's proposal, November 18, 2026:** walking into a loose juice jug picks it
+up and occupies one hand. One jug slows him a little; a second occupies the
+other hand and makes him noticeably encumbered. Returning to Zerble transfers
+the carried jugs under the seat and frees his hands. Full hands prevent actions
+that require hands, including playing cornhole or ordering food. These are
+requested design rules for the future walking mode, not implemented behavior.
+
+**Confirmed follow-up:** one free hand is sufficient for cornhole and ordering
+food, so Gary may do either while holding one jug. Stowing a jug immediately
+refills Zerble; it does not remain a separately stored supply item. The transfer
+trigger and behavior when the tank cannot accept all the juice still need design.
+Driving over a jug already collects/refills through Zerble; it never leaves Gary
+holding that jug after parking. Hand-carrying starts only with an on-foot pickup,
+followed by a return to the cart.
+
+This gives walking a useful small loop: park, step out, spot a jug, carry it
+back, tuck it away and rejoin the festival. The visible load explains the slower
+movement without a numerical weight meter. Keep this optional and ordinary;
+do not turn every drive into a supply run.
+
+Assistant recommendations for the design:
+
+- Track the two hands explicitly, including the particular objects they own.
+  A carried jug leaves the loose-pickup state once, stays visibly attached to
+  the appropriate hand and cannot simultaneously refill the cart or belong to
+  another actor. A full-handed collision must leave the extra jug available.
+- Show carrying through posture, gait and the jugs themselves. Tune one-jug
+  and two-jug speeds by feel; the proposed differences do not select numerical
+  speed multipliers, stamina loss or mandatory dropping on slopes.
+- Give actions a free-hand requirement and a plain availability explanation,
+  such as “Free a hand first.” Two full hands block cornhole and food ordering.
+  Cornhole and food ordering each require one free hand, as Gary confirmed.
+  Decide the requirements of other activities separately rather than treating
+  every activity alike.
+- Keep a deliberate way to put a jug down. Stowing at Zerble should be easy,
+  with clear feedback and no fiddly under-seat targeting. Decide whether the
+  transfer occurs on approach or re-entry and what happens at a full or nearly
+  full tank. Stowing refills immediately. Avoid double credit or silent juice loss.
+- Account for interruption, water/falls, occupied hand transfers, cart movement,
+  unloading and save/resume. Decide whether holding a jug blocks entry into
+  seated activities, or whether those activities offer an explicit stow action.
+
+Automatic loose-jug collection is an explicit exception to the general
+deliberate-interaction rule below. Approaching a chair, shop or game still does
+not activate it automatically. Verify hand capacity and pickup ownership at the
+moment of collection rather than consuming the jug merely because it was nearby.
+
+### First-person cornhole
+
+**Gary's proposal, November 18, 2026:** cornhole could become a first-person
+participation activity. The controls remain an open design question. This is an
+activity-specific view, not a decision to make all walking first-person.
+
+Assistant recommendation: prototype the pleasure of one physical throw before
+designing a large minigame. Let Gary stand beside the board, look toward the far
+board, see the bag in his hand and make a readable, weighty toss. Preserve the
+shared game/turn ownership described above; a camera change alone does not make
+an NPC game player-controlled.
+
+A candidate control scheme to test:
+
+- Mouse: move to aim, then hold and release the primary button to set power and
+  throw. Keep aiming and charge feedback legible without requiring a perfect
+  timed release.
+- Touch: drag the view to aim, then hold and release a distinct Throw control.
+  Give that finger its own ownership so charging does not also move the camera.
+  Begin with this predictable scheme before evaluating a flick gesture whose
+  sensitivity could vary with screen size and grip.
+- Both: provide a clear cancel before release and an explicit leave-game action.
+  Decide whether aim stays adjustable during charge, how assistance works and
+  how much trajectory preview belongs in the festival. These are prototype
+  questions, not accepted bindings.
+
+Joining requires one free hand, and the bag itself needs
+ownership during aim, charge, flight and resolution. Leaving mid-throw must
+restore the walking camera/input and resolve the bag and turn consistently.
+Keep the first proof small: join, aim, toss, observe the landing and score, then
+leave cleanly. Preserve forgiving festival participation rather than requiring
+a separate competitive progression system.
+
+### Human smiles and emotes
+
+**Gary's exploratory idea, November 18, 2026:** on-foot Gary could collect smiles
+through interactions, rather than generating them passively by being present.
+An emote menu inspired by Minecraft could offer dance moves and other expressive
+actions, with additional emotes earned during play. Reward rules, acquisition,
+controls and the specific emotes remain exploratory; this is not implementation
+approval or a commitment to a separate progression system.
+
+**Confirmed direction:** mostly choose a move and enjoy the scene, with some
+watching others and joining what they are doing. Gary wants this relaxed and fun,
+rather than a rhythm/timing performance test. New moves should arrive as a
+surprise from joining activities, without advertised learning objectives or a
+checklist. The endorsed subtle outlines below provide one participation cue;
+the broader invitation language and smile rules outside yoga remain open.
+Compare a quick selector inspired by Zelda's weapon selection with other
+interfaces suited to touch, as recorded below.
+
+**Assistant proposals, not settled reward rules:** recognize a shared moment,
+such as returning a wave, dancing alongside someone, cheering together or
+finishing a friendly cornhole exchange. Do not award a smile for every button
+press or multiply rewards by the number of nearby spectators. Rare moves need
+not earn more smiles than familiar ones. Some activities can remain entirely
+unrewarded. A new move could arrive after joining a dance or spending time with
+a group, with a small acknowledgment after the moment rather than an advance
+unlock advertisement. Exact conditions and repeat-reward limits remain open.
+
+Invitations can also come from the scene: a dancer making room, a returned wave,
+an available mat or an NPC demonstrating a move. These are proposals to test
+alongside outlines, not promises that every gathering teaches something. Keep
+the contextual action for joining or sitting separate from the Moves control
+for expressing yourself, so opening favorites does not become necessary for
+every object interaction.
+
+Preserve the accepted hand constraints when
+exploring expressive actions; an emote cannot silently discard a held jug or bypass
+an activity's free-hand requirement.
+
+### Yoga participation and optional matching
+
+**November 18 follow-up:** Gary is comfortable joining yoga and simply watching
+the character participate; not every activity needs a reward. Choosing a pose
+could be optional. A tentative alternative is for the same move selector to show
+yoga poses during the session, allowing the player to recognize and match the
+teacher or class within a forgiving window for a small bonus, possibly a smile.
+This must retain the relaxed character of participation rather than becoming a
+dedicated yoga minigame. Gary subsequently endorsed occasional smiles during the
+session, rather than a reward for every matching pose. Matching mechanics and the
+exact recognition/reward cadence still need exploration.
+
+Design questions include automatic following versus deliberately selected poses,
+how to return to following after a manual choice, how occasional shared moments
+are recognized, and how the player recognizes the reference
+pose. Automatic following must not accidentally satisfy a deliberate-match bonus.
+The existing [pose renderer](../../src/models/healingArts.js) cycles participants
+with individual phase offsets; a clear teacher/shared target pose and an explicit
+pose identity would be new behavior, not an existing scored activity.
+
+### Highlighting interaction targets
+
+**Gary's endorsed visual direction:** nearby objects or opportunities could stand out
+with a subtle outline that follows the projected shape of their 3D geometry.
+This is a selection/discovery cue, not an overhead objective marker or a promise
+of an unlock. Exact reach, targeting, appearance and rendering method are open.
+
+Assistant recommendations to prototype: highlight a nearby, visible intended
+target, retain it stably while the camera shifts slightly, pair it with a short
+action label, and let occluding scenery hide the highlight. Outline the actual
+interaction target, such as a free mat or chair, rather than a whole tent.
+A world-space edge around a flat mat may supply the desired appearance without
+a general silhouette effect. A true silhouette on more complex objects needs
+phone-tier measurement before selecting a rendering approach.
+
+The [mat renderer](../../src/models/healingArts.js) uses an InstancedMesh for the
+mat collection. Selecting one mat therefore requires an instance-specific cue
+or proxy; selecting the shared mesh for an object-outline effect would not express
+the intended single-mat selection. No outline feature is implemented here.
+
+### Moves menu comparison
+
+Gary requested a phone-sized comparison of a six-slot wheel and a six-card tray.
+Both should use the same example moves and expose the same functionality so
+visual preference is not confused with a different feature set. The layout is
+not selected. Keep familiar favorites stable; a new unlock should not silently
+replace or move an existing shortcut.
+
+The comparison explores selecting a move, returning to the world and reopening
+the picker. It also explores switching the same picker to yoga poses during
+participation and explaining hand restrictions. Candidate hand requirements for
+individual emotes remain proposals; only cornhole/food ordering's one-free-hand
+rule is settled.
+
+The wheel suggests directional/drag selection, while the tray offers larger
+labeled cards and readable pose previews. Both need deliberate cancellation and
+phone testing. The full collection/favorite-management interface remains a
+separate design question. This is a visual conversation prototype, not shipped
+input code or a usability/performance acceptance result.
+
+Saved comparison views: [six-slot wheel](moves-menu/wheel.jpg) and
+[six-card tray](moves-menu/tray.jpg). These use illustrative figures and a
+simplified scene, not captures of implemented walking gameplay. Both examples
+use Wave, Clap, Shuffle, Cheer, Stretch and Goofy dance. The interactive
+conversation preview also offers a yoga set and occupied-hand variations.
+
+Initial assistant preference is the tray for reading names and recognizing poses;
+the wheel offers the possibility of fast directional selection once positions
+are familiar. That tradeoff still requires Gary's preference and physical-phone
+testing. Selection, reopening, cancellation and the narrow layout were checked
+in a browser; no physical touch, wheel-drag, reward or game integration claim is
+implied by those checks.
+
+**Gary's subsequent direction, November 18:** the wheel should float directly
+over the world without the rectangular background and border shown in the
+comparison. Explore an Apple Liquid Glass-inspired circular surface with some
+transparency, background blur and a restrained light-bending/refraction effect,
+so the scene remains slightly visible through it. It should emerge from the
+Moves button. Gary proposed leaving it open until explicitly closed or tapped
+outside; this supersedes the prototype's automatic dismissal on selection as
+the next behavior to explore. Whether selecting or changing a move keeps it
+open, and how outside taps avoid accidental world actions, need deliberate
+design. The precise visual treatment, accessibility fallback and phone rendering
+cost remain undecided. Do not revise the prototype or implement this effect yet.
+
+The saved comparison is an earlier exploration, not the accepted visual target.
+The wheel has this new direction; a final wheel-versus-tray decision remains
+open and is tabled with the rest of the moves-menu project.
+
+### Separate projects and Gary's movement foundation
+
+**Gary's requested pacing, November 18:** table the moves menu, first-person
+cornhole and walking gameplay as separate small projects, developing each piece
+with care and iteration rather than implementing the whole wishlist together.
+The ideas remain recorded here, but are not an active implementation request.
+
+Gary suggested an early modeling session to establish the character's appearance
+and an appropriate skeleton/rig before building out movements. Explore the
+character in isolation first, reviewing proportions, joint placement and how the
+body reads at game-camera distance. A skeletal rig versus a procedural joint
+hierarchy is an open implementation decision, not a chosen asset pipeline.
+
+Develop and review a small movement vocabulary incrementally: standing idle and
+looking around, then walking and running, followed by individual actions such as
+throwing a cornhole sack and waving. These are iteration candidates rather than
+a required batch or fixed sequence. Check transitions, feet meeting the ground,
+hand placement and Gary's personality as each movement takes shape. Carrying
+jugs, sitting and yoga can later build on the approved foundation instead of
+forcing every activity into the initial modeling session.
+
+The character study should inform later walking controls and activity work;
+it does not by itself settle camera, collision, animation blending, first-person
+throwing or parked-cart ownership. Establish the visual/movement foundation,
+then prove one complete walking interaction, and develop cornhole and the moves
+picker in their own bounded iterations. Exact scope and order will be chosen
+when each project is resumed.
+
+### Summoning Zerble as a companion
+
+**Separate future project, endorsed November 18:** Gary can call Zerble after
+wandering on foot, so exploring does not turn the return trip into a chore.
+Zerble should feel like Gary's little companion: Gary whistles, Zerble answers
+with a beep, then comes to meet him. This character direction and the
+whistle-and-beep exchange are accepted; autonomous pickup is not implemented
+or authorized by this record.
+
+The proposed arrival is a physical drive to a safe nearby pickup spot, respecting
+terrain, obstacles and people rather than driving through an activity to reach
+Gary's exact position. A nearby path rendezvous could serve inaccessible places.
+Routing, arrival behavior, cancellation and the controls for calling remain
+future design work, separate from the initial walking/modeling project.
+
+Keep these questions explicitly open:
+
+- **Passengers:** can Zerble be summoned while occupied, and what happens to
+  riders, their destination, boarding, quest clocks and an interrupted pickup?
+- **Getting stuck and recovery:** what happens when Zerble cannot find a route,
+  becomes stuck en route or cannot reach a safe pickup spot? A brief transition
+  that relocates him safely out of view was proposed as a fallback, but is not
+  an accepted recovery rule.
+
+Earlier assistant suggestions included avoiding fuel costs, cooldowns and
+distance penalties, plus providing a clear cart-location cue and a reliable
+return-to-Zerble option before autonomous pickup. These remain recommendations,
+not settled mechanics or prerequisites. Walking should be developed and tested
+independently of the eventual companion-summoning system.
 
 ### Mode changes and passenger quests
 
